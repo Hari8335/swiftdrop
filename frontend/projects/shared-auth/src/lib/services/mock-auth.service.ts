@@ -10,6 +10,7 @@ import {
   ResetPasswordResponse,
   TokenRefreshResponse,
   User,
+  VerifyResetCodeRequest,
 } from '../models/auth.models';
 
 export const MOCK_USERS: Record<string, User> = {
@@ -129,8 +130,22 @@ export class MockAuthService {
       })).pipe(delay(200));
     }
     return of({
-      message: 'Password has been successfully reset. Please log in with your new password.',
+      message: 'Password has been successfully reset.',
+      accessToken: 'mock-reset-token',
+      tokenType: 'Bearer',
+      expiresIn: 900,
+      user: MOCK_USERS['customer'],
     }).pipe(delay(200));
+  }
+
+  verifyResetCode(data: VerifyResetCodeRequest): Observable<ForgotPasswordResponse> {
+    if (!/^\d{6}$/.test(data.token)) {
+      return throwError(() => ({
+        status: 400,
+        error: { code: 'INVALID_RESET_TOKEN', message: 'Invalid, expired, or already-used reset code.' },
+      })).pipe(delay(200));
+    }
+    return of({ message: 'Reset code verified.' }).pipe(delay(200));
   }
 
   refreshToken(): Observable<TokenRefreshResponse> {

@@ -23,7 +23,13 @@ public interface AuthProvisioningClient {
                                String expectedUserId, String actorId) {}
     record ReplacementRequest(UUID replacementId, String actorId, boolean confirmReplacement) {}
     record ProvisioningResponse(UUID operationId, UUID merchantId, AuthUserResponse user, String clientId,
-                                String clientSecret, boolean credentialRecoveryRequired) {
+                                String clientSecret, boolean credentialRecoveryRequired,
+                                boolean mustChangePassword, String temporaryPassword) {
+        public ProvisioningResponse(UUID operationId, UUID merchantId, AuthUserResponse user, String clientId,
+                                    String clientSecret, boolean credentialRecoveryRequired) {
+            this(operationId, merchantId, user, clientId, clientSecret, credentialRecoveryRequired, false, null);
+        }
+
         @Override public String toString() { return "ProvisioningResponse[operationId=" + operationId + ", credentialRecoveryRequired=" + credentialRecoveryRequired + "]"; }
     }
 }

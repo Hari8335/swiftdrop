@@ -105,6 +105,9 @@ public class RestParcelServiceClient implements ParcelServiceClient {
                 })
                 .body(ParcelResponse.class);
         } catch (ResponseStatusException rse) {
+            if (rse.getStatusCode().value() == 401 || rse.getStatusCode().value() == 403) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found with ID: " + parcelId);
+            }
             throw rse;
         } catch (ResourceAccessException rae) {
             log.error("Network failure fetching parcel {} from public endpoint: {}", parcelId, rae.getMessage());

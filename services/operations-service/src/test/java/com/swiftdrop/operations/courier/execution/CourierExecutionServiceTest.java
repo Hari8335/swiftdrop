@@ -85,6 +85,45 @@ class CourierExecutionServiceTest {
     }
 
     @Test
+    @DisplayName("Status transition: courier confirms pickup CREATED -> PICKED_UP")
+    void testConfirmPickupTransition() {
+        ParcelResponse createdParcel = createMockParcel(COURIER_A, "CREATED");
+        ParcelResponse pickedUpParcel = createMockParcel(COURIER_A, "PICKED_UP");
+
+        when(parcelServiceClient.getParcel(PARCEL_ID)).thenReturn(createdParcel);
+        when(parcelServiceClient.updateStatus(eq(PARCEL_ID), any())).thenReturn(pickedUpParcel);
+
+        CourierStatusUpdateRequest request = new CourierStatusUpdateRequest("PICKED_UP", null, null, "pickup-key-1");
+        CourierStatusUpdateResponse response = courierExecutionService.updateDeliveryStatus(COURIER_A, PARCEL_ID, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.previousStatus()).isEqualTo("CREATED");
+        assertThat(response.currentStatus()).isEqualTo("PICKED_UP");
+        assertThat(response.allowedNextStatuses()).containsExactly("IN_TRANSIT");
+        verify(parcelServiceClient).updateStatus(eq(PARCEL_ID), any());
+    }
+
+    @Test
+    @DisplayName("Status transition: confirms pickup falls back to courier query when getParcel returns 401 or 404")
+    void testConfirmPickupFallsBackToCourierQuery() {
+        ParcelResponse createdParcel = createMockParcel(COURIER_A, "CREATED");
+        ParcelResponse pickedUpParcel = createMockParcel(COURIER_A, "PICKED_UP");
+
+        when(parcelServiceClient.getParcel(PARCEL_ID)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+        when(parcelServiceClient.getParcelsByCourierAndDate(COURIER_A, null))
+            .thenReturn(new ParcelPageResponse(List.of(createdParcel), 1, 1, 100, 0));
+        when(parcelServiceClient.updateStatus(eq(PARCEL_ID), any())).thenReturn(pickedUpParcel);
+
+        CourierStatusUpdateRequest request = new CourierStatusUpdateRequest("PICKED_UP", null, null, "pickup-key-2");
+        CourierStatusUpdateResponse response = courierExecutionService.updateDeliveryStatus(COURIER_A, PARCEL_ID, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.previousStatus()).isEqualTo("CREATED");
+        assertThat(response.currentStatus()).isEqualTo("PICKED_UP");
+        verify(parcelServiceClient).updateStatus(eq(PARCEL_ID), any());
+    }
+
+    @Test
     @DisplayName("Ownership check: Courier B cannot update Courier A's delivery")
     void ownershipCheckMustRejectMismatchedCourier() {
         ParcelResponse parcelOwnedByA = createMockParcel(COURIER_A, "OUT_FOR_DELIVERY");

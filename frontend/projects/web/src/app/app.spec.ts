@@ -106,6 +106,17 @@ describe('App', () => {
     expect(compiled.querySelector('header')).toBeFalsy();
   });
 
+  it('should hide the global top bar and page padding on merchant routes', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    jest.spyOn(app, 'isMerchantPage').mockReturnValue(true);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('header')).toBeFalsy();
+    expect(compiled.querySelector('main')?.classList.contains('p-6')).toBe(false);
+  });
+
   it('should show top bar navigation on non-auth signed-in routes', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
@@ -114,6 +125,18 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelector('header')).toBeTruthy();
+  });
+
+  it('should render the persistent admin top bar on admin routes', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('header')).toBeTruthy();
+    expect(compiled.textContent).toContain('Search staff, merchants, reports');
+    expect(compiled.textContent).toContain('Sign out');
   });
 
   it('should call authService.logout() and redirect to landing page on logout', () => {

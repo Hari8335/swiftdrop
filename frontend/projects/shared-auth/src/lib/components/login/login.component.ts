@@ -754,6 +754,16 @@ export class LoginComponent implements OnInit {
     this.authService.login(this.loginForm.value).subscribe({
       next: (response) => {
         this.isLoading.set(false);
+        if (response.mustChangePassword) {
+          this.router.navigate(['/reset-password'], {
+            queryParams: {
+              email: response.user.email,
+              firstLogin: 'true',
+              role: response.user.role,
+            },
+          });
+          return;
+        }
         const role = response.user.role?.toLowerCase() || this.selectedRole().toLowerCase();
         const target = role === 'dispatcher' ? '/dispatch' : `/${role}`;
         this.router.navigate([target]);

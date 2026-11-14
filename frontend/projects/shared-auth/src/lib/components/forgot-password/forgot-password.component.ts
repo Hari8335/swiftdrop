@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -14,7 +14,7 @@ import { AuthService } from '../../services/auth.service';
         <div class="auth-header">
           <div class="brand-badge">SwiftDrop</div>
           <h2>Reset your password</h2>
-          <p>Enter your email address and we'll send you instructions to reset your password.</p>
+          <p>Enter your email address and we'll send a 6-digit reset code.</p>
         </div>
 
         @if (successMessage()) {
@@ -57,9 +57,9 @@ import { AuthService } from '../../services/auth.service';
               [disabled]="forgotForm.invalid || isLoading()"
             >
               @if (isLoading()) {
-                <span class="spinner"></span> Sending instructions...
+                <span class="spinner"></span> Sending reset code...
               } @else {
-                Send reset link
+                Reset password
               }
             </button>
           </form>
@@ -273,6 +273,7 @@ import { AuthService } from '../../services/auth.service';
 export class ForgotPasswordComponent {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
 
   readonly isLoading = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -300,6 +301,9 @@ export class ForgotPasswordComponent {
       next: (response) => {
         this.isLoading.set(false);
         this.successMessage.set(response.message || 'If an account exists with this email, password reset instructions have been sent.');
+        this.router.navigate(['/reset-password'], {
+          queryParams: { email: this.forgotForm.value.email },
+        });
       },
       error: (err) => {
         this.isLoading.set(false);

@@ -51,14 +51,17 @@ public class MerchantProvisioningService {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         var users = jdbc.queryForList("select id, email, role from users where merchant_id=?", merchant);
         String user;
+        String temporaryPasswordForResult = null;
         if (users.isEmpty()) {
             if (Boolean.TRUE.equals(jdbc.queryForObject("select exists(select 1 from users where lower(email)=?)", Boolean.class, email))) {
                 throw conflict("Email belongs to an existing account without this merchant association");
             }
             if (request.expectedUserId() != null) throw conflict("Expected merchant user was not found");
             user = "usr-" + UUID.randomUUID();
-            jdbc.update("insert into users(id,email,full_name,phone_number,role,enabled,merchant_id,created_at,updated_at) values (?,?,?,?,'MERCHANT',true,?,current_timestamp,current_timestamp)",
-                    user, email, request.fullName().trim(), request.phoneNumber().trim(), merchant);
+            String temporaryPassword = String.format("%06d", random.nextInt(1_000_000));
+            jdbc.update("insert into users(id,email,password_hash,full_name,phone_number,role,enabled,merchant_id,must_change_password,created_at,updated_at) values (?,?,?,?,?,'MERCHANT',true,?,true,current_timestamp,current_timestamp)",
+                    user, email, passwords.encode(temporaryPassword), request.fullName().trim(), request.phoneNumber().trim(), merchant);
+            temporaryPasswordForResult = temporaryPassword;
         } else {
             if (users.size() != 1 || !email.equals(users.getFirst().get("email")) || !"MERCHANT".equals(users.getFirst().get("role"))) {
                 throw conflict("Merchant account association is ambiguous or does not match");
@@ -84,19 +87,19 @@ public class MerchantProvisioningService {
         jdbc.update("insert into merchant_provisioning(operation_id,merchant_id,request_hash,user_id,client_id,actor_id) values (?,?,?,?,?,?)",
                 operation, merchant, fingerprint, user, client, request.actorId());
         event(operation, null, request.actorId(), "PROVISIONED");
-        return result(operation, secret);
+        return result(operation, secret, temporaryPasswordForResult);
     }
 
     @Transactional(readOnly = true)
-    public Result status(UUID operation) { return result(operation, null); }
+    public Result status(UUID operation) { return result(operation, null, null); }
 
     @Transactional
     public Result replace(UUID operation, MerchantProvisioningController.ReplacementRequest request) {
         if (!Boolean.TRUE.equals(request.confirmReplacement())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Explicit credential replacement confirmation is required");
-        Result initial = result(operation, null);
+        Result initial = result(operation, null, null);
         lock(initial.merchantId().toString());
         lock("replacement:" + request.replacementId());
-        Result current = result(operation, null);
+        Result current = result(operation, null, null);
         var previous = jdbc.queryForList("select operation_id from merchant_credential_replacements where replacement_id=?", request.replacementId());
         if (!previous.isEmpty()) {
             if (!operation.equals(previous.getFirst().get("operation_id"))) throw conflict("Replacement identity belongs to another operation");
@@ -111,13 +114,13 @@ public class MerchantProvisioningService {
         jdbc.update("insert into merchant_credential_replacements(replacement_id,operation_id,actor_id) values (?,?,?)",
                 request.replacementId(), operation, request.actorId());
         event(operation, request.replacementId(), request.actorId(), "CREDENTIAL_REPLACED");
-        return result(operation, secret);
+        return result(operation, secret, null);
     }
 
-    private Result result(UUID operation, String secret) {
+    private Result result(UUID operation, String secret, String temporaryPassword) {
         List<Result> rows = jdbc.query("""
                 select p.merchant_id, p.client_id, u.id, u.email, u.full_name, u.phone_number,
-                       u.role, u.enabled, u.merchant_id as user_merchant_id, u.created_at
+                       u.role, u.enabled, u.merchant_id as user_merchant_id, u.must_change_password, u.created_at
                 from merchant_provisioning p join users u on u.id=p.user_id
                 join clients c on c.client_id=p.client_id and c.merchant_id=p.merchant_id
                 where p.operation_id=?
@@ -129,7 +132,8 @@ public class MerchantProvisioningService {
                     new InternalUserResponse(rs.getString("id"), rs.getString("email"), rs.getString("full_name"),
                             rs.getString("phone_number"), rs.getString("role"), rs.getString("merchant_id"),
                             rs.getBoolean("enabled"), rs.getTimestamp("created_at").toInstant()),
-                    rs.getString("client_id"), secret, secret == null);
+                    rs.getString("client_id"), secret, secret == null, rs.getBoolean("must_change_password"),
+                    temporaryPassword);
         }, operation);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Provisioning operation not found");
         return rows.getFirst();
@@ -154,7 +158,8 @@ public class MerchantProvisioningService {
     }
     private ResponseStatusException conflict(String message) { return new ResponseStatusException(HttpStatus.CONFLICT, message); }
     public record Result(UUID operationId, UUID merchantId, InternalUserResponse user, String clientId,
-                         String clientSecret, boolean credentialRecoveryRequired) {
+                         String clientSecret, boolean credentialRecoveryRequired,
+                         boolean mustChangePassword, String temporaryPassword) {
         @Override public String toString() { return "ProvisioningResult[operationId=" + operationId + ", credentialRecoveryRequired=" + credentialRecoveryRequired + "]"; }
     }
 }

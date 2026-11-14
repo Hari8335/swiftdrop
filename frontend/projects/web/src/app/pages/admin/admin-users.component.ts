@@ -14,34 +14,29 @@ import { AdminUsersService } from './admin-users.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div class="max-w-7xl mx-auto space-y-6 pb-16 px-4 sm:px-6">
-      <!-- Top Bar Header (SwiftDrop Brand Theme) -->
+    <div class="mx-auto max-w-[1320px] space-y-6 pb-16 text-[#211f32]">
+      <!-- Top Bar Header -->
       <div
-        class="bg-white rounded-2xl shadow-sm border border-[#f0ebe5] p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4"
+        class="flex flex-col justify-between gap-4 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-7 shadow-[0_8px_24px_rgba(42,32,25,0.04)] md:flex-row md:items-center"
       >
-        <div class="flex items-center gap-3.5">
+        <div class="flex items-center gap-4">
           <div
-            class="w-12 h-12 rounded-2xl bg-[#a53a26] flex items-center justify-center text-white shadow-md shadow-[#a53a26]/20 text-xl font-black"
+            class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#9b432f] text-xl font-black text-white shadow-[0_8px_18px_rgba(155,67,47,0.2)]"
           >
-            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
+            <span class="h-6 w-6 bg-current [mask-image:url('/staff-admin-icon.png')] [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] [-webkit-mask-image:url('/staff-admin-icon.png')] [-webkit-mask-position:center] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:contain]" aria-hidden="true"></span>
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <h1 class="text-xl sm:text-2xl font-extrabold text-[#1d1b2c] tracking-tight">
+              <h1 class="text-2xl font-black tracking-tight text-[#211f32]">
                 Staff User Administration
               </h1>
               <span
-                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#a53a26]/10 text-[#a53a26] border border-[#a53a26]/20"
+                class="inline-flex items-center rounded-full border border-[#efcfc3] bg-[#fff5ef] px-2 py-0.5 text-xs font-bold text-[#9b432f]"
               >
-                ADMIN Only • Port 8081
+                ADMIN Only
               </span>
             </div>
-            <p class="text-xs sm:text-sm text-[#6f6d85] font-medium mt-0.5">
+            <p class="text-xs font-medium text-[#77748a] sm:text-sm">
               SwiftDrop Governance: Provision & Manage COURIER and DISPATCHER Accounts
             </p>
           </div>
@@ -50,7 +45,7 @@ import { AdminUsersService } from './admin-users.service';
         <div class="flex items-center gap-3">
           <a
             routerLink="/admin"
-            class="px-4 py-2.5 rounded-xl border border-[#f0ebe5] text-[#6f6d85] hover:text-[#1d1b2c] hover:bg-[#faf8f6] text-sm font-semibold transition-colors"
+            class="rounded-full border border-[#e8e4df] px-4 py-2.5 text-sm font-bold text-[#77748a] transition hover:border-[#d7b4a7] hover:text-[#9b432f]"
           >
             ← Admin Overview
           </a>
@@ -58,9 +53,9 @@ import { AdminUsersService } from './admin-users.service';
             type="button"
             id="open-create-user-modal-btn"
             (click)="openCreateUserModal()"
-            class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white font-semibold text-sm shadow-sm shadow-[#a53a26]/20 transition-colors cursor-pointer"
+            class="inline-flex items-center justify-center gap-2 rounded-full bg-[#9b432f] px-4 py-2.5 text-sm font-bold text-white shadow-[0_7px_16px_rgba(155,67,47,0.18)] transition hover:bg-[#833724]"
           >
-            <span>➕</span>
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
             <span>Provision Staff Member</span>
           </button>
         </div>
@@ -69,24 +64,25 @@ import { AdminUsersService } from './admin-users.service';
       <!-- Toast Feedback -->
       <div
         *ngIf="toastMessage()"
-        class="p-4 rounded-xl text-sm font-semibold flex items-center justify-between border animate-fade-in"
-        [class.bg-emerald-50]="toastType() === 'success'"
-        [class.text-emerald-800]="toastType() === 'success'"
-        [class.border-emerald-200]="toastType() === 'success'"
-        [class.bg-rose-50]="toastType() === 'error'"
-        [class.text-rose-800]="toastType() === 'error'"
-        [class.border-rose-200]="toastType() === 'error'"
+        class="flex items-center justify-between rounded-2xl border p-4 text-sm font-semibold animate-fade-in"
+        [class.bg-green-50]="toastType() === 'success'"
+        [class.text-green-800]="toastType() === 'success'"
+        [class.border-green-200]="toastType() === 'success'"
+        [class.bg-red-50]="toastType() === 'error'"
+        [class.text-red-800]="toastType() === 'error'"
+        [class.border-red-200]="toastType() === 'error'"
       >
         <div class="flex items-center gap-2">
-          <span>{{ toastType() === 'success' ? '✅' : '⚠️' }}</span>
+          <svg *ngIf="toastType() === 'success'" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+          <svg *ngIf="toastType() === 'error'" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg>
           <span>{{ toastMessage() }}</span>
         </div>
         <button
           type="button"
           (click)="toastMessage.set(null)"
-          class="text-xs hover:opacity-75 font-bold cursor-pointer"
+          class="text-xs hover:opacity-75 font-bold"
         >
-          ✕
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
         </button>
       </div>
 
@@ -94,17 +90,17 @@ import { AdminUsersService } from './admin-users.service';
       <div
         *ngIf="adminUsersService.error() && !adminUsersService.loading()"
         id="admin-users-error"
-        class="p-4 rounded-xl text-sm font-semibold flex items-center justify-between border bg-rose-50 text-rose-800 border-rose-200"
+        class="flex items-center justify-between rounded-2xl border border-[#efc7c2] bg-[#fff4f2] p-4 text-sm font-semibold text-[#b23b32]"
       >
         <div class="flex items-center gap-2">
-          <span>⚠️</span>
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg>
           <span>{{ adminUsersService.error() }}</span>
         </div>
         <button
           type="button"
           id="admin-users-retry-btn"
           (click)="reloadUsers()"
-          class="px-3 py-1 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors cursor-pointer"
+          class="rounded-full bg-[#b23b32] px-3 py-1 text-xs font-bold text-white transition hover:bg-[#922d27]"
         >
           Retry
         </button>
@@ -112,14 +108,14 @@ import { AdminUsersService } from './admin-users.service';
 
       <!-- User Filters & Total Stats -->
       <div
-        class="bg-white rounded-2xl shadow-sm border border-[#f0ebe5] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        class="flex flex-col justify-between gap-3 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-5 shadow-[0_8px_24px_rgba(42,32,25,0.04)] sm:flex-row sm:items-center"
       >
         <div class="flex items-center gap-3 flex-1 flex-wrap">
           <select
             id="user-role-filter"
             [ngModel]="userRoleFilter()"
             (ngModelChange)="onRoleFilterChange($event)"
-            class="px-3.5 py-2 rounded-xl border border-[#f0ebe5] text-sm focus:outline-none focus:ring-2 focus:ring-[#a53a26] bg-[#faf8f6] text-[#1d1b2c] font-medium"
+            class="rounded-full border border-[#e8e4df] bg-[#fbfaf8] px-3 py-2 text-sm outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
           >
             <option value="">All Roles</option>
             <option value="ADMIN">ADMIN</option>
@@ -131,7 +127,7 @@ import { AdminUsersService } from './admin-users.service';
             id="user-status-filter"
             [ngModel]="userStatusFilter()"
             (ngModelChange)="onStatusFilterChange($event)"
-            class="px-3.5 py-2 rounded-xl border border-[#f0ebe5] text-sm focus:outline-none focus:ring-2 focus:ring-[#a53a26] bg-[#faf8f6] text-[#1d1b2c] font-medium"
+            class="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
           >
             <option value="">All Statuses</option>
             <option value="true">Active Accounts Only</option>
@@ -141,15 +137,16 @@ import { AdminUsersService } from './admin-users.service';
           <button
             type="button"
             (click)="reloadUsers()"
-            class="px-3.5 py-2 rounded-xl border border-[#f0ebe5] text-[#6f6d85] hover:text-[#1d1b2c] hover:bg-[#faf8f6] text-xs font-semibold transition-colors cursor-pointer"
+            class="rounded-full border border-[#e8e4df] px-3 py-2 text-xs font-bold text-[#77748a] transition hover:border-[#d7b4a7] hover:text-[#9b432f]"
             title="Refresh User List"
           >
-            🔄 Refresh
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-4L3 10"/><path d="M3 5v5h5"/><path d="M4 13a8 8 0 0 0 14.8 4L21 14"/><path d="M21 19v-5h-5"/></svg>
+            Refresh
           </button>
         </div>
 
-        <p class="text-xs text-[#6f6d85] font-medium">
-          Total Staff & Users: <strong class="text-[#1d1b2c]">{{ adminUsersService.totalElements() }}</strong>
+        <p class="text-xs font-medium text-[#77748a]">
+          Total Staff & Users: <strong class="text-[#211f32]">{{ adminUsersService.totalElements() }}</strong>
         </p>
       </div>
 
@@ -157,21 +154,21 @@ import { AdminUsersService } from './admin-users.service';
       <div
         *ngIf="adminUsersService.loading()"
         id="admin-users-loading"
-        class="bg-white rounded-2xl border border-[#f0ebe5] p-12 text-center shadow-sm"
+        class="rounded-[1.5rem] border border-[#e9e3dd] bg-white p-12 text-center shadow-[0_8px_24px_rgba(42,32,25,0.04)]"
       >
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#a53a26] border-t-transparent mb-3"></div>
-        <p class="text-sm font-semibold text-[#6f6d85]">Loading user accounts from auth service...</p>
+        <div class="mb-3 inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#9b432f] border-t-transparent"></div>
+        <p class="text-sm font-semibold text-[#77748a]">Loading user accounts from auth service...</p>
       </div>
 
       <!-- Users Table -->
       <div
         *ngIf="!adminUsersService.loading()"
-        class="bg-white rounded-2xl border border-[#f0ebe5] shadow-sm overflow-hidden"
+        class="overflow-hidden rounded-[1.5rem] border border-[#e9e3dd] bg-white shadow-[0_8px_24px_rgba(42,32,25,0.04)]"
       >
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs sm:text-sm">
             <thead
-              class="bg-[#faf8f6] border-b border-[#f0ebe5] text-[#6f6d85] font-bold uppercase tracking-wider text-[11px]"
+              class="border-b border-[#eeeae5] bg-[#f8f6f3] text-[11px] font-bold uppercase tracking-wider text-[#77748a]"
             >
               <tr>
                 <th class="px-5 py-3.5">User</th>
@@ -181,24 +178,24 @@ import { AdminUsersService } from './admin-users.service';
                 <th class="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-[#f0ebe5] text-[#1d1b2c]">
+            <tbody class="divide-y divide-[#eeeae5] text-[#211f32]">
               <tr
                 *ngFor="let user of adminUsersService.users()"
-                class="hover:bg-[#faf8f6] transition-colors"
+                class="transition-colors hover:bg-[#fffaf7]"
               >
                 <td class="px-5 py-4">
-                  <div class="font-extrabold text-[#1d1b2c]">{{ user.fullName }}</div>
-                  <div class="text-xs text-[#6f6d85] font-medium">{{ user.email }}</div>
+                  <div class="font-extrabold text-slate-900">{{ user.fullName }}</div>
+                  <div class="text-xs text-slate-400 font-medium">{{ user.email }}</div>
                 </td>
-                <td class="px-5 py-4 font-mono text-xs text-[#6f6d85]">
+                <td class="px-5 py-4 font-mono text-xs text-slate-600">
                   {{ user.phoneNumber }}
                 </td>
                 <td class="px-5 py-4">
                   <span
                     class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border"
-                    [class.bg-[#a53a26]/10]="user.role === 'ADMIN'"
-                    [class.text-[#a53a26]]="user.role === 'ADMIN'"
-                    [class.border-[#a53a26]/20]="user.role === 'ADMIN'"
+                    [class.bg-purple-50]="user.role === 'ADMIN'"
+                    [class.text-purple-700]="user.role === 'ADMIN'"
+                    [class.border-purple-200]="user.role === 'ADMIN'"
                     [class.bg-blue-50]="user.role === 'DISPATCHER'"
                     [class.text-blue-700]="user.role === 'DISPATCHER'"
                     [class.border-blue-200]="user.role === 'DISPATCHER'"
@@ -227,7 +224,7 @@ import { AdminUsersService } from './admin-users.service';
                     [attr.id]="'toggle-user-' + user.id + '-btn'"
                     [disabled]="updatingUserId() === user.id"
                     (click)="toggleUserStatus(user)"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     [class.border-rose-200]="user.enabled"
                     [class.text-rose-600]="user.enabled"
                     [class.hover:bg-rose-50]="user.enabled"
@@ -250,18 +247,18 @@ import { AdminUsersService } from './admin-users.service';
         <div
           *ngIf="adminUsersService.users().length === 0"
           id="admin-users-empty"
-          class="p-12 text-center text-[#6f6d85]"
+          class="p-12 text-center text-slate-500"
         >
-          <p class="text-base font-bold text-[#1d1b2c]">No users found</p>
-          <p class="text-xs text-[#6f6d85] mt-1">Try clearing or adjusting your search filters.</p>
+          <p class="text-base font-bold text-slate-700">No users found</p>
+          <p class="text-xs text-slate-400 mt-1">Try clearing or adjusting your search filters.</p>
         </div>
 
         <!-- Pagination Controls -->
         <div
           *ngIf="adminUsersService.totalPages() > 1"
-          class="p-4 bg-[#faf8f6] border-t border-[#f0ebe5] flex items-center justify-between text-xs"
+          class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs"
         >
-          <span id="page-info" class="text-[#6f6d85] font-medium">
+          <span id="page-info" class="text-slate-500 font-medium">
             Page <strong>{{ adminUsersService.currentPage() + 1 }}</strong> of <strong>{{ adminUsersService.totalPages() }}</strong>
             ({{ adminUsersService.totalElements() }} users)
           </span>
@@ -271,7 +268,7 @@ import { AdminUsersService } from './admin-users.service';
               id="prev-page-btn"
               [disabled]="adminUsersService.currentPage() === 0"
               (click)="goToPage(adminUsersService.currentPage() - 1)"
-              class="px-3 py-1.5 rounded-lg border border-[#f0ebe5] bg-white font-semibold text-[#1d1b2c] hover:bg-[#faf8f6] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -280,7 +277,7 @@ import { AdminUsersService } from './admin-users.service';
               id="next-page-btn"
               [disabled]="adminUsersService.currentPage() >= adminUsersService.totalPages() - 1"
               (click)="goToPage(adminUsersService.currentPage() + 1)"
-              class="px-3 py-1.5 rounded-lg border border-[#f0ebe5] bg-white font-semibold text-[#1d1b2c] hover:bg-[#faf8f6] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
@@ -293,36 +290,37 @@ import { AdminUsersService } from './admin-users.service';
       <!-- ================================================================= -->
       <div
         *ngIf="isCreateUserModalOpen()"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/40 backdrop-blur-sm animate-fade-in"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm animate-fade-in"
       >
         <div
-          class="bg-white rounded-2xl shadow-xl border border-[#f0ebe5] w-full max-w-md p-6 space-y-4"
+          class="w-full max-w-md space-y-5 rounded-[1.5rem] border border-[#e9e3dd] bg-[#fbfaf8] p-7 shadow-[0_20px_50px_rgba(42,32,25,0.2)]"
         >
-          <div class="flex items-center justify-between border-b border-[#f0ebe5] pb-3">
+          <div class="flex items-center justify-between border-b border-[#e9e3dd] pb-4">
             <div>
-              <h3 class="text-base font-extrabold text-[#1d1b2c]">Provision Staff Account</h3>
-              <p class="text-xs text-[#6f6d85]">Create a COURIER or DISPATCHER account (Decision 001)</p>
+              <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#9b432f]">Staff management</p>
+              <h3 class="mt-1 text-xl font-black tracking-[-0.03em] text-[#211f32]">Provision staff account</h3>
+              <p class="mt-1 text-xs text-[#77748a]">Create a COURIER or DISPATCHER account.</p>
             </div>
             <button
               type="button"
               (click)="closeCreateUserModal()"
-              class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6f6d85] hover:text-[#1d1b2c] hover:bg-[#faf8f6] text-sm cursor-pointer"
+              class="flex h-9 w-9 items-center justify-center rounded-full text-[#77748a] transition hover:bg-[#f2e4de] hover:text-[#9b432f]"
             >
-              ✕
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
             </button>
           </div>
 
           <!-- Modal Error Banner -->
           <div
             *ngIf="modalError()"
-            class="p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200"
+            class="rounded-2xl border border-[#efc7c2] bg-[#fff4f2] p-3 text-xs font-semibold text-[#b23b32]"
           >
-            ⚠️ {{ modalError() }}
+            <svg class="mr-1 inline h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg>{{ modalError() }}
           </div>
 
           <form (ngSubmit)="submitCreateStaffUser()" class="space-y-3.5">
             <div>
-              <label class="block text-xs font-bold text-[#1d1b2c] mb-1">Full Name</label>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">Full Name</label>
               <input
                 type="text"
                 id="staff-fullname-input"
@@ -330,12 +328,12 @@ import { AdminUsersService } from './admin-users.service';
                 name="fullName"
                 required
                 placeholder="e.g. Sunil Perera"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-[#f0ebe5] text-sm focus:outline-none focus:ring-2 focus:ring-[#a53a26] bg-[#faf8f6] text-[#1d1b2c]"
+                class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none placeholder:text-[#aaa6b5] focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
               />
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-[#1d1b2c] mb-1">Email Address</label>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">Email Address</label>
               <input
                 type="email"
                 id="staff-email-input"
@@ -343,13 +341,13 @@ import { AdminUsersService } from './admin-users.service';
                 name="email"
                 required
                 placeholder="e.g. courier.sunil@swiftdrop.lk"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-[#f0ebe5] text-sm focus:outline-none focus:ring-2 focus:ring-[#a53a26] bg-[#faf8f6] text-[#1d1b2c]"
+                class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none placeholder:text-[#aaa6b5] focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
               />
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-[#1d1b2c] mb-1">
-                Phone Number <span class="text-[#6f6d85] font-normal">(10-14 digits, e.g. +94771234567)</span>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">
+                Phone Number <span class="font-normal text-[#aaa6b5]">(10-14 digits, e.g. +94771234567)</span>
               </label>
               <input
                 type="text"
@@ -358,19 +356,19 @@ import { AdminUsersService } from './admin-users.service';
                 name="phoneNumber"
                 required
                 placeholder="+94771234567"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-[#f0ebe5] text-sm focus:outline-none focus:ring-2 focus:ring-[#a53a26] bg-[#faf8f6] text-[#1d1b2c]"
+                class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none placeholder:text-[#aaa6b5] focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
               />
               <p
                 *ngIf="newUserPhone && !isPhoneValid()"
-                class="text-[11px] text-rose-600 font-medium mt-1"
+                class="mt-1 text-[11px] font-medium text-[#b23b32]"
               >
                 Phone number must be 10–14 digits with optional leading '+'
               </p>
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-[#1d1b2c] mb-1">
-                Password <span class="text-[#6f6d85] font-normal">(min 8 characters)</span>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">
+                Password <span class="font-normal text-[#aaa6b5]">(min 8 characters)</span>
               </label>
               <input
                 type="password"
@@ -379,23 +377,23 @@ import { AdminUsersService } from './admin-users.service';
                 name="password"
                 required
                 placeholder="Minimum 8 characters"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-[#f0ebe5] text-sm focus:outline-none focus:ring-2 focus:ring-[#a53a26] bg-[#faf8f6] text-[#1d1b2c]"
+                class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none placeholder:text-[#aaa6b5] focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
               />
               <p
                 *ngIf="newUserPassword && newUserPassword.length < 8"
-                class="text-[11px] text-rose-600 font-medium mt-1"
+                class="mt-1 text-[11px] font-medium text-[#b23b32]"
               >
                 Password must be at least 8 characters
               </p>
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-[#1d1b2c] mb-1">Staff Role</label>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">Staff Role</label>
               <select
                 id="staff-role-select"
                 [(ngModel)]="newUserRole"
                 name="role"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-[#f0ebe5] text-sm focus:outline-none focus:ring-2 focus:ring-[#a53a26] bg-[#faf8f6] text-[#1d1b2c] font-medium"
+                class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
               >
                 <option value="COURIER">COURIER (Delivery Personnel)</option>
                 <option value="DISPATCHER">DISPATCHER (Queue & Workload Manager)</option>
@@ -403,11 +401,11 @@ import { AdminUsersService } from './admin-users.service';
             </div>
 
             <!-- Modal Action Buttons -->
-            <div class="pt-3 border-t border-[#f0ebe5] flex items-center justify-end gap-2">
+            <div class="flex items-center justify-end gap-2 border-t border-[#e9e3dd] pt-4">
               <button
                 type="button"
                 (click)="closeCreateUserModal()"
-                class="px-4 py-2 rounded-xl text-xs font-semibold text-[#6f6d85] hover:bg-[#faf8f6] transition-colors cursor-pointer"
+                class="rounded-full px-4 py-2 text-xs font-bold text-[#77748a] transition hover:bg-[#f2e4de] hover:text-[#9b432f]"
               >
                 Cancel
               </button>
@@ -415,7 +413,7 @@ import { AdminUsersService } from './admin-users.service';
                 type="submit"
                 id="submit-staff-btn"
                 [disabled]="!isFormValid() || isSubmitting()"
-                class="px-5 py-2 rounded-xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white text-xs font-bold shadow-sm shadow-[#a53a26]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                class="rounded-full bg-[#9b432f] px-5 py-2.5 text-xs font-bold text-white shadow-[0_7px_16px_rgba(155,67,47,0.18)] transition hover:bg-[#833724] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span *ngIf="isSubmitting()">Provisioning...</span>
                 <span *ngIf="!isSubmitting()">Provision Account</span>

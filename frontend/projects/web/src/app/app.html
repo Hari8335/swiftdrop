@@ -1,6 +1,6 @@
-<main [class.p-6]="!isAuthPage()" [class.bg-slate-50]="!isAuthPage()" class="min-h-screen text-slate-900">
+<main [class.p-6]="!isAuthPage() && !isAdminPage() && !isMerchantPage()" [class.bg-slate-50]="!isAuthPage() && !isAdminPage() && !isMerchantPage()" class="min-h-screen text-slate-900">
   <h1 class="sr-only">Hello, web</h1>
-  @if (!isAuthPage()) {
+  @if (!isAuthPage() && !isAdminPage() && !isMerchantPage()) {
     <header class="mb-6 pb-4 border-b border-slate-200">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-slate-800">Hello, web</h1>
@@ -51,5 +51,81 @@
       </nav>
     </header>
   }
-  <router-outlet></router-outlet>
+  @if (isAdminPage()) {
+    <aside class="fixed inset-y-0 left-0 z-30 hidden h-screen w-20 overflow-hidden border-r border-[#ece9e4] bg-[#faf8f6] lg:flex lg:flex-col lg:items-center lg:py-7">
+      <a routerLink="/admin" aria-label="SwiftDrop admin home" class="grid h-11 w-11 place-items-center rounded-2xl bg-[#9b432f] text-white shadow-[0_8px_18px_rgba(155,67,47,0.2)]">
+        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </a>
+
+      <nav class="mt-10 flex flex-1 flex-col items-center gap-3" aria-label="Admin navigation">
+        <a routerLink="/admin" aria-label="Admin overview" [ngClass]="isAdminSection('/admin') ? 'bg-white text-[#9b432f] shadow-sm ring-1 ring-[#f2e4de]' : ''" class="relative grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85] transition hover:bg-white hover:text-[#9b432f]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/>
+          </svg>
+          @if (isAdminSection('/admin')) {
+            <span class="absolute -right-px top-2 bottom-2 w-1 rounded-l-full bg-[#9b432f]"></span>
+          }
+        </a>
+        <a routerLink="/admin/users" aria-label="Staff management" [ngClass]="isAdminSection('/admin/users') ? 'bg-white text-[#9b432f] shadow-sm ring-1 ring-[#f2e4de]' : ''" class="relative grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85] transition hover:bg-white hover:text-[#9b432f]">
+          <span class="h-5 w-5 bg-current [mask-image:url('/staff-admin-icon.png')] [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] [-webkit-mask-image:url('/staff-admin-icon.png')] [-webkit-mask-position:center] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:contain]" aria-hidden="true"></span>
+          @if (isAdminSection('/admin/users')) {
+            <span class="absolute -right-px top-2 bottom-2 w-1 rounded-l-full bg-[#9b432f]"></span>
+          }
+        </a>
+        <a routerLink="/admin/merchants" aria-label="Merchant approval" [ngClass]="isAdminSection('/admin/merchants') ? 'bg-white text-[#9b432f] shadow-sm ring-1 ring-[#f2e4de]' : ''" class="relative grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85] transition hover:bg-white hover:text-[#9b432f]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M4 10h16l-1-5H5l-1 5Z"/><path d="M5 10v9h14v-9"/><path d="M8 14h8"/>
+          </svg>
+          @if (isAdminSection('/admin/merchants')) {
+            <span class="absolute -right-px top-2 bottom-2 w-1 rounded-l-full bg-[#9b432f]"></span>
+          }
+        </a>
+        <a routerLink="/admin/reports" aria-label="Reports" [ngClass]="isAdminSection('/admin/reports') ? 'bg-white text-[#9b432f] shadow-sm ring-1 ring-[#f2e4de]' : ''" class="relative grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85] transition hover:bg-white hover:text-[#9b432f]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 3-4 3 2 4-6"/>
+          </svg>
+          @if (isAdminSection('/admin/reports')) {
+            <span class="absolute -right-px top-2 bottom-2 w-1 rounded-l-full bg-[#9b432f]"></span>
+          }
+        </a>
+      </nav>
+
+      <div class="flex flex-col items-center gap-3">
+        <span class="h-px w-9 bg-[#ece9e4]"></span>
+        <span aria-label="Notifications" class="grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>
+          </svg>
+        </span>
+        <button type="button" aria-label="Sign out" (click)="logout()" class="grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85] transition hover:bg-white hover:text-[#9b432f]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-6"/>
+          </svg>
+        </button>
+      </div>
+    </aside>
+  }
+  <div [class.lg:ml-20]="isAdminPage()">
+    @if (isAdminPage()) {
+      <header class="mx-auto flex w-full max-w-[1320px] items-center justify-between gap-4 border-b border-[#ece9e4] px-4 py-3 sm:px-6 lg:px-8">
+        <div class="flex flex-1 items-center gap-3 rounded-full border border-[#e4e0db] bg-white px-4 py-2.5 text-sm text-[#9a97a8] shadow-sm sm:max-w-[480px]">
+          <span aria-hidden="true" class="text-base">⌕</span>
+          <span>Search staff, merchants, reports ...</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="hidden text-right sm:block">
+            <span class="block text-xs text-[#8e8a9e]">Signed in as</span>
+            <span class="block text-sm font-bold text-[#211f32]">Admin</span>
+          </span>
+          <span class="grid h-10 w-10 place-items-center rounded-full bg-[#9b432f] text-xs font-bold text-white">AD</span>
+          <button type="button" (click)="logout()" class="rounded-full border border-[#ead4ca] px-4 py-2 text-xs font-bold text-[#9b432f] transition hover:bg-[#fff7f3]">Sign out</button>
+        </div>
+      </header>
+    }
+    <router-outlet></router-outlet>
+  </div>
 </main>
