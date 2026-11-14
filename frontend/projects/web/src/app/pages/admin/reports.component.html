@@ -67,18 +67,54 @@
 
       <section class="rounded-[1.5rem] border border-[#e9e3dd] bg-white p-6 shadow-[0_8px_24px_rgba(42,32,25,0.04)]">
         <h2 class="text-xl font-black">Success versus failure</h2>
-        <div class="mt-5 space-y-3" aria-label="Success versus failure chart">
+        <div class="mt-5 space-y-4" aria-label="Success versus failure chart">
+          <div class="flex items-center gap-4 border-b border-[#eeeae5] pb-2 text-xs font-bold text-[#77748a]">
+            <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded-sm bg-[#3d8062]"></span>Successful</span>
+            <span class="flex items-center gap-1.5"><span class="inline-block h-3 w-3 rounded-sm bg-[#b23b32]"></span>Failed</span>
+          </div>
           @for (row of rows(); track row.reportDate) {
             <div>
               <div class="mb-1 flex justify-between text-sm text-[#77748a]"><span>{{ row.reportDate }}</span><span>{{ row.successfulDeliveries }} success / {{ row.failedDeliveries }} failed</span></div>
               <div class="flex h-5 overflow-hidden rounded-full bg-[#f2f0f5]">
-                <div class="bg-[#3d8062]" [style.width]="successBarWidth(row)"></div>
-                <div class="bg-[#b23b32]" [style.width]="failureBarWidth(row)"></div>
+                <div class="bg-[#3d8062] transition-all" [style.width]="successBarWidth(row)"></div>
+                <div class="bg-[#b23b32] transition-all" [style.width]="failureBarWidth(row)"></div>
               </div>
             </div>
           }
         </div>
       </section>
     </div>
+
+    <section class="overflow-hidden rounded-[1.5rem] border border-[#e9e3dd] bg-white shadow-[0_8px_24px_rgba(42,32,25,0.04)]">
+      <div class="border-b border-[#eeeae5] p-6">
+        <h2 class="text-xl font-black">Daily delivery breakdown</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm" id="daily-reports-table">
+          <thead class="border-b border-[#eeeae5] bg-[#f8f6f3] text-xs font-bold uppercase tracking-wide text-[#77748a]">
+            <tr>
+              <th class="px-4 py-3">Date (Asia/Colombo)</th>
+              <th class="px-4 py-3 text-right">Total Deliveries</th>
+              <th class="px-4 py-3 text-right">Successful</th>
+              <th class="px-4 py-3 text-right">Failed</th>
+              <th class="px-4 py-3 text-right">Success Rate</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#eeeae5]">
+            @for (row of rows(); track row.reportDate) {
+              <tr class="transition hover:bg-[#fffaf7]">
+                <td class="px-4 py-3 font-bold text-[#211f32]">{{ row.reportDate }}</td>
+                <td class="px-4 py-3 text-right font-medium text-[#211f32]">{{ row.totalDeliveries }}</td>
+                <td class="px-4 py-3 text-right font-medium text-[#3d8062]">{{ row.successfulDeliveries }}</td>
+                <td class="px-4 py-3 text-right font-medium text-[#b23b32]">{{ row.failedDeliveries }}</td>
+                <td class="px-4 py-3 text-right font-bold text-[#9b432f]">
+                  {{ (row.totalDeliveries > 0 ? (row.successfulDeliveries / row.totalDeliveries) : 0) | percent: '1.0-2' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
   }
 </div>
