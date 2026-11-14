@@ -95,7 +95,21 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             <span *ngIf="activeTab() === 'settings'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
           </button>
 
-          <!-- 3. Webhook Delivery Logs Icon -->
+          <!-- 3. Plus Button (Bulk CSV Orders - in the middle!) -->
+          <button
+            type="button"
+            (click)="navigateToBulk()"
+            class="my-1.5 w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
+            title="Bulk CSV Orders"
+            aria-label="Bulk CSV Orders"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+
+          <!-- 4. Webhook Delivery Logs Icon -->
           <button
             type="button"
             (click)="selectTab('deliveries')"
@@ -114,7 +128,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             <span *ngIf="activeTab() === 'deliveries'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
           </button>
 
-          <!-- 4. API Credentials Icon -->
+          <!-- 5. API Credentials Icon -->
           <button
             type="button"
             (click)="selectTab('credentials')"
@@ -128,20 +142,6 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               <path d="M10 13l7-7 3 3-7 7M17 6l1-1"></path>
             </svg>
             <span *ngIf="activeTab() === 'credentials'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-          </button>
-
-          <!-- 5. Plus Button (Bulk CSV Orders) -->
-          <button
-            type="button"
-            (click)="navigateToBulk()"
-            class="w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
-            title="Bulk CSV Orders"
-            aria-label="Bulk CSV Orders"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
           </button>
         </nav>
 
@@ -164,9 +164,9 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
       </aside>
 
       <!-- Main Content Area (Edge-to-Edge Full Screen) -->
-      <main class="flex-1 min-h-screen p-6 sm:p-8 lg:p-10 space-y-7 min-w-0 bg-white">
+      <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 md:py-7 space-y-7 min-w-0 bg-white">
         <!-- Top Header: Search Bar & Merchant Profile -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#f4efe9]">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#f4efe9]">
           <!-- Search Input -->
           <div class="relative flex-1 max-w-lg">
             <svg
@@ -184,7 +184,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               [(ngModel)]="searchQuery"
               (input)="onSearchChange()"
               placeholder="Search by tracking number, recipient, or address..."
-              class="w-full pl-11 pr-4 py-2.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
+              class="w-full h-11 pl-11 pr-4 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
             />
           </div>
 
@@ -197,7 +197,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                 (click)="toggleProfileMenu()"
                 aria-haspopup="menu"
                 [attr.aria-expanded]="profileMenuOpen()"
-                class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] hover:border-[#a53a26]/40 transition-colors cursor-pointer"
+                class="h-11 flex items-center gap-2.5 px-3 rounded-full bg-[#faf8f6] border border-[#e8e2dc] hover:border-[#a53a26]/40 transition-colors cursor-pointer"
               >
                 <span
                   class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm"
@@ -624,9 +624,13 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                     placeholder="https://api.yourdomain.com/webhooks/swiftdrop"
                     class="w-full text-xs font-semibold border border-[#e8e2dc] bg-[#faf8f6] rounded-xl px-4 py-3 text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
                   />
-                  <p class="text-[11px] text-[#6f6d85] mt-1.5">
-                    🔒 Destination must be a secure public HTTPS endpoint for automated notifications.
-                  </p>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[#6f6d85] mt-1.5">
+                    <svg class="w-3.5 h-3.5 text-[#a53a26]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>Destination must be a secure public HTTPS endpoint for automated notifications.</span>
+                  </div>
                 </div>
 
                 <!-- Active Dispatch Toggle -->
@@ -709,7 +713,12 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                 <div *ngIf="settings()?.rawSecret" class="p-5 rounded-2xl bg-[#faf6f0] border border-[#a53a26]/30 text-[#1d1b2c] text-xs space-y-3">
                   <div class="font-bold flex items-center justify-between text-[#a53a26]">
                     <span class="flex items-center gap-1.5">
-                      <span>⚠️</span> Copy your new signing secret now!
+                      <svg class="w-4 h-4 text-[#a53a26]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>
+                      <span>Copy your new signing secret now!</span>
                     </span>
                     <button
                       type="button"
@@ -777,8 +786,11 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                 [disabled]="isTestingWebhook()"
                 class="w-full py-2.5 bg-[#1d1b2c] hover:bg-black text-white font-bold text-xs rounded-full disabled:opacity-50 transition-colors flex justify-center items-center gap-2 cursor-pointer shadow-md"
               >
-                <span *ngIf="isTestingWebhook()" class="inline-block animate-spin">⏳</span>
-                <span>{{ isTestingWebhook() ? 'Sending Test Event...' : '⚡ Send Test Event' }}</span>
+                <svg *ngIf="isTestingWebhook()" class="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>{{ isTestingWebhook() ? 'Sending Test Event...' : 'Send Test Event' }}</span>
               </button>
 
               <div *ngIf="testError()" class="rounded-2xl bg-[#fff1f2] border border-[#fecdd3] p-3 text-xs text-[#e11d48]" role="alert">
