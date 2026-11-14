@@ -64,6 +64,16 @@ class AssistantControllerTest {
     }
 
     @Test
+    void rejectsIrrelevantQuestionWithoutCallingTools() {
+        ChatMessageResponse response = controller.chat(
+                new ChatMessageRequest("what is my name", null), customerJwt, null).getBody();
+
+        assertTrue(response.reply().contains("SwiftDrop parcels"));
+        assertTrue(response.reply().contains("only answer questions regarding your own"));
+        verifyNoInteractions(tools);
+    }
+
+    @Test
     void reportsUnavailableParcelWithoutInventingDetails() {
         when(tools.getParcelByTrackingNumber(anyString(), anyString()))
                 .thenThrow(new com.swiftdrop.integration.assistant.tools.AssistantToolsImpl.ParcelNotFoundException());

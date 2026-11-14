@@ -186,10 +186,6 @@ const SUGGESTIONS = [
               <p class="text-xs text-[#6f6d85] font-semibold mt-0.5">Ask about your parcels, delivery status, or fee estimates</p>
             </div>
             <div class="flex items-center gap-2">
-              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>
-                Online
-              </span>
               @if (messages().length > 0) {
                 <button
                   type="button"
