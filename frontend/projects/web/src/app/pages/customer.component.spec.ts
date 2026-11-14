@@ -305,10 +305,10 @@ describe('CustomerComponent', () => {
     }
   }));
 
-  it('should open address modal from deliveries page Add New Address button', () => {
+  it('should open address modal from deliveries page Add Address button', () => {
     component.activeTab.set('deliveries');
     fixture.detectChanges();
-    const btn = fixture.nativeElement.querySelector('#deliveries-add-address-btn') as HTMLButtonElement;
+    const btn = fixture.nativeElement.querySelector('#hero-add-address-btn') as HTMLButtonElement;
     expect(btn).toBeTruthy();
     btn.click();
     expect(component.showAddressModal()).toBe(true);

@@ -257,22 +257,6 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                 </h1>
                 <p class="text-xs text-[#6f6d85] font-semibold mt-1">Track and manage your SwiftDrop parcel deliveries</p>
               </div>
-
-              <!-- Top Action Buttons -->
-              <div class="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  id="deliveries-add-address-btn"
-                  (click)="openAddressModal()"
-                  class="px-5 py-2.5 rounded-full border border-[#eee7e0] bg-white hover:bg-[#faf6f0] hover:border-[#a53a26] text-[#1d1b2c] hover:text-[#a53a26] font-bold text-xs transition-all shadow-2xs flex items-center gap-2 cursor-pointer"
-                >
-                  <svg class="w-4 h-4 text-[#a53a26]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  <span>Add New Address</span>
-                </button>
-              </div>
             </div>
 
             <!-- Two Hero Cards Grid -->
@@ -291,8 +275,11 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                       <span class="text-sm font-bold text-[#6f6d85] ml-2">in delivery today</span>
                     </div>
                     <p class="text-xs text-[#6f6d85] font-medium mt-3 max-w-xs leading-relaxed">
-                      The delivery of your parcel is estimated at
-                      <strong class="text-[#1d1b2c]">10:30 AM to 11:30 AM</strong>. Not going to be home?
+                      @if (activeDeliveriesCount() > 0) {
+                        Your active shipments are currently in transit with assigned couriers across Sri Lanka.
+                      } @else {
+                        No active shipments out for delivery today. All recent deliveries are up to date.
+                      }
                     </p>
                   </div>
 
@@ -328,7 +315,7 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                     (click)="startNewDelivery()"
                     class="px-5 py-2.5 rounded-full bg-[#a53a26] hover:bg-[#7e2615] text-white font-bold text-xs transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer"
                   >
-                    Reschedule
+                    Book Delivery
                   </button>
                   <button
                     type="button"
