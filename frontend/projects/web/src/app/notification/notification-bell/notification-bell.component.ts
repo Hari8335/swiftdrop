@@ -39,10 +39,10 @@ interface SidePanelPosition {
         type="button"
         id="notification-bell-btn"
         (click)="toggleDropdown()"
-        class="relative flex items-center justify-center w-9 h-9 rounded-xl
-               text-slate-500 hover:text-indigo-600 hover:bg-indigo-50
+        class="relative flex items-center justify-center w-11 h-11 rounded-2xl
+               text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0]
                transition-colors focus:outline-none focus-visible:ring-2
-               focus-visible:ring-indigo-500"
+               focus-visible:ring-[#a53a26]/20 cursor-pointer"
         [attr.aria-label]="ariaLabel()"
         aria-haspopup="true"
         [attr.aria-expanded]="isOpen()"
@@ -95,13 +95,13 @@ interface SidePanelPosition {
           [style.max-height.px]="sidePosition()?.maxHeight"
         >
           <!-- Header -->
-          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-            <h2 class="text-sm font-semibold text-slate-800">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-[#eee7e0] bg-[#faf8f6]">
+            <h2 class="text-sm font-black text-[#1d1b2c]">
               Notifications
               @if (unreadCount() > 0) {
                 <span
-                  class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full
-                         bg-indigo-100 text-indigo-700 text-[11px] font-bold"
+                  class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full
+                         bg-[#faf6f0] text-[#a53a26] border border-[#a53a26]/20 text-[11px] font-bold"
                 >{{ unreadCount() }} unread</span>
               }
             </h2>
@@ -110,8 +110,8 @@ interface SidePanelPosition {
                 type="button"
                 id="notification-mark-all-btn"
                 (click)="onMarkAllRead()"
-                class="text-xs font-medium text-indigo-600 hover:text-indigo-800
-                       hover:underline focus:outline-none"
+                class="text-xs font-bold text-[#a53a26] hover:text-[#7e2615]
+                       hover:underline focus:outline-none cursor-pointer"
               >
                 Mark all read
               </button>
@@ -121,20 +121,20 @@ interface SidePanelPosition {
           <!-- Loading state on initial fetch -->
           @if (isLoading() && allItems().length === 0) {
             <div id="notification-loading" class="flex flex-col items-center justify-center py-10 text-center px-4" role="status">
-              <span class="inline-block w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
-              <p class="mt-2 text-xs text-slate-500">Loading notifications…</p>
+              <span class="inline-block w-6 h-6 border-2 border-[#a53a26] border-t-transparent rounded-full animate-spin"></span>
+              <p class="mt-2 text-xs text-[#6f6d85] font-semibold">Loading notifications…</p>
             </div>
           } @else if (error() && allItems().length === 0) {
             <!-- Error state -->
             <div id="notification-error" class="flex flex-col items-center justify-center py-8 text-center px-4" role="alert">
               <span class="text-2xl mb-1 text-rose-500">⚠️</span>
-              <p class="text-sm font-medium text-slate-700">Failed to load notifications</p>
-              <p class="text-xs text-slate-500 mt-1">{{ error() }}</p>
+              <p class="text-sm font-bold text-[#1d1b2c]">Failed to load notifications</p>
+              <p class="text-xs text-[#6f6d85] mt-1">{{ error() }}</p>
               <button
                 type="button"
                 id="notification-retry-btn"
                 (click)="retry()"
-                class="mt-3 px-3 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors focus:outline-none"
+                class="mt-3 px-3 py-1.5 text-xs font-bold text-[#a53a26] bg-[#faf6f0] hover:bg-[#f3ece4] border border-[#eee7e0] rounded-xl transition-colors focus:outline-none cursor-pointer"
               >
                 Retry
               </button>
@@ -142,14 +142,14 @@ interface SidePanelPosition {
           } @else {
             <!-- Notification list -->
             <ul
-              class="overflow-y-auto max-h-[360px] min-h-0 divide-y divide-slate-100"
+              class="overflow-y-auto max-h-[360px] min-h-0 divide-y divide-[#f0ebe5]"
               role="list"
             >
               @for (item of allItems(); track item.id) {
                 <li
                   [id]="'notification-item-' + item.id"
-                  [class.bg-indigo-50]="!item.read"
-                  class="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer"
+                  [class.bg-[#faf8f6]]="!item.read"
+                  class="flex items-start gap-3 px-4 py-3 hover:bg-[#faf6f0]/60 transition-colors cursor-pointer"
                   (click)="onMarkRead(item)"
                   role="listitem"
                   [attr.aria-label]="item.title + (item.read ? '' : ' (unread)')"
@@ -157,7 +157,7 @@ interface SidePanelPosition {
                   <!-- Status dot -->
                   <span
                     class="mt-1.5 flex-shrink-0 w-2 h-2 rounded-full"
-                    [class.bg-indigo-500]="!item.read"
+                    [class.bg-[#a53a26]]="!item.read"
                     [class.bg-transparent]="item.read"
                     aria-hidden="true"
                   ></span>
@@ -165,11 +165,11 @@ interface SidePanelPosition {
                   <!-- Content -->
                   <div class="flex-1 min-w-0">
                     <p
-                      class="text-sm font-medium text-slate-800 truncate"
-                      [class.font-semibold]="!item.read"
+                      class="text-sm font-medium text-[#1d1b2c] truncate"
+                      [class.font-bold]="!item.read"
                     >{{ item.title }}</p>
-                    <p class="text-xs text-slate-500 mt-0.5 line-clamp-2">{{ item.message }}</p>
-                    <p class="text-[11px] text-slate-400 mt-1">
+                    <p class="text-xs text-[#6f6d85] mt-0.5 line-clamp-2">{{ item.message }}</p>
+                    <p class="text-[11px] text-[#a09eaf] font-semibold mt-1">
                       {{ item.createdAt | date:'d MMM y, h:mm a' }}
                     </p>
                   </div>
@@ -177,21 +177,21 @@ interface SidePanelPosition {
               } @empty {
                 <li id="notification-empty" class="flex flex-col items-center justify-center py-12 text-center px-4">
                   <span class="text-3xl mb-2" aria-hidden="true">🔔</span>
-                  <p class="text-sm font-medium text-slate-500">You're all caught up!</p>
-                  <p class="text-xs text-slate-400 mt-1">No notifications yet.</p>
+                  <p class="text-sm font-bold text-[#1d1b2c]">You're all caught up!</p>
+                  <p class="text-xs text-[#a09eaf] font-semibold mt-1">No notifications yet.</p>
                 </li>
               }
             </ul>
 
             <!-- Footer / Load more -->
             @if (hasMore()) {
-              <div class="border-t border-slate-100 px-4 py-2 text-center">
+              <div class="border-t border-[#f0ebe5] px-4 py-2 text-center bg-[#faf8f6]">
                 <button
                   type="button"
                   id="notification-load-more-btn"
                   (click)="loadMore()"
                   [disabled]="isLoadingMore()"
-                  class="text-xs font-medium text-indigo-600 hover:underline focus:outline-none disabled:opacity-50"
+                  class="text-xs font-bold text-[#a53a26] hover:text-[#7e2615] hover:underline focus:outline-none disabled:opacity-50 cursor-pointer"
                 >
                   {{ isLoadingMore() ? 'Loading…' : 'Load more' }}
                 </button>

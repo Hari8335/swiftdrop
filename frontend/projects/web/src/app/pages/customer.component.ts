@@ -2059,7 +2059,7 @@ export class CustomerComponent implements OnInit {
   getStatusBadgeClass(status: ParcelStatus): string {
     switch (status) {
       case 'CREATED':
-        return 'bg-blue-50 text-blue-700 border border-blue-200/80';
+        return 'bg-emerald-50 text-emerald-700 border border-emerald-200/80';
       case 'PICKED_UP':
       case 'IN_TRANSIT':
       case 'OUT_FOR_DELIVERY':
