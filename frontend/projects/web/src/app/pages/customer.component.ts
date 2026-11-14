@@ -62,11 +62,11 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer"
               title="My Deliveries"
             >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <rect x="3" y="3" width="7" height="7" rx="2"></rect>
-                <rect x="14" y="3" width="7" height="7" rx="2"></rect>
-                <rect x="14" y="14" width="7" height="7" rx="2"></rect>
-                <rect x="3" y="14" width="7" height="7" rx="2"></rect>
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/>
+                <path d="M12 22V12"/>
+                <polyline points="3.29 7 12 12 20.71 7"/>
+                <path d="m7.5 4.27 9 5.15"/>
               </svg>
             </button>
 
@@ -80,9 +80,13 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               class="w-11 h-11 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-xs shadow-[#a53a26]/25 hover:shadow-sm hover:scale-[1.03] transition-all cursor-pointer"
               title="Book New Delivery"
             >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 16h6"/>
+                <path d="M19 13v6"/>
+                <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/>
+                <path d="m7.5 4.27 9 5.15"/>
+                <polyline points="3.29 7 12 12 20.71 7"/>
+                <line x1="12" y1="22" x2="12" y2="12"/>
               </svg>
             </button>
 
@@ -94,9 +98,12 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               title="AI Assistant"
               aria-label="AI Assistant"
             >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12a8 8 0 0 1-11.6 7.14L4 20.5l1.36-4.6A8 8 0 1 1 21 12z"></path>
-                <path d="M12 8.5l.9 1.85 1.85.9-1.85.9L12 14l-.9-1.85-1.85-.9 1.85-.9z"></path>
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                <path d="M5 3v4"/>
+                <path d="M19 17v4"/>
+                <path d="M3 5h4"/>
+                <path d="M17 19h4"/>
               </svg>
             </a>
           </nav>
@@ -110,10 +117,10 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-colors cursor-pointer"
               title="Sign Out"
             >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
             </button>
           </div>
