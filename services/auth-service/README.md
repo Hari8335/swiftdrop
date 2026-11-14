@@ -20,7 +20,7 @@ To prevent merge conflicts across members collaborating within this service, cod
 | Package | Owner | Primary Responsibility |
 | :--- | :--- | :--- |
 | `com.swiftdrop.auth.core` | **M10** | Core registration, login, refresh rotation, RS256 `JwtIssuer`, `/.well-known/jwks.json` controller, Google OAuth 2.0 flow, and OAuth 2.0 client credentials. |
-| `com.swiftdrop.auth.reset` | **M3** | Self-service password recovery (`/api/v1/auth/password/forgot`, `/api/v1/auth/password/reset`), email token dispatch via Mailpit mock SMTP. |
+| `com.swiftdrop.auth.reset` | **M3** | Self-service password recovery (`/api/v1/auth/password/forgot`, `/api/v1/auth/password/verify`, `/api/v1/auth/password/reset`) with hashed 6-digit OTP dispatch via Mailpit by default or configured SMTP. |
 | `com.swiftdrop.auth.admin` | **M4** | Administrative user management (`/api/v1/admin/users`), staff account provisioning (`COURIER`, `DISPATCHER`), and account enable/disable toggling. |
 | `com.swiftdrop.auth.security` | **M7** | Web security configuration, rate-limiting, brute-force defense, and the `LoginGuard` interface. |
 | `com.swiftdrop.auth.audit` | **M8** | System security auditing, audit log table migrations, audit retrieval API, and the `AuditService` interface. |
@@ -111,10 +111,12 @@ mvn test -Dtest="AuthSecurityVerificationTest,Week7AuthSecurityVerificationTest,
 mvn spring-boot:run -pl services/auth-service -Dspring-boot.run.profiles=local
 ```
 
-The `local` profile creates enabled sample staff accounts when they do not already exist:
-`courier@swiftdrop.lk`, `dispatcher@swiftdrop.lk`, and `admin@swiftdrop.lk`, all using
-`Password123!`. This is development-only and never runs under the `docker` or production
-profiles. Admin-created staff accounts remain the normal provisioning path.
+The `local` profile creates enabled sample accounts when they do not already exist:
+`customer@swiftdrop.lk`, `merchant@swiftdrop.lk`, `courier@swiftdrop.lk`,
+`dispatcher@swiftdrop.lk`, and `admin@swiftdrop.lk`, all using `Password123!`.
+This is development-only and never runs under the `docker` or production profiles.
+Registration, merchant onboarding, and Admin-created staff accounts remain the normal
+provisioning paths.
 
 ---
 
@@ -127,6 +129,13 @@ profiles. Admin-created staff accounts remain the normal provisioning path.
 | `SPRING_DATASOURCE_USERNAME` | `swiftdrop` | Database username. |
 | `SPRING_DATASOURCE_PASSWORD` | `swiftdrop_password` | Database password (Secret). |
 | `SPRING_KAFKA_BOOTSTRAP_SERVERS`| `kafka:9092` | Kafka broker bootstrap list for event dispatch. |
+| `SPRING_MAIL_HOST` | `mailpit` | SMTP host; use `smtp.gmail.com` for Gmail delivery. |
+| `SPRING_MAIL_PORT` | `1025` | SMTP port; use `587` for Gmail STARTTLS. |
+| `SPRING_MAIL_USERNAME` | *(empty)* | SMTP username; for Gmail, the sending Gmail address. |
+| `SPRING_MAIL_PASSWORD` | *(empty)* | SMTP password; for Gmail, an App Password. Never commit this value. |
+| `SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH` | `false` | Enables SMTP authentication when using an authenticated provider. |
+| `SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE` | `false` | Enables STARTTLS, required for Gmail SMTP. |
+| `SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED` | `false` | Requires STARTTLS when enabled. |
 | `FRONTEND_BASE_URL` | `http://localhost:4200` | Angular frontend base URL. |
 | `GOOGLE_CLIENT_ID` | *(required)* | Google OAuth 2.0 client ID from the team development Web application. |
 | `GOOGLE_CLIENT_SECRET` | *(required, local only)* | Google OAuth 2.0 client secret. Never commit this value. |

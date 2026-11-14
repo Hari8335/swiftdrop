@@ -9,6 +9,7 @@ import {
   ProofUploadResponse,
   CourierProfile,
   CourierDailySummary,
+  normalizeGoogleMapsUrl,
 } from './courier.model';
 
 describe('CourierService', () => {
@@ -81,6 +82,32 @@ describe('CourierService', () => {
     req.flush(mockDeliveriesResponse);
   });
 
+  it('accepts valid destination URLs and rejects missing, generic, malformed, or external URLs', () => {
+    expect(normalizeGoogleMapsUrl('https://www.google.com/maps/search/?api=1&query=Colombo')).toContain('/maps/search/');
+    expect(normalizeGoogleMapsUrl(null)).toBeNull();
+    expect(normalizeGoogleMapsUrl('   ')).toBeNull();
+    expect(normalizeGoogleMapsUrl('https://www.google.com/maps')).toBeNull();
+    expect(normalizeGoogleMapsUrl('not-a-url')).toBeNull();
+    expect(normalizeGoogleMapsUrl('https://example.com/?q=Colombo')).toBeNull();
+  });
+
+  it('normalizes Maps destinations returned in delivery data', () => {
+    service.getDeliveries().subscribe(() => {
+      expect(service.deliveries()[0].googleMapsUrl).toContain('/maps/search/');
+      expect(service.deliveries()[1].googleMapsUrl).toBeNull();
+    });
+
+    const req = httpMock.expectOne('/api/v1/courier/deliveries');
+    req.flush({
+      ...mockDeliveriesResponse,
+      deliveries: [
+        mockDeliveriesResponse.deliveries[0],
+        { ...mockDeliveriesResponse.deliveries[1], googleMapsUrl: 'https://www.google.com/maps' },
+      ],
+    });
+    expect(service.deliveries()[1].googleMapsUrl).toBeNull();
+  });
+
   it('should pass status filter query param when provided', () => {
     service.getDeliveries('2026-10-28', 'OUT_FOR_DELIVERY').subscribe();
 
@@ -116,7 +143,7 @@ describe('CourierService', () => {
       senderPhone: '+94 11 234 5678',
       pickupAddress: '100 Union Place, Colombo 02',
       dropoffAddress: '75 Galle Road, Colombo 04',
-      googleMapsUrl: 'https://maps.google.com',
+      googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=75+Galle+Road+Colombo',
       specialInstructions: 'Ring bell twice',
       weightKg: 1.5,
       attemptCount: 1,
@@ -295,6 +322,19 @@ describe('CourierService', () => {
     expect(fail.request.body.reasonCode).toBe(reasonCode);
     fail.flush(null, { status: 202, statusText: 'Accepted' });
     const refresh = httpMock.expectOne('/api/v1/courier/deliveries');
+    refresh.flush(mockDeliveriesResponse);
+  });
+
+  it('retains the selected date filter when refreshing deliveries after reporting a failure', () => {
+    service.loadDeliveries('2026-11-14').subscribe();
+    const loadReq = httpMock.expectOne((req) => req.url === '/api/v1/courier/deliveries' && req.params.get('date') === '2026-11-14');
+    loadReq.flush(mockDeliveriesResponse);
+
+    service.reportFailedDelivery('parcel-1', { reasonCode: 'RECIPIENT_UNAVAILABLE' }).subscribe();
+    const fail = httpMock.expectOne('/api/v1/courier/deliveries/parcel-1/fail');
+    fail.flush(null, { status: 202, statusText: 'Accepted' });
+
+    const refresh = httpMock.expectOne((req) => req.url === '/api/v1/courier/deliveries' && req.params.get('date') === '2026-11-14');
     refresh.flush(mockDeliveriesResponse);
   });
 });

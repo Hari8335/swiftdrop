@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 from urllib.parse import urlparse
 import uuid
-from merchant_demo import is_reset_message, reset_token_from_message
+from merchant_demo import is_reset_message, reset_code_from_message
 
 AUTH = os.environ['M6_VERIFY_AUTH_URL'].rstrip('/')
 AUTH_INTERNAL = os.environ.get('M6_VERIFY_AUTH_INTERNAL_URL', AUTH).rstrip('/')
@@ -66,7 +66,7 @@ def verify_portal_login(email, merchant_id):
     expect(call(AUTH, '/api/v1/auth/password/forgot', 'POST', {'email': email}),
         202, 'approved merchant requests sign-in password setup')
     deadline = time.monotonic() + 20
-    reset_token = None
+    reset_code = None
     while time.monotonic() < deadline:
         status, mailbox = call(MAILPIT, '/api/v1/messages')
         if status != 200:
@@ -76,12 +76,14 @@ def verify_portal_login(email, merchant_id):
             status, full = call(MAILPIT, '/api/v1/message/' + message['ID'])
             if status != 200:
                 raise AssertionError('Demo Mailpit reset message unavailable')
-            reset_token = reset_token_from_message(full, email)
+            reset_code = reset_code_from_message(full, email)
             break
         time.sleep(0.2)
-    check(reset_token is not None, 'real SMTP delivered the intended merchant reset email')
+    check(reset_code is not None, 'real SMTP delivered the intended merchant reset code')
+    expect(call(AUTH, '/api/v1/auth/password/verify', 'POST',
+                {'email': email, 'token': reset_code}), 200, 'merchant reset code is valid')
     password = secrets.token_urlsafe(24) + 'A1!'
-    reset = {'token': reset_token, 'newPassword': password}
+    reset = {'email': email, 'token': reset_code, 'newPassword': password}
     expect(call(AUTH, '/api/v1/auth/password/reset', 'POST', reset), 200, 'merchant sets a separate sign-in password')
     expect(call(AUTH, '/api/v1/auth/password/reset', 'POST', reset), 400, 'reset token is single-use')
     expect(call(AUTH, '/api/v1/auth/login', 'POST', {'email': email, 'password': 'incorrect-demo-password'}),

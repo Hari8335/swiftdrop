@@ -62,12 +62,14 @@ class PasswordResetControllerTest {
     @Test
     @DisplayName("POST /api/v1/auth/password/reset with valid payload returns 200 OK")
     void resetPassword_validPayload_returns200() throws Exception {
-        when(passwordResetService.resetPassword(eq("valid-tok"), eq("SecurePass123!"), any(), any()))
-                .thenReturn(new ResetPasswordResponse());
+        when(passwordResetService.resetPassword(
+                eq("user@example.com"), eq("123456"), eq("SecurePass123!"), any(), any()))
+                .thenReturn(new PasswordResetResult(new ResetPasswordResponse(), "refresh-token"));
 
         mockMvc.perform(post("/api/v1/auth/password/reset")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("valid-tok", "SecurePass123!"))))
+                        .content(objectMapper.writeValueAsString(
+                                new ResetPasswordRequest("user@example.com", "123456", "SecurePass123!"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value(ResetPasswordResponse.DEFAULT_MESSAGE));
     }
@@ -77,7 +79,8 @@ class PasswordResetControllerTest {
     void resetPassword_shortPassword_returns400() throws Exception {
         mockMvc.perform(post("/api/v1/auth/password/reset")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("valid-tok", "short"))))
+                        .content(objectMapper.writeValueAsString(
+                                new ResetPasswordRequest("user@example.com", "123456", "short"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
@@ -85,15 +88,27 @@ class PasswordResetControllerTest {
     @Test
     @DisplayName("POST /api/v1/auth/password/reset with invalid token returns 400 INVALID_RESET_TOKEN")
     void resetPassword_invalidToken_returns400() throws Exception {
-        when(passwordResetService.resetPassword(eq("invalid-tok"), eq("SecurePass123!"), any(), any()))
+        when(passwordResetService.resetPassword(
+                eq("user@example.com"), eq("123456"), eq("SecurePass123!"), any(), any()))
                 .thenThrow(new InvalidResetTokenException("Invalid, expired, or already-used reset token."));
 
         mockMvc.perform(post("/api/v1/auth/password/reset")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new ResetPasswordRequest("invalid-tok", "SecurePass123!"))))
+                        .content(objectMapper.writeValueAsString(
+                                new ResetPasswordRequest("user@example.com", "123456", "SecurePass123!"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_RESET_TOKEN"))
                 .andExpect(jsonPath("$.message").value("Invalid, expired, or already-used reset token."));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/auth/password/verify with a six-digit code returns 200 OK")
+    void verifyResetCode_validPayload_returns200() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"user@example.com\",\"token\":\"123456\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Reset code verified."));
     }
 }
 

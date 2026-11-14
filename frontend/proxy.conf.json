@@ -76,6 +76,7 @@
     "secure": false
   },
   "/api/v1/merchant": {
+  "/api/v1/admin/merchants": {
     "target": "http://localhost:8084",
     "secure": false
   },

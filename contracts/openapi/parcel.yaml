@@ -13,6 +13,32 @@ paths:
   # =========================================================================
   # Internal Endpoints (Internal Service-to-Service, blocked by API Gateway)
   # =========================================================================
+  /internal/v1/parcels/{id}:
+    get:
+      summary: Get parcel by ID for internal service callers
+      description: |
+        Returns a parcel by UUID for trusted service-to-service callers.
+        Used by operations-service courier execution before delegating a status transition.
+      operationId: getInternalParcelById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Parcel UUID
+          schema:
+            type: string
+            format: uuid
+            example: "7e9b3a24-c189-4b68-b7c1-fa9e6a0d2f11"
+      responses:
+        '200':
+          description: Parcel found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /internal/v1/parcels/{id}/assignment:
     put:
       summary: Assign courier to parcel

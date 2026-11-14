@@ -1,8 +1,11 @@
 package com.swiftdrop.auth.reset;
 
 import com.swiftdrop.auth.audit.AuditService;
+import com.swiftdrop.auth.dto.UserSummary;
 import com.swiftdrop.auth.reset.dto.ForgotPasswordResponse;
 import com.swiftdrop.auth.reset.dto.ResetPasswordResponse;
+import com.swiftdrop.auth.security.jwt.JwtIssuer;
+import com.swiftdrop.auth.token.RefreshToken;
 import com.swiftdrop.auth.token.RefreshTokenRepository;
 import com.swiftdrop.auth.user.User;
 import com.swiftdrop.auth.user.UserRepository;
@@ -17,17 +20,21 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
+import java.security.SecureRandom;
 import java.util.UUID;
 
 @Service
 public class PasswordResetService {
 
     private static final Logger log = LoggerFactory.getLogger(PasswordResetService.class);
-    private static final int TOKEN_EXPIRY_MINUTES = 30;
+    private static final int TOKEN_EXPIRY_MINUTES = 10;
+    private static final int OTP_BOUND = 1_000_000;
+    private static final Duration REFRESH_TOKEN_TTL = Duration.ofDays(7);
 
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository tokenRepository;
@@ -35,6 +42,8 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetMailSender mailSender;
     private final AuditService auditService;
+    private final JwtIssuer jwtIssuer;
+    private final SecureRandom secureRandom = new SecureRandom();
     private Clock clock = Clock.systemUTC();
 
     public PasswordResetService(
@@ -43,13 +52,15 @@ public class PasswordResetService {
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
             PasswordResetMailSender mailSender,
-            AuditService auditService) {
+            AuditService auditService,
+            JwtIssuer jwtIssuer) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailSender = mailSender;
         this.auditService = auditService;
+        this.jwtIssuer = jwtIssuer;
     }
 
     @Autowired(required = false)
@@ -75,8 +86,7 @@ public class PasswordResetService {
             // Invalidate existing active reset tokens for this user
             tokenRepository.invalidateActiveTokensForUser(user.getId(), now);
 
-            // Generate cryptographically secure random token
-            String rawToken = UUID.randomUUID().toString();
+            String rawToken = String.format("%06d", secureRandom.nextInt(OTP_BOUND));
             String tokenHash = hashToken(rawToken);
 
             Instant expiresAt = now.plus(TOKEN_EXPIRY_MINUTES, ChronoUnit.MINUTES);
@@ -88,7 +98,7 @@ public class PasswordResetService {
             );
             tokenRepository.save(token);
 
-            // Send email to recipient via Mailpit SMTP
+            // Send code to recipient via the configured SMTP provider
             mailSender.sendResetEmail(user.getEmail(), rawToken);
 
             // Record audit log
@@ -116,51 +126,16 @@ public class PasswordResetService {
     }
 
     @Transactional
-    public ResetPasswordResponse resetPassword(String rawToken, String newPassword, String ipAddress, String correlationId) {
-        if (rawToken == null || rawToken.isBlank()) {
-            throw new InvalidResetTokenException("Invalid, expired, or already-used reset token.");
-        }
-
+    public void verifyResetCode(String email, String rawToken, String ipAddress, String correlationId) {
         Instant now = clock.instant();
-        String tokenHash = hashToken(rawToken);
+        findValidToken(email, rawToken, ipAddress, now);
+    }
 
-        PasswordResetToken token = tokenRepository.findByTokenHash(tokenHash)
-                .orElseThrow(() -> {
-                    auditService.record(
-                            "ANONYMOUS",
-                            "ANONYMOUS",
-                            "PASSWORD_RESET_REJECTED",
-                            "TOKEN",
-                            "UNKNOWN",
-                            Map.of("reason", "TOKEN_NOT_FOUND", "ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
-                    );
-                    return new InvalidResetTokenException("Invalid, expired, or already-used reset token.");
-                });
-
-        if (token.isConsumed()) {
-            auditService.record(
-                    token.getUserId(),
-                    "ANONYMOUS",
-                    "PASSWORD_RESET_REJECTED",
-                    "USER",
-                    token.getUserId(),
-                    Map.of("reason", "TOKEN_ALREADY_USED", "ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
-            );
-            throw new InvalidResetTokenException("Invalid, expired, or already-used reset token.");
-        }
-
-        if (token.isExpired(now)) {
-            auditService.record(
-                    token.getUserId(),
-                    "ANONYMOUS",
-                    "PASSWORD_RESET_REJECTED",
-                    "USER",
-                    token.getUserId(),
-                    Map.of("reason", "TOKEN_EXPIRED", "ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
-            );
-            throw new InvalidResetTokenException("Invalid, expired, or already-used reset token.");
-        }
-
+    @Transactional
+    public PasswordResetResult resetPassword(
+            String email, String rawToken, String newPassword, String ipAddress, String correlationId) {
+        Instant now = clock.instant();
+        PasswordResetToken token = findValidToken(email, rawToken, ipAddress, now);
         User user = userRepository.findById(token.getUserId())
                 .orElseThrow(() -> new InvalidResetTokenException("User associated with reset token not found."));
 
@@ -185,7 +160,97 @@ public class PasswordResetService {
                 Map.of("ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
         );
 
-        return new ResetPasswordResponse();
+        String rawRefreshToken = UUID.randomUUID().toString();
+        String familyId = UUID.randomUUID().toString();
+        refreshTokenRepository.save(new RefreshToken(
+                UUID.randomUUID().toString(),
+                hashToken(rawRefreshToken),
+                user.getId(),
+                familyId,
+                now.plus(REFRESH_TOKEN_TTL)
+        ));
+
+        String accessToken = jwtIssuer.issueAccessToken(
+                user.getId(), user.getEmail(), user.getRole(), user.getMerchantId());
+        UserSummary summary = new UserSummary(
+                user.getId(), user.getEmail(), user.getFullName(), user.getRole(), user.getMerchantId());
+
+        return new PasswordResetResult(
+                new ResetPasswordResponse(
+                        ResetPasswordResponse.DEFAULT_MESSAGE,
+                        accessToken,
+                        "Bearer",
+                        JwtIssuer.ACCESS_TOKEN_TTL.toSeconds(),
+                        summary
+                ),
+                rawRefreshToken
+        );
+    }
+
+    @Transactional
+    public void changeInitialPassword(String userId, String newPassword, String ipAddress) {
+        validatePassword(newPassword);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new InvalidResetTokenException("Authenticated user not found."));
+        if (!user.isMustChangePassword()) {
+            throw new InvalidResetTokenException("Initial password change is not required.");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+        auditService.record(
+                user.getId(),
+                user.getRole(),
+                "INITIAL_PASSWORD_CHANGED",
+                "USER",
+                user.getId(),
+                Map.of("ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
+        );
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < 8 || password.length() > 128) {
+            throw new IllegalArgumentException("Password must be between 8 and 128 characters");
+        }
+    }
+
+    private PasswordResetToken findValidToken(String email, String rawToken, String ipAddress, Instant now) {
+        if (rawToken == null || !rawToken.matches("\\d{6}") || email == null || email.isBlank()) {
+            throw new InvalidResetTokenException("Invalid, expired, or already-used reset token.");
+        }
+
+        String tokenHash = hashToken(rawToken);
+        PasswordResetToken token = tokenRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> invalidToken("TOKEN_NOT_FOUND", ipAddress));
+
+        User user = userRepository.findById(token.getUserId())
+                .orElseThrow(() -> invalidToken("USER_NOT_FOUND", ipAddress));
+        if (!user.getEmail().equalsIgnoreCase(email.trim())) {
+            throw invalidToken("EMAIL_MISMATCH", ipAddress);
+        }
+        if (token.isConsumed()) {
+            throw invalidToken("TOKEN_ALREADY_USED", ipAddress, token.getUserId());
+        }
+        if (token.isExpired(now)) {
+            throw invalidToken("TOKEN_EXPIRED", ipAddress, token.getUserId());
+        }
+        return token;
+    }
+
+    private InvalidResetTokenException invalidToken(String reason, String ipAddress) {
+        return invalidToken(reason, ipAddress, "UNKNOWN");
+    }
+
+    private InvalidResetTokenException invalidToken(String reason, String ipAddress, String userId) {
+        auditService.record(
+                userId,
+                "ANONYMOUS",
+                "PASSWORD_RESET_REJECTED",
+                "TOKEN",
+                userId,
+                Map.of("reason", reason, "ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
+        );
+        return new InvalidResetTokenException("Invalid, expired, or already-used reset token.");
     }
 
     public String hashToken(String rawToken) {

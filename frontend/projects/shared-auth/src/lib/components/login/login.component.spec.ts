@@ -71,6 +71,24 @@ describe('LoginComponent', () => {
     expect(component.loginForm.valid).toBe(true);
   });
 
+  it('should toggle password visibility from hidden to visible and back', () => {
+    const passwordInput = fixture.nativeElement.querySelector('#password') as HTMLInputElement;
+    const toggle = fixture.nativeElement.querySelector('.password-toggle') as HTMLButtonElement;
+
+    expect(passwordInput.type).toBe('password');
+    expect(toggle.getAttribute('aria-label')).toBe('Show password');
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(passwordInput.type).toBe('text');
+    expect(toggle.getAttribute('aria-label')).toBe('Hide password');
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(passwordInput.type).toBe('password');
+    expect(toggle.getAttribute('aria-label')).toBe('Show password');
+  });
+
   it('should navigate to user role route on successful login', () => {
     authServiceMock.login.mockReturnValue(of(mockAuthResponse));
 
@@ -88,6 +106,25 @@ describe('LoginComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/customer']);
     expect(component.errorMessage()).toBeNull();
     expect(component.isLoading()).toBe(false);
+  });
+
+  it('should route first-time merchant login to password setup', () => {
+    authServiceMock.login.mockReturnValue(of({
+      ...mockAuthResponse,
+      mustChangePassword: true,
+      user: { ...mockAuthResponse.user, email: 'merchant@example.com', role: 'MERCHANT' },
+    }));
+    component.selectRole('MERCHANT');
+    component.loginForm.setValue({
+      email: 'merchant@example.com',
+      password: '123456',
+    });
+
+    component.onSubmit();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/reset-password'], {
+      queryParams: { email: 'merchant@example.com', firstLogin: 'true', role: 'MERCHANT' },
+    });
   });
 
   it('should navigate a successful Courier login to the Courier portal', () => {

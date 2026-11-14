@@ -273,17 +273,49 @@ describe('AuthService', () => {
 
   it('resetPassword should post to /api/v1/auth/password/reset', () => {
     const responsePayload = {
-      message: 'Password has been successfully reset. Please log in with your new password.',
+      message: 'Password has been successfully reset.',
+      accessToken: 'reset-token',
+      tokenType: 'Bearer',
+      expiresIn: 900,
+      user: mockUser,
     };
 
-    service.resetPassword({ token: 'tok-123', newPassword: 'NewP@ssword1!' }).subscribe((res) => {
+    service.resetPassword({
+      email: 'user@example.com',
+      token: '123456',
+      newPassword: 'NewP@ssword1!',
+    }).subscribe((res) => {
       expect(res.message).toBe(responsePayload.message);
     });
 
     const req = httpTesting.expectOne('/api/v1/auth/password/reset');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ token: 'tok-123', newPassword: 'NewP@ssword1!' });
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.body).toEqual({
+      email: 'user@example.com',
+      token: '123456',
+      newPassword: 'NewP@ssword1!',
+    });
     req.flush(responsePayload);
+  });
+
+  it('verifyResetCode should post the email-bound OTP', () => {
+    service.verifyResetCode({ email: 'user@example.com', token: '123456' }).subscribe();
+
+    const req = httpTesting.expectOne('/api/v1/auth/password/verify');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ email: 'user@example.com', token: '123456' });
+    req.flush({ message: 'Reset code verified.' });
+  });
+
+  it('changeInitialPassword should post the new password with credentials', () => {
+    service.changeInitialPassword('NewP@ssword1!').subscribe();
+
+    const req = httpTesting.expectOne('/api/v1/auth/password/initial');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.body).toEqual({ newPassword: 'NewP@ssword1!' });
+    req.flush({ message: 'Password updated successfully.' });
   });
 
   it('loginWithGoogle should navigate to /api/v1/auth/oauth2/google', () => {

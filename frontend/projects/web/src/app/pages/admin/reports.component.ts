@@ -3,13 +3,12 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { HttpResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { CardComponent } from 'ui';
 import { ReportsService } from './reports.service';
 
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, CardComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './reports.component.html',
 })
 export class ReportsComponent implements OnInit {
@@ -43,11 +42,10 @@ export class ReportsComponent implements OnInit {
 
   ngOnInit(): void {
     const today = new Date();
-    const from = new Date(today);
-    from.setDate(today.getDate() - 6);
+    const from = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000);
     this.filterForm.setValue({
-      from: this.toDateInput(from),
-      to: this.toDateInput(today),
+      from: this.toColomboDate(from),
+      to: this.toColomboDate(today),
     });
     this.loadReport();
   }
@@ -90,11 +88,18 @@ export class ReportsComponent implements OnInit {
       : `${(row.failedDeliveries / row.totalDeliveries) * 100}%`;
   }
 
+  private toColomboDate(date: Date): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Colombo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(date);
+  }
+
   private toDateInput(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return this.toColomboDate(date);
   }
 
   private downloadCsv(response: HttpResponse<Blob>): void {

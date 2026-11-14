@@ -39,9 +39,31 @@ export class App {
       cleanUrl === '/reset-password' ||
       cleanUrl === '/customer' ||
       cleanUrl.startsWith('/customer/') ||
+      cleanUrl === '/courier' ||
+      cleanUrl.startsWith('/courier/') ||
       cleanUrl === '/track' ||
-      cleanUrl.startsWith('/track/')
+      cleanUrl.startsWith('/track/') ||
+      cleanUrl === '/dispatch' ||
+      cleanUrl.startsWith('/dispatch/')
     );
+  }
+
+  isAdminPage(): boolean {
+    const url = this.currentUrl() || this.router.url || '';
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    return cleanUrl === '/admin' || cleanUrl.startsWith('/admin/');
+  }
+
+  isAdminSection(path: string): boolean {
+    const url = this.currentUrl() || this.router.url || '';
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    return path === '/admin' ? cleanUrl === path : cleanUrl.startsWith(path);
+  }
+
+  isMerchantPage(): boolean {
+    const url = this.currentUrl() || this.router.url || '';
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    return cleanUrl === '/merchant' || cleanUrl.startsWith('/merchant/');
   }
 
   logout(): void {

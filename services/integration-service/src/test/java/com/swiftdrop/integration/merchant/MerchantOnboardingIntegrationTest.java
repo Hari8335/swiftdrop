@@ -47,6 +47,7 @@ class MerchantOnboardingIntegrationTest {
     @Autowired MerchantRepository merchantRepository;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @MockitoBean AuthProvisioningClient authProvisioningClient;
+    @MockitoBean MerchantApprovalMailSender merchantApprovalMailSender;
 
     @BeforeEach
     void cleanDatabase() {
@@ -112,6 +113,7 @@ class MerchantOnboardingIntegrationTest {
         mockMvc.perform(get("/api/v1/admin/merchants").param("status","APPROVED"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].clientSecret").doesNotExist());
         verify(authProvisioningClient,times(1)).provision(any(),any());
+        verify(merchantApprovalMailSender).sendApprovalEmail("approve@example.test", "Store", "123456");
         org.assertj.core.api.Assertions.assertThat(merchantRepository.findById(merchant.getId()).orElseThrow().getStatus()).isEqualTo(MerchantStatus.APPROVED);
     }
 
@@ -275,7 +277,8 @@ class MerchantOnboardingIntegrationTest {
         when(authProvisioningClient.provision(any(),any())).thenAnswer(call -> response(call.getArgument(0),merchant,authUser(merchant,true),secret,secret==null));
     }
     private ProvisioningResponse response(java.util.UUID operation,Merchant merchant,AuthUserResponse user,String secret,boolean recovery) {
-        return new ProvisioningResponse(operation,merchant.getId(),user,"client-validation",secret,recovery);
+        return new ProvisioningResponse(operation,merchant.getId(),user,"client-validation",secret,recovery,false,
+                recovery || secret == null ? null : "123456");
     }
 
     @Test @WithMockUser(roles="ADMIN")

@@ -239,7 +239,8 @@ public class AuthController {
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(new AuthResponse(accessToken, "Bearer", JwtIssuer.ACCESS_TOKEN_TTL.toSeconds(), summary));
+                .body(new AuthResponse(accessToken, "Bearer", JwtIssuer.ACCESS_TOKEN_TTL.toSeconds(), summary,
+                        user.isMustChangePassword()));
     }
 
     /**

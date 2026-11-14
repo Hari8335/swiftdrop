@@ -17,6 +17,7 @@ import {
   ProofUploadPayload,
   ProofUploadResponse,
   isValidFailedDeliveryRequest,
+  normalizeGoogleMapsUrl,
 } from './courier.model';
 
 @Injectable({
@@ -32,6 +33,7 @@ export class CourierService {
   private readonly deliveriesSignal = signal<CourierDelivery[]>([]);
   private readonly isLoadingSignal = signal<boolean>(false);
   private readonly errorSignal = signal<string | null>(null);
+  private lastLoadedDate?: string;
 
   // The execution page reads this signal synchronously during its initial render.
   // Empty values are only a render-safe placeholder; authenticated profile data is
@@ -99,6 +101,7 @@ export class CourierService {
    * Convenience loader with loading/error signal tracking
    */
   loadDeliveries(date?: string, status?: string): Observable<CourierDeliveriesResponse> {
+    this.lastLoadedDate = date?.trim() || undefined;
     this.isLoadingSignal.set(true);
     this.errorSignal.set(null);
 
@@ -119,6 +122,7 @@ export class CourierService {
    */
   getDeliveryDetail(parcelId: string): Observable<CourierDeliveryDetail> {
     return this.http.get<CourierDeliveryDetail>(`${this.baseUrl}/${parcelId}`).pipe(
+      map((detail) => ({ ...detail, googleMapsUrl: normalizeGoogleMapsUrl(detail.googleMapsUrl) })),
       tap((detail) => {
         this.mergeDetail(detail);
       })
@@ -158,7 +162,7 @@ export class CourierService {
     }
 
     return this.http.post<void>(`/api/v1/courier/deliveries/${encodeURIComponent(parcelId)}/fail`, normalized).pipe(
-      switchMap(() => this.loadDeliveries().pipe(map(() => void 0)))
+      switchMap(() => this.loadDeliveries(this.lastLoadedDate).pipe(map(() => void 0)))
     );
   }
 
@@ -251,7 +255,15 @@ export class CourierService {
     if (date?.trim()) {
       params = params.set('date', date.trim());
     }
-    return this.http.get<CourierDailySummary>('/api/v1/courier/summary', { params });
+    return this.http.get<CourierDailySummary>('/api/v1/courier/summary', { params }).pipe(
+      map((summary) => ({
+        ...summary,
+        deliveries: (summary.deliveries || []).map((delivery) => ({
+          ...delivery,
+          googleMapsUrl: normalizeGoogleMapsUrl(delivery.googleMapsUrl),
+        })),
+      }))
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -278,7 +290,7 @@ export class CourierService {
         city: '',
         district: '',
       },
-      googleMapsUrl: card.googleMapsUrl,
+      googleMapsUrl: normalizeGoogleMapsUrl(card.googleMapsUrl),
       weightKg: card.weightKg,
       attemptCount: card.attemptCount,
       sequenceOrder: card.sequenceOrder,
@@ -314,7 +326,7 @@ export class CourierService {
       proofRequired: detail.proofRequired,
       proof: detail.proof,
       failureReason: detail.failureReason,
-      googleMapsUrl: detail.googleMapsUrl,
+      googleMapsUrl: normalizeGoogleMapsUrl(detail.googleMapsUrl),
       updatedAt: new Date().toISOString(),
     };
 

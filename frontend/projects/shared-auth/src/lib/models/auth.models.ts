@@ -25,6 +25,7 @@ export interface AuthResponse {
   tokenType: string;
   expiresIn: number;
   user: User;
+  mustChangePassword?: boolean;
 }
 
 export interface TokenRefreshResponse {
@@ -43,12 +44,22 @@ export interface ForgotPasswordResponse {
 }
 
 export interface ResetPasswordRequest {
+  email: string;
   token: string;
   newPassword: string;
 }
 
 export interface ResetPasswordResponse {
   message: string;
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  user: User;
+}
+
+export interface VerifyResetCodeRequest {
+  email: string;
+  token: string;
 }
 
 export interface AuthError {
