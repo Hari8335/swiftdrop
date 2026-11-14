@@ -85,13 +85,9 @@ import { ParcelDetail } from './tracking.model';
             class="w-11 h-11 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-xs shadow-[#a53a26]/25 hover:shadow-sm hover:scale-[1.03] transition-all cursor-pointer no-underline"
             title="Book New Delivery"
           >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 16h6"/>
-              <path d="M19 13v6"/>
-              <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/>
-              <path d="m7.5 4.27 9 5.15"/>
-              <polyline points="3.29 7 12 12 20.71 7"/>
-              <line x1="12" y1="22" x2="12" y2="12"/>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
           </a>
 
