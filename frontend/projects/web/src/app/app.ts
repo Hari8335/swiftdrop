@@ -58,6 +58,12 @@ export class App {
     return path === '/admin' ? cleanUrl === path : cleanUrl.startsWith(path);
   }
 
+  isMerchantPage(): boolean {
+    const url = this.currentUrl() || this.router.url || '';
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    return cleanUrl === '/merchant' || cleanUrl.startsWith('/merchant/');
+  }
+
   logout(): void {
     this.authService.logout().subscribe({
       next: () => this.router.navigate(['/']),

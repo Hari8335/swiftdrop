@@ -1,6 +1,6 @@
-<main [class.p-6]="!isAuthPage() && !isAdminPage()" [class.bg-slate-50]="!isAuthPage() && !isAdminPage()" class="min-h-screen text-slate-900">
+<main [class.p-6]="!isAuthPage() && !isAdminPage() && !isMerchantPage()" [class.bg-slate-50]="!isAuthPage() && !isAdminPage() && !isMerchantPage()" class="min-h-screen text-slate-900">
   <h1 class="sr-only">Hello, web</h1>
-  @if (!isAuthPage() && !isAdminPage()) {
+  @if (!isAuthPage() && !isAdminPage() && !isMerchantPage()) {
     <header class="mb-6 pb-4 border-b border-slate-200">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-slate-800">Hello, web</h1>
