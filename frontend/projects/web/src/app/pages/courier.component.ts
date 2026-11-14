@@ -219,74 +219,134 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
           </div>
         </div>
 
-        <!-- Courier Top Bar Header -->
-        <div
-          class="portal-header bg-white rounded-3xl p-6 sm:p-7 border border-[#e8e2dc] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5"
-        >
-          <div class="flex items-center gap-4">
-            <div
-              class="brand-badge w-12 h-12 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 flex-shrink-0"
-            >
-              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <rect x="1" y="3" width="15" height="13" rx="2"></rect>
-                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
-                <circle cx="5.5" cy="18.5" r="2.5"></circle>
-                <circle cx="18.5" cy="18.5" r="2.5"></circle>
-              </svg>
-            </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="portal-pill">Courier Portal</span>
-                <span
-                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80"
-                >
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Online
-                </span>
-              </div>
-              <h1 class="portal-title text-2xl font-black text-[#1d1b2c] tracking-tight mt-0.5">
-                Courier Run Sheet
-              </h1>
-              <p class="text-xs font-semibold text-[#6f6d85] mt-0.5">
-                {{ profile().name }} (ID: {{ profile().userId }}) • {{ profile().zone || 'Assigned Zone' }}
-              </p>
-            </div>
+        <!-- Greeting Banner -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
+              Welcome back, {{ courierDisplayName() }}!
+            </h1>
+            <p class="text-xs font-semibold text-[#6f6d85] mt-1">
+              {{ profile().zone || 'Colombo Central' }} Dispatch Zone • {{ stats().outForDelivery + stats().created + stats().inTransit }} active deliveries in progress
+            </p>
           </div>
-
-          <!-- Quick Summary Chips -->
-          <div class="flex items-center gap-2.5 overflow-x-auto pb-1 sm:pb-0">
-            <div
-              class="stat-pill px-4 py-2 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] text-center min-w-[80px]"
+          <div class="flex items-center gap-2 self-start sm:self-auto">
+            <span
+              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80"
             >
-              <p class="text-[10px] uppercase font-bold text-[#6f6d85] tracking-wider">Total Run</p>
-              <p class="text-lg font-black text-[#1d1b2c]">{{ stats().total }}</p>
-            </div>
-            <div
-              class="stat-pill px-4 py-2 rounded-2xl bg-[#fffbeb] border border-[#fef3c7] text-center min-w-[80px]"
-            >
-              <p class="text-[10px] uppercase font-bold text-amber-700 tracking-wider">Pending</p>
-              <p class="text-lg font-black text-amber-800">
-                {{ stats().created + stats().pickedUp + stats().inTransit + stats().outForDelivery }}
-              </p>
-            </div>
-            <div
-              class="stat-pill px-4 py-2 rounded-2xl bg-[#ecfdf5] border border-[#d1fae5] text-center min-w-[80px]"
-            >
-              <p class="text-[10px] uppercase font-bold text-emerald-700 tracking-wider">Delivered</p>
-              <p class="text-lg font-black text-emerald-800">{{ stats().delivered }}</p>
-            </div>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Shift Active
+            </span>
             <button
               type="button"
               id="refresh-btn"
               (click)="refreshDeliveries()"
               [disabled]="isLoading()"
-              title="Refresh Deliveries"
-              class="p-3 rounded-2xl border border-[#e8e2dc] bg-[#faf8f6] hover:bg-white text-[#6f6d85] hover:text-[#a53a26] transition-all shadow-xs cursor-pointer"
+              title="Refresh Run Sheet"
+              class="p-2.5 rounded-full border border-[#e8e2dc] bg-[#faf8f6] hover:bg-white text-[#6f6d85] hover:text-[#a53a26] transition-all shadow-2xs cursor-pointer"
             >
-              <span [class.animate-spin]="isLoading()" class="inline-block text-base">🔄</span>
+              <span [class.animate-spin]="isLoading()" class="inline-block text-sm">🔄</span>
             </button>
           </div>
         </div>
 
+        <!-- Two Hero Cards Grid (Matching Customer Portal Design) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+          <!-- Hero Card 1: Active In-Delivery Card with 3D Isometric Graphic -->
+          <div
+            class="hero-summary-card bg-white rounded-3xl p-6 sm:p-7 border border-[#eee7e0] shadow-sm flex flex-col justify-between relative overflow-hidden"
+          >
+            <div class="flex items-start justify-between relative z-10">
+              <div>
+                <div class="flex items-baseline">
+                  <span class="text-5xl font-black text-[#1d1b2c] tracking-tight">
+                    {{ stats().outForDelivery + stats().created + stats().inTransit }}
+                  </span>
+                  <span class="text-sm font-bold text-[#6f6d85] ml-2">in delivery today</span>
+                </div>
+                <p class="text-xs text-[#6f6d85] font-medium mt-3 max-w-xs leading-relaxed">
+                  Active route in <strong class="text-[#1d1b2c]">{{ profile().zone || 'Colombo Central' }}</strong>.
+                  {{ stats().delivered }} completed out of {{ stats().total }} total assigned stops.
+                </p>
+              </div>
+
+              <!-- 3D Isometric Parcels Graphic (Terracotta & White Cubes matching Customer) -->
+              <div class="relative w-28 h-28 flex-shrink-0 -mt-2 -mr-1">
+                <svg class="w-full h-full drop-shadow-md" viewBox="0 0 160 140" fill="none">
+                  <!-- Terracotta Isometric Cube (Back/Higher) -->
+                  <g transform="translate(68, 15)">
+                    <polygon points="40,0 80,20 40,40 0,20" fill="#a53a26" />
+                    <polygon points="0,20 40,40 40,84 0,64" fill="#7e2615" />
+                    <polygon points="40,40 80,20 80,64 40,84" fill="#5c1b0f" />
+                  </g>
+                  <!-- White/Sand Isometric Cube (Front/Lower) -->
+                  <g transform="translate(15, 45)">
+                    <polygon points="34,0 68,17 34,34 0,17" fill="#ffffff" stroke="#eee7e0" stroke-width="0.5" />
+                    <polygon points="0,17 34,34 34,72 0,55" fill="#f8f6f4" stroke="#eee7e0" stroke-width="0.5" />
+                    <polygon points="34,34 68,17 68,55 34,72" fill="#e8e2dc" stroke="#eee7e0" stroke-width="0.5" />
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Action Buttons Row -->
+            <div class="flex flex-wrap items-center gap-3 pt-5 relative z-10">
+              <button
+                type="button"
+                (click)="navigateTo('/courier/summary')"
+                class="px-5 py-2.5 rounded-full bg-[#a53a26] hover:bg-[#7e2615] text-white font-bold text-xs transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer"
+              >
+                View Daily Summary
+              </button>
+              <button
+                type="button"
+                (click)="navigateTo('/courier/profile')"
+                class="px-5 py-2.5 rounded-full border border-[#a53a26] text-[#a53a26] hover:bg-[#faf6f0] font-bold text-xs transition-all cursor-pointer"
+              >
+                Duty & Settings
+              </button>
+            </div>
+          </div>
+
+          <!-- Hero Card 2: Quick Dispatch Search (Terracotta #a53a26, Matching Customer Portal) -->
+          <div
+            class="hero-track-card bg-[#a53a26] rounded-3xl p-6 sm:p-7 text-white shadow-md shadow-[#a53a26]/20 flex flex-col justify-between space-y-4"
+          >
+            <div>
+              <span class="text-[10px] font-black uppercase tracking-widest text-white/70 block mb-1">
+                DIRECT DISPATCH SEARCH
+              </span>
+              <h3 class="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug max-w-sm">
+                Enter parcel tracking number to look up stops or update status
+              </h3>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center gap-2 pt-2">
+              <input
+                type="text"
+                [ngModel]="searchQuery()"
+                (ngModelChange)="searchQuery.set($event)"
+                placeholder="Enter parcel number (e.g. SD-8942-COL)"
+                class="w-full sm:flex-1 px-4 py-2.5 rounded-full bg-white text-[#1d1b2c] placeholder:text-[#a09eaf] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-white/80 shadow-inner"
+              />
+              <button
+                type="button"
+                (click)="searchQuery.set(searchQuery())"
+                class="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#1d1b2c] hover:bg-black text-white font-black text-xs transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-95"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Title & Deliveries Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+          <div>
+            <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight">Today's Run Sheet Deliveries</h2>
+            <p class="text-xs font-semibold text-[#6f6d85] mt-0.5">
+              Review assigned packages, execute routes, and record delivery confirmation.
+            </p>
+          </div>
+        </div>
         <!-- Filter Tabs (Segmented Pill Bar matching Customer Portal) -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div
