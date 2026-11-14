@@ -12,6 +12,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { catchError, finalize, of } from 'rxjs';
 import { AuthService } from 'shared-auth';
 
@@ -262,9 +263,8 @@ const SUGGESTIONS = [
                     [class.bg-[#fdf2f0]]="msg.error"
                     [class.text-[#a53a26]]="msg.error"
                     [class.border-[#f5d5ce]]="msg.error"
-                  >
-                    {{ msg.text }}
-                  </div>
+                    [innerHTML]="formatMessage(msg.text)"
+                  ></div>
                   <span class="text-[10px] text-[#a09eaf] font-semibold mt-1 px-1">
                     {{ msg.timestamp | date:'h:mm a' }}
                   </span>
@@ -343,6 +343,7 @@ export class AssistantChatComponent implements OnInit, AfterViewChecked {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router, { optional: true });
   private readonly auth = inject(AuthService, { optional: true });
+  private readonly sanitizer = inject(DomSanitizer);
 
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef<HTMLElement>;
   @ViewChild('inputEl') private inputEl!: ElementRef<HTMLTextAreaElement>;
@@ -471,6 +472,29 @@ export class AssistantChatComponent implements OnInit, AfterViewChecked {
   protected clearConversation(): void {
     this.messages.set([]);
     this.conversationId = 'conv-' + Math.random().toString(36).substring(2, 10);
+  }
+
+  protected formatMessage(text: string): SafeHtml {
+    if (!text) return '';
+
+    // 1. Escape HTML special characters for strict XSS prevention
+    let escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+    // 2. Bold: **text** -> <strong class="font-bold">$1</strong>
+    escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold">$1</strong>');
+
+    // 3. Italics: *text* -> <em class="italic">$1</em>
+    escaped = escaped.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em class="italic">$1</em>');
+
+    // 4. Inline code: `code` -> styled code block
+    escaped = escaped.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-[#eee7e0] text-[#a53a26] text-xs font-mono font-semibold">$1</code>');
+
+    return this.sanitizer.bypassSecurityTrustHtml(escaped);
   }
 
   private scrollToBottom(): void {

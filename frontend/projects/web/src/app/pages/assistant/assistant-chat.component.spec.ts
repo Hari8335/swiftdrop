@@ -134,5 +134,25 @@ describe('AssistantChatComponent', () => {
     (component as any).goBack();
     expect(navigateSpy).toHaveBeenCalledWith(['/customer']);
   });
+
+  it('should format markdown bold into strong tags without raw asterisks', () => {
+    const input = 'Here are details for parcel **SD-20261114-BEK6JR**:\n• **Status:** CANCELLED';
+    const output = (component as any).formatMessage(input);
+    const html = (output as any).changingThisBreaksApplicationSecurity || output.toString();
+
+    expect(html).toContain('<strong class="font-bold">SD-20261114-BEK6JR</strong>');
+    expect(html).toContain('<strong class="font-bold">Status:</strong>');
+    expect(html).not.toContain('**');
+  });
+
+  it('should safely escape raw HTML tags', () => {
+    const input = '<script>alert(1)</script> **safe bold**';
+    const output = (component as any).formatMessage(input);
+    const html = (output as any).changingThisBreaksApplicationSecurity || output.toString();
+
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('<strong class="font-bold">safe bold</strong>');
+  });
 });
 
