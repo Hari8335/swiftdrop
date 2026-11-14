@@ -164,9 +164,9 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
       </aside>
 
       <!-- Main Content Area (Edge-to-Edge Full Screen) -->
-      <main class="flex-1 min-h-screen p-6 sm:p-8 lg:p-10 space-y-7 min-w-0 bg-white">
+      <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 md:py-7 space-y-7 min-w-0 bg-white">
         <!-- Top Header: Search Bar & Merchant Profile -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#f4efe9]">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#f4efe9]">
           <!-- Search Input -->
           <div class="relative flex-1 max-w-lg">
             <svg
@@ -184,7 +184,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               [(ngModel)]="searchQuery"
               (input)="onSearchChange()"
               placeholder="Search by tracking number, recipient, or address..."
-              class="w-full pl-11 pr-4 py-2.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
+              class="w-full h-11 pl-11 pr-4 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
             />
           </div>
 
@@ -197,7 +197,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                 (click)="toggleProfileMenu()"
                 aria-haspopup="menu"
                 [attr.aria-expanded]="profileMenuOpen()"
-                class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] hover:border-[#a53a26]/40 transition-colors cursor-pointer"
+                class="h-11 flex items-center gap-2.5 px-3 rounded-full bg-[#faf8f6] border border-[#e8e2dc] hover:border-[#a53a26]/40 transition-colors cursor-pointer"
               >
                 <span
                   class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm"
