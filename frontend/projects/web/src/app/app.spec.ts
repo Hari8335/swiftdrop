@@ -116,6 +116,18 @@ describe('App', () => {
     expect(compiled.querySelector('header')).toBeTruthy();
   });
 
+  it('should render the persistent admin top bar on admin routes', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('header')).toBeTruthy();
+    expect(compiled.textContent).toContain('Search staff, merchants, reports');
+    expect(compiled.textContent).toContain('Sign out');
+  });
+
   it('should call authService.logout() and redirect to landing page on logout', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
