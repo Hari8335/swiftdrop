@@ -24,7 +24,7 @@ describe('AdminComponent', () => {
   it('creates and renders admin shell and navigation', () => {
     expect(component).toBeTruthy();
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.textContent).toContain('Admin shell');
+    expect(element.textContent).toContain('Welcome back, admin!');
     expect(element.textContent).toContain('Merchant approval');
     expect(element.textContent).toContain('Audit log');
     expect(element.querySelector('#admin-staff-management-link')).toBeTruthy();

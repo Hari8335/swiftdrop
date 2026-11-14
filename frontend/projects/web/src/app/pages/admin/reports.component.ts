@@ -3,13 +3,12 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { HttpResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { CardComponent } from 'ui';
 import { ReportsService } from './reports.service';
 
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, CardComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './reports.component.html',
 })
 export class ReportsComponent implements OnInit {

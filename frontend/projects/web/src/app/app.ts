@@ -44,6 +44,18 @@ export class App {
     );
   }
 
+  isAdminPage(): boolean {
+    const url = this.currentUrl() || this.router.url || '';
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    return cleanUrl === '/admin' || cleanUrl.startsWith('/admin/');
+  }
+
+  isAdminSection(path: string): boolean {
+    const url = this.currentUrl() || this.router.url || '';
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    return path === '/admin' ? cleanUrl === path : cleanUrl.startsWith(path);
+  }
+
   logout(): void {
     this.authService.logout().subscribe({
       next: () => this.router.navigate(['/']),
