@@ -266,6 +266,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-swiftdrop_password}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       JWKS_URL: http://auth-service:8081/.well-known/jwks.json
+      SWIFTDROP_AUTH_BASE_URL: http://auth-service:8081
       SERVICES_AUTH_BASE_URL: http://auth-service:8081
       SERVICES_PARCEL_BASE_URL: http://parcel-service:8082
       SERVICES_OPERATIONS_BASE_URL: http://operations-service:8083
