@@ -50,7 +50,7 @@ public class PasswordResetToken {
     }
 
     public boolean isExpired(Instant now) {
-        return expiresAt.isBefore(now);
+        return !expiresAt.isAfter(now);
     }
 
     public boolean isConsumed() {

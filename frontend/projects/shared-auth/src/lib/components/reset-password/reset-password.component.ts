@@ -44,20 +44,20 @@ export const passwordMatchValidator: ValidatorFn = (
       <div class="auth-card">
         <div class="auth-header">
           <div class="brand-badge">SwiftDrop</div>
-          <h2>Create new password</h2>
-          <p>Choose a strong password with at least 8 characters</p>
+          <h2>{{ firstLogin() || codeVerified() ? 'Create new password' : 'Enter reset code' }}</h2>
+          <p>{{ firstLogin() || codeVerified() ? 'Choose a strong password with at least 8 characters' : 'Enter the 6-digit code sent to your email. It expires in 10 minutes.' }}</p>
         </div>
 
-        @if (missingToken()) {
+        @if (missingEmail()) {
           <div class="error-banner" role="alert">
             <span class="error-icon">⚠️</span>
             <div>
-              <strong>Invalid or missing reset token</strong>
-              <p>Please check your email link or request a new password reset.</p>
+              <strong>Missing email address</strong>
+              <p>Please request a new password reset code.</p>
             </div>
           </div>
           <div class="auth-footer">
-            <p><a routerLink="/forgot-password">Request new reset link</a></p>
+            <p><a routerLink="/forgot-password">Request a new reset code</a></p>
           </div>
         } @else if (isSuccess()) {
           <div class="success-banner" role="status">
@@ -67,8 +67,8 @@ export const passwordMatchValidator: ValidatorFn = (
               <p>{{ successMessage() }}</p>
             </div>
           </div>
-          <button type="button" class="submit-btn" (click)="navigateToLogin()">
-            Sign in with new password
+          <button type="button" class="submit-btn" (click)="navigateToPortal()">
+            Open your portal
           </button>
         } @else {
           @if (errorMessage()) {
@@ -78,6 +78,33 @@ export const passwordMatchValidator: ValidatorFn = (
             </div>
           }
 
+          @if (!firstLogin() && !codeVerified()) {
+            <form [formGroup]="codeForm" (ngSubmit)="verifyCode()" class="auth-form">
+              <div class="form-group">
+                <label for="resetCode">6-digit reset code</label>
+                <input
+                  id="resetCode"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="6"
+                  formControlName="token"
+                  placeholder="000000"
+                  [class.invalid]="isCodeFieldInvalid()"
+                  autocomplete="one-time-code"
+                />
+                @if (isCodeFieldInvalid()) {
+                  <span class="field-error">Enter the 6-digit code from your email</span>
+                }
+              </div>
+              <button type="submit" class="submit-btn" [disabled]="codeForm.invalid || isLoading()">
+                @if (isLoading()) {
+                  <span class="spinner"></span> Verifying code...
+                } @else {
+                  Verify code
+                }
+              </button>
+            </form>
+          } @else {
           <form [formGroup]="resetForm" (ngSubmit)="onSubmit()" class="auth-form">
             <div class="form-group">
               <label for="newPassword">New password</label>
@@ -95,8 +122,18 @@ export const passwordMatchValidator: ValidatorFn = (
                   class="toggle-visibility"
                   (click)="toggleShowPassword()"
                   [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+                  [title]="showPassword() ? 'Hide password' : 'Show password'"
                 >
-                  {{ showPassword() ? 'Hide' : 'Show' }}
+                  @if (showPassword()) {
+                    <svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.7 10.7 0 0 1 12 5c5.2 0 9 5.5 9 7s-3.8 7-9 7a9.7 9.7 0 0 1-4.8-1.3M6.5 16.5C4.3 14.8 3 12.6 3 12c0-1 1.6-3.4 4.1-5.1" />
+                    </svg>
+                  } @else {
+                    <svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" />
+                      <circle cx="12" cy="12" r="2.5" />
+                    </svg>
+                  }
                 </button>
               </div>
               @if (isFieldInvalid('newPassword')) {
@@ -120,8 +157,18 @@ export const passwordMatchValidator: ValidatorFn = (
                   class="toggle-visibility"
                   (click)="toggleShowConfirmPassword()"
                   [attr.aria-label]="showConfirmPassword() ? 'Hide password' : 'Show password'"
+                  [title]="showConfirmPassword() ? 'Hide password' : 'Show password'"
                 >
-                  {{ showConfirmPassword() ? 'Hide' : 'Show' }}
+                  @if (showConfirmPassword()) {
+                    <svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.7 10.7 0 0 1 12 5c5.2 0 9 5.5 9 7s-3.8 7-9 7a9.7 9.7 0 0 1-4.8-1.3M6.5 16.5C4.3 14.8 3 12.6 3 12c0-1 1.6-3.4 4.1-5.1" />
+                    </svg>
+                  } @else {
+                    <svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" />
+                      <circle cx="12" cy="12" r="2.5" />
+                    </svg>
+                  }
                 </button>
               </div>
               @if (isFieldInvalid('confirmPassword')) {
@@ -143,9 +190,10 @@ export const passwordMatchValidator: ValidatorFn = (
               }
             </button>
           </form>
+          }
 
           <div class="auth-footer">
-            <p>Remembered your password? <a routerLink="/login">Back to Sign in</a></p>
+            <p>Need a different code? <a routerLink="/forgot-password">Start again</a></p>
           </div>
         }
       </div>
@@ -278,6 +326,38 @@ export const passwordMatchValidator: ValidatorFn = (
       color: #cbd5e1;
     }
 
+    .form-group input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.75rem 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 0.5rem;
+      background: rgba(15, 23, 42, 0.6);
+      color: #f8fafc;
+      font-size: 0.95rem;
+    }
+
+    .form-group input::placeholder {
+      color: #64748b;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    }
+
+    #resetCode {
+      letter-spacing: 0.35em;
+      text-align: center;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .form-group input.invalid {
+      border-color: #ef4444;
+    }
+
     .password-input-wrapper {
       position: relative;
       display: flex;
@@ -309,19 +389,30 @@ export const passwordMatchValidator: ValidatorFn = (
     .toggle-visibility {
       position: absolute;
       right: 0.75rem;
-      background: none;
-      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      border: 0;
+      background: transparent;
       color: #94a3b8;
-      font-size: 0.75rem;
-      font-weight: 600;
       cursor: pointer;
-      padding: 0.25rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
     }
 
     .toggle-visibility:hover {
       color: #f8fafc;
+    }
+
+    .eye-icon {
+      width: 1.15rem;
+      height: 1.15rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
     }
 
     .field-error {
@@ -394,8 +485,12 @@ export class ResetPasswordComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
+  email = signal<string | null>(null);
+  readonly portalRole = signal<string | null>(null);
   token = signal<string | null>(null);
-  readonly missingToken = signal(false);
+  readonly missingEmail = signal(false);
+  readonly firstLogin = signal(false);
+  readonly codeVerified = signal(false);
   readonly isLoading = signal(false);
   readonly isSuccess = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -403,6 +498,10 @@ export class ResetPasswordComponent implements OnInit {
 
   readonly showPassword = signal(false);
   readonly showConfirmPassword = signal(false);
+
+  readonly codeForm: FormGroup = this.fb.group({
+    token: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
+  });
 
   readonly resetForm: FormGroup = this.fb.group(
     {
@@ -413,12 +512,14 @@ export class ResetPasswordComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    const rawToken = this.route.snapshot.queryParamMap.get('token');
-    if (!rawToken || !rawToken.trim()) {
-      this.missingToken.set(true);
+    const rawEmail = this.route.snapshot.queryParamMap.get('email');
+    if (!rawEmail || !rawEmail.trim()) {
+      this.missingEmail.set(true);
     } else {
-      this.token.set(rawToken.trim());
+      this.email.set(rawEmail.trim().toLowerCase());
     }
+    this.firstLogin.set(this.route.snapshot.queryParamMap.get('firstLogin') === 'true');
+    this.portalRole.set(this.route.snapshot.queryParamMap.get('role')?.toLowerCase() || null);
   }
 
   toggleShowPassword(): void {
@@ -434,13 +535,42 @@ export class ResetPasswordComponent implements OnInit {
     return !!(field && field.invalid && (field.dirty || field.touched));
   }
 
+  isCodeFieldInvalid(): boolean {
+    const field = this.codeForm.get('token');
+    return !!(field && field.invalid && (field.dirty || field.touched));
+  }
+
   hasMismatchError(): boolean {
     const confirm = this.resetForm.get('confirmPassword');
     return !!(confirm && confirm.hasError('passwordMismatch') && (confirm.dirty || confirm.touched));
   }
 
+  verifyCode(): void {
+    if (this.codeForm.invalid || !this.email()) {
+      this.codeForm.markAllAsTouched();
+      return;
+    }
+
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+    const token = this.codeForm.value.token as string;
+    this.authService.verifyResetCode({ email: this.email()!, token }).subscribe({
+      next: () => {
+        this.isLoading.set(false);
+        this.token.set(token);
+        this.codeVerified.set(true);
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        this.errorMessage.set(
+          err.error?.message || 'This code is invalid or expired. Please request a new code.'
+        );
+      },
+    });
+  }
+
   onSubmit(): void {
-    if (this.resetForm.invalid || !this.token()) {
+    if (this.resetForm.invalid || !this.email() || (!this.firstLogin() && !this.token())) {
       this.resetForm.markAllAsTouched();
       return;
     }
@@ -448,7 +578,24 @@ export class ResetPasswordComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
+    if (this.firstLogin()) {
+      this.authService.changeInitialPassword(this.resetForm.value.newPassword).subscribe({
+        next: (response) => {
+          this.isLoading.set(false);
+          this.isSuccess.set(true);
+          this.successMessage.set(response.message || 'Password has been successfully updated.');
+          this.navigateToPortal();
+        },
+        error: (err) => {
+          this.isLoading.set(false);
+          this.errorMessage.set(err.error?.message || 'Failed to update password. Please try again.');
+        },
+      });
+      return;
+    }
+
     const payload = {
+      email: this.email()!,
       token: this.token()!,
       newPassword: this.resetForm.value.newPassword,
     };
@@ -457,15 +604,15 @@ export class ResetPasswordComponent implements OnInit {
       next: (response) => {
         this.isLoading.set(false);
         this.isSuccess.set(true);
-        this.successMessage.set(
-          response.message || 'Password has been successfully reset. Please log in with your new password.'
-        );
+        this.successMessage.set(response.message || 'Password has been successfully reset.');
+        this.authService.setSession(response.accessToken, response.user);
+        this.navigateToPortal();
       },
       error: (err) => {
         this.isLoading.set(false);
         if (err.status === 400) {
           this.errorMessage.set(
-            err.error?.message || 'Invalid, expired, or already-used reset link. Please request a new one.'
+            err.error?.message || 'Invalid, expired, or already-used reset code. Please request a new one.'
           );
         } else {
           this.errorMessage.set('Failed to reset password. Please try again.');
@@ -474,8 +621,14 @@ export class ResetPasswordComponent implements OnInit {
     });
   }
 
-  navigateToLogin(): void {
-    this.router.navigate(['/login']);
+  navigateToPortal(): void {
+    const role = this.authService.userRole()?.toLowerCase() || this.portalRole();
+    if (!role) {
+      this.router.navigate(['/login']);
+      return;
+    }
+    const target = role === 'dispatcher' ? '/dispatch' : `/${role}`;
+    this.router.navigate([target]);
   }
 }
 

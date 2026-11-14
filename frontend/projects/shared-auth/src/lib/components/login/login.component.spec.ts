@@ -108,6 +108,25 @@ describe('LoginComponent', () => {
     expect(component.isLoading()).toBe(false);
   });
 
+  it('should route first-time merchant login to password setup', () => {
+    authServiceMock.login.mockReturnValue(of({
+      ...mockAuthResponse,
+      mustChangePassword: true,
+      user: { ...mockAuthResponse.user, email: 'merchant@example.com', role: 'MERCHANT' },
+    }));
+    component.selectRole('MERCHANT');
+    component.loginForm.setValue({
+      email: 'merchant@example.com',
+      password: '123456',
+    });
+
+    component.onSubmit();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/reset-password'], {
+      queryParams: { email: 'merchant@example.com', firstLogin: 'true', role: 'MERCHANT' },
+    });
+  });
+
   it('should navigate a successful Courier login to the Courier portal', () => {
     authServiceMock.login.mockReturnValue(of({
       ...mockAuthResponse,

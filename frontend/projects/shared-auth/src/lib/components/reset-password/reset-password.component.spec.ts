@@ -8,13 +8,21 @@ describe('ResetPasswordComponent', () => {
   let component: ResetPasswordComponent;
   let fixture: ComponentFixture<ResetPasswordComponent>;
   let authServiceMock: {
+    verifyResetCode: jest.Mock;
     resetPassword: jest.Mock;
+    changeInitialPassword: jest.Mock;
+    setSession: jest.Mock;
+    userRole: jest.Mock;
   };
   let router: Router;
 
   const createComponentWithToken = async (token: string | null) => {
     authServiceMock = {
+      verifyResetCode: jest.fn(),
       resetPassword: jest.fn(),
+      changeInitialPassword: jest.fn(),
+      setSession: jest.fn(),
+      userRole: jest.fn().mockReturnValue('CUSTOMER'),
     };
 
     await TestBed.configureTestingModule({
@@ -27,7 +35,7 @@ describe('ResetPasswordComponent', () => {
           useValue: {
             snapshot: {
               queryParamMap: {
-                get: (key: string) => (key === 'token' ? token : null),
+                get: () => (token ? 'user@example.com' : null),
               },
             },
           },
@@ -42,15 +50,30 @@ describe('ResetPasswordComponent', () => {
     fixture.detectChanges();
   };
 
-  describe('with valid token', () => {
+  describe('with reset email', () => {
     beforeEach(async () => {
-      await createComponentWithToken('valid-token-123');
+      await createComponentWithToken('123456');
     });
 
-    it('should initialize with token and invalid empty form', () => {
-      expect(component.missingToken()).toBe(false);
-      expect(component.token()).toBe('valid-token-123');
+    it('should initialize with email and invalid empty forms', () => {
+      expect(component.missingEmail()).toBe(false);
+      expect(component.email()).toBe('user@example.com');
+      expect(component.codeForm.valid).toBe(false);
       expect(component.resetForm.valid).toBe(false);
+    });
+
+    it('should verify a six-digit code before showing the password form', () => {
+      authServiceMock.verifyResetCode.mockReturnValue(of({ message: 'Reset code verified.' }));
+      component.codeForm.setValue({ token: '123456' });
+
+      component.verifyCode();
+
+      expect(authServiceMock.verifyResetCode).toHaveBeenCalledWith({
+        email: 'user@example.com',
+        token: '123456',
+      });
+      expect(component.codeVerified()).toBe(true);
+      expect(component.token()).toBe('123456');
     });
 
     it('should validate password length and required fields', () => {
@@ -87,9 +110,13 @@ describe('ResetPasswordComponent', () => {
       expect(component.showConfirmPassword()).toBe(true);
     });
 
-    it('should submit successfully and navigate to login', () => {
+    it('should submit successfully and navigate to the role portal', () => {
+      component.codeVerified.set(true);
+      component.token.set('123456');
       const response = {
-        message: 'Password has been successfully reset. Please log in with your new password.',
+        message: 'Password has been successfully reset.',
+        accessToken: 'reset-token',
+        user: { id: '1', email: 'user@example.com', fullName: 'User', role: 'CUSTOMER' },
       };
       authServiceMock.resetPassword.mockReturnValue(of(response));
 
@@ -101,25 +128,45 @@ describe('ResetPasswordComponent', () => {
       component.onSubmit();
 
       expect(authServiceMock.resetPassword).toHaveBeenCalledWith({
-        token: 'valid-token-123',
+        email: 'user@example.com',
+        token: '123456',
         newPassword: 'BrandNewPassword123!',
       });
       expect(component.isLoading()).toBe(false);
       expect(component.isSuccess()).toBe(true);
       expect(component.successMessage()).toBe(response.message);
 
-      component.navigateToLogin();
-      expect(router.navigate).toHaveBeenCalledWith(['/login']);
+      expect(authServiceMock.setSession).toHaveBeenCalledWith('reset-token', response.user);
+      expect(router.navigate).toHaveBeenCalledWith(['/customer']);
+    });
+
+    it('should change a merchant initial password and navigate to the merchant portal', () => {
+      component.firstLogin.set(true);
+      authServiceMock.userRole.mockReturnValue('MERCHANT');
+      authServiceMock.changeInitialPassword.mockReturnValue(of({
+        message: 'Password updated successfully.',
+      }));
+      component.resetForm.setValue({
+        newPassword: 'BrandNewPassword123!',
+        confirmPassword: 'BrandNewPassword123!',
+      });
+
+      component.onSubmit();
+
+      expect(authServiceMock.changeInitialPassword).toHaveBeenCalledWith('BrandNewPassword123!');
+      expect(router.navigate).toHaveBeenCalledWith(['/merchant']);
     });
 
     it('should display error message on 400 Invalid/Expired token', () => {
       authServiceMock.resetPassword.mockReturnValue(
         throwError(() => ({
           status: 400,
-          error: { code: 'INVALID_RESET_TOKEN', message: 'Token is expired' },
+          error: { code: 'INVALID_RESET_TOKEN', message: 'Code is expired' },
         }))
       );
 
+      component.codeVerified.set(true);
+      component.token.set('123456');
       component.resetForm.setValue({
         newPassword: 'BrandNewPassword123!',
         confirmPassword: 'BrandNewPassword123!',
@@ -129,17 +176,17 @@ describe('ResetPasswordComponent', () => {
 
       expect(component.isLoading()).toBe(false);
       expect(component.isSuccess()).toBe(false);
-      expect(component.errorMessage()).toBe('Token is expired');
+      expect(component.errorMessage()).toBe('Code is expired');
     });
   });
 
-  describe('with missing token', () => {
+  describe('with missing email', () => {
     beforeEach(async () => {
       await createComponentWithToken(null);
     });
 
-    it('should set missingToken signal to true', () => {
-      expect(component.missingToken()).toBe(true);
+    it('should set missingEmail signal to true', () => {
+      expect(component.missingEmail()).toBe(true);
       expect(component.token()).toBeNull();
     });
   });

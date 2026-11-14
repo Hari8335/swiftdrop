@@ -12,6 +12,7 @@ import {
   ResetPasswordResponse,
   TokenRefreshResponse,
   User,
+  VerifyResetCodeRequest,
 } from '../models/auth.models';
 
 /**
@@ -124,7 +125,21 @@ export class AuthService {
    * Reset password with token (M3).
    */
   resetPassword(data: ResetPasswordRequest): Observable<ResetPasswordResponse> {
-    return this.http.post<ResetPasswordResponse>(`${this.baseUrl}/password/reset`, data);
+    return this.http.post<ResetPasswordResponse>(`${this.baseUrl}/password/reset`, data, {
+      withCredentials: true,
+    });
+  }
+
+  verifyResetCode(data: VerifyResetCodeRequest): Observable<ForgotPasswordResponse> {
+    return this.http.post<ForgotPasswordResponse>(`${this.baseUrl}/password/verify`, data);
+  }
+
+  changeInitialPassword(newPassword: string): Observable<ForgotPasswordResponse> {
+    return this.http.post<ForgotPasswordResponse>(
+      `${this.baseUrl}/password/initial`,
+      { newPassword },
+      { withCredentials: true }
+    );
   }
 
   /**
