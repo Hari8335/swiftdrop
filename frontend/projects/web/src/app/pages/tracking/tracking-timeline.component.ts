@@ -28,7 +28,7 @@ interface Row {
             [attr.data-state]="row.state">
           @if (!last) {
             <span class="absolute left-[0.6875rem] top-6 h-full w-px"
-                  [class]="row.state === 'pending' ? 'bg-surface-border' : 'bg-brand-200'" aria-hidden="true"></span>
+                  [class]="row.state === 'pending' ? 'bg-[#eee7e0]' : (row.status === 'DELIVERED' ? 'bg-emerald-400' : 'bg-[#a53a26]/25')" aria-hidden="true"></span>
           }
           <span class="relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-4 ring-surface"
                 [class]="dotClasses(row)" aria-hidden="true">
@@ -84,14 +84,19 @@ export class TrackingTimelineComponent {
 
   protected dotClasses(row: Row): string {
     if (row.state === 'pending') {
-      return 'border-2 border-surface-border bg-surface';
+      return 'border-2 border-[#e2dad2] bg-white text-transparent';
     }
     if (row.status === 'FAILED') {
-      return 'bg-danger-600 text-white';
+      return 'bg-rose-600 text-white';
     }
     if (row.status === 'CANCELLED') {
-      return 'bg-neutral-500 text-white';
+      return 'bg-slate-500 text-white';
     }
-    return row.state === 'current' ? 'bg-brand-600 text-white' : 'bg-brand-100 text-brand-700';
+    if (row.status === 'DELIVERED') {
+      return 'bg-emerald-600 text-white';
+    }
+    return row.state === 'current'
+      ? 'bg-[#a53a26] text-white'
+      : 'bg-[#faf6f0] text-[#a53a26] border border-[#a53a26]/20';
   }
 }

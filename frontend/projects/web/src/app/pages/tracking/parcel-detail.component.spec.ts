@@ -5,6 +5,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { AuthService } from 'shared-auth';
+import { of } from 'rxjs';
+import { NotificationService } from '../../notification/notification.service';
 import { ParcelDetailComponent } from './parcel-detail.component';
 import { FakeEventSource, fakeEventSourceProvider, statusEvent } from './testing';
 import { ParcelDetail, ParcelHistoryResponse } from './tracking.model';
@@ -55,7 +57,25 @@ describe('ParcelDetailComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         fakeEventSourceProvider,
-        { provide: AuthService, useValue: { isAuthenticated: computed(() => !!token()) } },
+        {
+          provide: AuthService,
+          useValue: {
+            isAuthenticated: computed(() => !!token()),
+            currentUser: signal(null),
+          },
+        },
+        {
+          provide: NotificationService,
+          useValue: {
+            unreadCount: signal(0),
+            notifications: signal([]),
+            totalElements: signal(0),
+            isLoading: signal(false),
+            error: signal(null),
+            refreshUnreadCount: () => of(0),
+            loadNotifications: () => of([]),
+          },
+        },
       ],
     });
     http = TestBed.inject(HttpTestingController);
