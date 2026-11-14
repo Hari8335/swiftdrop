@@ -103,4 +103,37 @@ class AssistantControllerTest {
         assertTrue(response.reply().contains("temporarily unavailable"));
         assertTrue(!response.reply().contains("provider secret"));
     }
+
+    @Test
+    void handlesNaturalLanguageFeeQuestionWithDefaultMediumSize() {
+        when(tools.estimateFee("Colombo", "Kandy", 2.0, "MEDIUM", "customer-token"))
+                .thenReturn(new AssistantTools.FeeEstimateResult(2.0, "MEDIUM", "Kandy",
+                        java.math.BigDecimal.valueOf(650), "LKR"));
+
+        ChatMessageResponse response = controller.chat(
+                new ChatMessageRequest("How much to send 2 kg from Colombo to Kandy?", null),
+                customerJwt, null).getBody();
+
+        assertTrue(response.reply().contains("650"));
+        assertTrue(!response.reply().contains("FeeEstimateResult"));
+        verify(tools).estimateFee("Colombo", "Kandy", 2.0, "MEDIUM", "customer-token");
+    }
+
+    @Test
+    void formatsCustomerParcelListCleanlyWithoutRawRecordSyntax() {
+        when(tools.getCustomerParcels(null, 0, 20, "customer-token")).thenReturn(List.of(
+                new AssistantTools.ParcelLookupResult("SD-20261114-LCFZKK", "CREATED", "Colombo", false,
+                        Instant.parse("2026-11-14T13:12:56Z"), java.math.BigDecimal.valueOf(700)),
+                new AssistantTools.ParcelLookupResult("SD-20261114-BEK6JR", "CANCELLED", null, false,
+                        Instant.parse("2026-11-14T13:12:32Z"), java.math.BigDecimal.valueOf(1600))));
+
+        ChatMessageResponse response = controller.chat(
+                new ChatMessageRequest("What are my all shipments?", null), customerJwt, null).getBody();
+
+        assertTrue(response.reply().contains("SD-20261114-LCFZKK"));
+        assertTrue(response.reply().contains("CREATED"));
+        assertTrue(response.reply().contains("SD-20261114-BEK6JR"));
+        assertTrue(response.reply().contains("CANCELLED"));
+        assertTrue(!response.reply().contains("ParcelLookupResult"));
+    }
 }

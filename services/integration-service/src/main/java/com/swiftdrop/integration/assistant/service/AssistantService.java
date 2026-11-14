@@ -14,7 +14,10 @@ public class AssistantService {
     private static final Pattern TRACKING = Pattern.compile("SD-\\d{8}-[A-Z0-9]{6}", Pattern.CASE_INSENSITIVE);
     private static final Pattern WEIGHT = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*kg", Pattern.CASE_INSENSITIVE);
     private static final Pattern DISTRICTS = Pattern.compile(
-            "\\bfrom\\s+([A-Za-z][A-Za-z -]{1,40}?)\\s+to\\s+([A-Za-z][A-Za-z -]{1,40}?)(?=\\s+(?:for|at|with)|\\s*$)",
+            "\\bfrom\\s+([A-Za-z][A-Za-z -]{1,40}?)\\s+to\\s+([A-Za-z][A-Za-z -]{1,40}?)(?=[?!.,;]*\\s*(?:for|at|with|$))",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern DISTRICTS_TO_FROM = Pattern.compile(
+            "\\bto\\s+([A-Za-z][A-Za-z -]{1,40}?)\\s+from\\s+([A-Za-z][A-Za-z -]{1,40}?)(?=[?!.,;]*\\s*(?:for|at|with|$))",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern SIZE = Pattern.compile("\\b(small|medium|large)\\b", Pattern.CASE_INSENSITIVE);
     private final LlmClient llmClient;
@@ -75,17 +78,31 @@ public class AssistantService {
     private String feeFacts(String question, String token) {
         Matcher weight = WEIGHT.matcher(question);
         Matcher districts = DISTRICTS.matcher(question);
+        Matcher districtsToFrom = DISTRICTS_TO_FROM.matcher(question);
         Matcher size = SIZE.matcher(question);
-        if (!weight.find() || !districts.find() || !size.find()) {
+
+        String pickup;
+        String destination;
+        if (districts.find()) {
+            pickup = districts.group(1).trim();
+            destination = districts.group(2).trim();
+        } else if (districtsToFrom.find()) {
+            destination = districtsToFrom.group(1).trim();
+            pickup = districtsToFrom.group(2).trim();
+        } else {
             return "A fee quote needs pickup district, destination district, weight in kg, and parcel size.";
         }
+
+        double weightKg = weight.find() ? Double.parseDouble(weight.group(1)) : 1.0;
+        String sizeCategory = size.find() ? size.group(1).toUpperCase(Locale.ROOT) : "MEDIUM";
+
         return String.valueOf(tools.estimateFee(
-                districts.group(1).trim(), districts.group(2).trim(),
-                Double.parseDouble(weight.group(1)), size.group(1).toUpperCase(Locale.ROOT), token));
+                pickup, destination, weightKg, sizeCategory, token));
     }
 
     private static boolean isFeeQuestion(String lower) {
-        return lower.contains("fee") || lower.contains("price") || lower.contains("cost") || lower.contains("quote");
+        return lower.contains("fee") || lower.contains("price") || lower.contains("cost") || lower.contains("quote")
+                || lower.contains("how much") || lower.contains("rate");
     }
 
     private static boolean isSummaryQuestion(String lower) {
