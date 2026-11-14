@@ -1,74 +1,147 @@
-<div class="space-y-6">
-  <header class="rounded-xl bg-slate-900 p-6 text-white shadow-sm">
-    <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-      <div>
-        <p class="text-sm font-medium text-indigo-300">SwiftDrop operations</p>
-        <h1 class="mt-1 text-3xl font-bold">Admin shell</h1>
-        <p class="mt-2 text-slate-300">Administration, staff user management, and system governance.</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-400/30">
-          ADMIN Role
+<div class="min-h-screen bg-[#fbfaf8] text-[#211f32]">
+  <div class="flex min-h-screen">
+    <aside class="hidden">
+      <a routerLink="/admin" aria-label="SwiftDrop admin home" class="grid h-11 w-11 place-items-center rounded-2xl bg-[#9b432f] text-white shadow-[0_8px_18px_rgba(155,67,47,0.2)]">
+        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </a>
+
+      <nav class="mt-10 flex flex-1 flex-col items-center gap-3" aria-label="Admin navigation">
+        <a routerLink="/admin" aria-label="Admin overview" class="relative grid h-10 w-10 place-items-center rounded-xl bg-white text-[#9b432f] shadow-sm ring-1 ring-[#f2e4de]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/>
+          </svg>
+          <span class="absolute -right-px top-2 bottom-2 w-1 rounded-l-full bg-[#9b432f]"></span>
+        </a>
+        <a routerLink="/admin/users" aria-label="Staff management" class="grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85] transition hover:bg-white hover:text-[#9b432f]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <circle cx="12" cy="8" r="3"/><path d="M5 20c.7-3.1 3.2-5 7-5s6.3 1.9 7 5"/><path d="M8 4h8"/>
+          </svg>
+        </a>
+        <a routerLink="/admin/merchants" aria-label="Merchant approval" class="grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85] transition hover:bg-white hover:text-[#9b432f]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M4 10h16l-1-5H5l-1 5Z"/><path d="M5 10v9h14v-9"/><path d="M8 14h8"/>
+          </svg>
+        </a>
+        <a routerLink="/admin/reports" aria-label="Reports" class="grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85] transition hover:bg-white hover:text-[#9b432f]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 3-4 3 2 4-6"/>
+          </svg>
+        </a>
+      </nav>
+
+      <div class="flex flex-col items-center gap-3">
+        <span class="h-px w-9 bg-[#ece9e4]"></span>
+        <span aria-label="Notifications" class="grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>
+          </svg>
         </span>
+        <button type="button" aria-label="Sign out" (click)="logout()" class="grid h-10 w-10 place-items-center rounded-xl text-[#6f6d85] transition hover:bg-white hover:text-[#9b432f]">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-6"/>
+          </svg>
+        </button>
       </div>
-    </div>
-  </header>
+    </aside>
 
-  <nav class="flex flex-wrap gap-2" aria-label="Admin navigation">
-    <a class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white" routerLink="/admin">Overview</a>
-    <a routerLink="/admin/users" id="admin-staff-management-link" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600">Staff management</a>
-    <a routerLink="/admin/merchants" id="admin-merchant-approval-link" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600">Merchant approval</a>
-    <a routerLink="/admin/reports" id="admin-reports-link" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600">Reports</a>
-    <span class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">Audit log</span>
-  </nav>
-
-  <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-    <ui-card title="Staff user management">
-      <div class="space-y-3">
-        <p class="text-sm text-slate-600">
-          Provision, search, and enable or disable staff accounts (COURIER and DISPATCHER).
-        </p>
+    <main class="mx-auto w-full max-w-[1320px] px-4 py-3 sm:px-6 lg:px-8">
+      <div class="mt-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <a
-            routerLink="/admin/users"
-            id="admin-card-staff-link"
-            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-colors"
-          >
-            <span>Manage Staff Users →</span>
-          </a>
+          <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#9b432f]">SwiftDrop administration</p>
+          <h1 class="mt-2 text-4xl font-black tracking-[-0.04em] text-[#211f32] sm:text-5xl">Welcome back, admin!</h1>
+          <p class="mt-2 text-sm text-[#77748a]">Keep your delivery network moving smoothly.</p>
         </div>
       </div>
-    </ui-card>
 
-    <ui-card title="Merchant approval">
-      <div class="space-y-3">
-        <p class="text-sm text-slate-600">
-          Review business registration documents and approve onboarding applications.
-        </p>
-        <a routerLink="/admin/merchants" id="admin-card-merchant-approval-link" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700">
-          Review pending merchants →
+      <nav class="mt-7 flex gap-2 overflow-x-auto pb-1" aria-label="Admin section navigation">
+        <a routerLink="/admin" class="shrink-0 rounded-full bg-[#9b432f] px-5 py-2.5 text-sm font-bold text-white shadow-[0_7px_16px_rgba(155,67,47,0.18)]">Overview</a>
+        <a routerLink="/admin/users" id="admin-staff-management-link" class="shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#77748a] ring-1 ring-[#e8e4df] transition hover:text-[#9b432f]">Staff management</a>
+        <a routerLink="/admin/merchants" id="admin-merchant-approval-link" class="shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#77748a] ring-1 ring-[#e8e4df] transition hover:text-[#9b432f]">Merchant approval</a>
+        <a routerLink="/admin/reports" id="admin-reports-link" class="shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#77748a] ring-1 ring-[#e8e4df] transition hover:text-[#9b432f]">Reports</a>
+        <span class="shrink-0 rounded-full bg-[#f2f0f5] px-5 py-2.5 text-sm font-semibold text-[#aaa6b5]">Audit log</span>
+      </nav>
+
+      <section class="mt-7 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]" aria-label="Admin summary">
+        <article class="rounded-[1.5rem] border border-[#e9e3dd] bg-white p-7 shadow-[0_8px_24px_rgba(42,32,25,0.04)]">
+          <div class="flex items-start justify-between gap-5">
+            <div>
+              <p class="text-sm font-semibold text-[#77748a]">Staff accounts</p>
+              <p class="mt-2 text-5xl font-black tracking-[-0.05em] text-[#211f32]">Manage</p>
+              <p class="mt-3 max-w-md text-sm leading-6 text-[#77748a]">Create and maintain courier and dispatcher access for the delivery team.</p>
+            </div>
+            <div class="hidden h-24 w-24 items-center justify-center rounded-2xl bg-[#faf5f1] text-[#9b432f] sm:flex">
+              <span class="h-10 w-10 bg-current [mask-image:url('/staff-admin-icon.png')] [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] [-webkit-mask-image:url('/staff-admin-icon.png')] [-webkit-mask-position:center] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:contain]" aria-hidden="true"></span>
+            </div>
+          </div>
+          <a routerLink="/admin/users" id="admin-card-staff-link" class="mt-6 inline-flex items-center rounded-full bg-[#9b432f] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#833724]">Manage staff users <svg class="ml-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></a>
+        </article>
+
+        <article class="rounded-[1.5rem] bg-[#9b432f] p-7 text-white shadow-[0_12px_28px_rgba(155,67,47,0.2)]">
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-[#f4d8cb]">Quick action</p>
+          <h2 class="mt-3 max-w-md text-2xl font-black leading-tight">Review merchant applications and keep onboarding moving.</h2>
+          <div class="mt-7 flex flex-wrap items-center gap-3">
+            <a routerLink="/admin/merchants" id="admin-card-merchant-approval-link" class="inline-flex items-center rounded-full bg-white px-5 py-2.5 text-sm font-bold text-[#9b432f] transition hover:bg-[#fff5ef]">Review merchants <svg class="ml-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></a>
+            <span class="text-xs font-semibold text-[#f4d8cb]">Admin only</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Admin capabilities">
+        <a routerLink="/admin/users" class="rounded-2xl border border-[#e9e3dd] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#d7b4a7] hover:shadow-md">
+          <span class="text-xs font-bold uppercase tracking-[0.16em] text-[#9b432f]">People</span>
+          <h2 class="mt-3 text-lg font-black">Staff users</h2>
+          <p class="mt-1 text-sm leading-5 text-[#77748a]">Search, enable, or disable staff accounts.</p>
         </a>
-      </div>
-    </ui-card>
-
-    <ui-card title="Audit logs">
-      <div class="space-y-3">
-        <p class="text-sm text-slate-600">
-          System audit trails and administrative change logs for regulatory compliance.
-        </p>
-        <span class="inline-block text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
-          Planned Feature (Week 3)
-        </span>
-      </div>
-    </ui-card>
-
-    <ui-card title="Delivery reports">
-      <div class="space-y-3">
-        <p class="text-sm text-slate-600">Review daily totals, successful deliveries, failed attempts, and success rates.</p>
-        <a routerLink="/admin/reports" id="admin-card-reports-link" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700">
-          View reports →
+        <a routerLink="/admin/merchants" class="rounded-2xl border border-[#e9e3dd] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#d7b4a7] hover:shadow-md">
+          <span class="text-xs font-bold uppercase tracking-[0.16em] text-[#9b432f]">Governance</span>
+          <h2 class="mt-3 text-lg font-black">Merchant approval</h2>
+          <p class="mt-1 text-sm leading-5 text-[#77748a]">Review registration and API access requests.</p>
         </a>
-      </div>
-    </ui-card>
+        <a routerLink="/admin/reports" class="rounded-2xl border border-[#e9e3dd] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#d7b4a7] hover:shadow-md">
+          <span class="text-xs font-bold uppercase tracking-[0.16em] text-[#9b432f]">Insights</span>
+          <h2 class="mt-3 text-lg font-black">Delivery reports</h2>
+          <p class="mt-1 text-sm leading-5 text-[#77748a]">Review daily delivery totals and success rates.</p>
+        </a>
+        <div class="rounded-2xl border border-dashed border-[#d9d3cd] bg-[#f8f6f3] p-5">
+          <span class="text-xs font-bold uppercase tracking-[0.16em] text-[#aaa6b5]">Compliance</span>
+          <h2 class="mt-3 text-lg font-black text-[#77748a]">Audit log</h2>
+          <p class="mt-1 text-sm leading-5 text-[#aaa6b5]">Administrative activity history is coming soon.</p>
+        </div>
+      </section>
+
+      <section class="mt-6 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-6 shadow-[0_8px_24px_rgba(42,32,25,0.04)]" aria-labelledby="admin-activity-title">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 id="admin-activity-title" class="text-xl font-black">Recent administration activity</h2>
+            <p class="mt-1 text-sm text-[#77748a]">A clear view of your latest governance work.</p>
+          </div>
+          <span class="rounded-full bg-[#f2f0f5] px-4 py-2 text-xs font-semibold text-[#aaa6b5]">Audit log planned</span>
+        </div>
+        <div class="mt-6 overflow-x-auto">
+          <table class="w-full min-w-[620px] text-left text-sm">
+            <thead class="border-b border-[#eeeae5] text-xs font-bold uppercase tracking-[0.12em] text-[#9995a5]">
+              <tr>
+                <th class="px-3 py-3">Activity</th>
+                <th class="px-3 py-3">Area</th>
+                <th class="px-3 py-3">Status</th>
+                <th class="px-3 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="4" class="px-3 py-10 text-center">
+                  <p class="font-bold text-[#211f32]">No recent activity found</p>
+                  <p class="mt-1 text-sm text-[#aaa6b5]">Your staff, merchant, and report actions will appear here when audit history is enabled.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   </div>
 </div>

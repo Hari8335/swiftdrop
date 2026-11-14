@@ -15,15 +15,15 @@ type Action = 'approve' | 'reject' | 'recover';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, MerchantCredentialsComponent],
   template: `
-    <main class="mx-auto max-w-7xl space-y-6 pb-16">
-      <header class="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
+    <main class="mx-auto max-w-[1320px] space-y-6 pb-16 text-[#211f32]">
+      <header class="rounded-[1.5rem] border border-[#e9e3dd] bg-white p-7 shadow-[0_8px_24px_rgba(42,32,25,0.04)]">
         <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <p class="text-sm font-medium text-indigo-300">SwiftDrop governance</p>
-            <h1 class="mt-1 text-3xl font-bold">Merchant approval</h1>
-            <p class="mt-2 text-slate-300">Review pending merchant registrations before they receive API access.</p>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-[#9b432f]">SwiftDrop governance</p>
+            <h1 class="mt-2 text-3xl font-black tracking-[-0.04em]">Merchant approval</h1>
+            <p class="mt-2 text-sm text-[#77748a]">Review pending merchant registrations before they receive API access.</p>
           </div>
-          <span class="inline-flex w-fit items-center rounded-full border border-purple-400/30 bg-purple-500/20 px-3 py-1 text-xs font-semibold text-purple-300">
+          <span class="inline-flex w-fit items-center rounded-full border border-[#efcfc3] bg-[#fff5ef] px-3 py-1 text-xs font-bold text-[#9b432f]">
             ADMIN only
           </span>
         </div>
@@ -31,54 +31,54 @@ type Action = 'approve' | 'reject' | 'recover';
 
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <label for="merchant-list-status" class="text-sm font-semibold text-slate-700">Merchant status</label>
-          <select id="merchant-list-status" [ngModel]="listStatus()" (ngModelChange)="changeStatus($event)" class="ml-2 rounded border p-2">
+          <label for="merchant-list-status" class="text-sm font-bold text-[#77748a]">Merchant status</label>
+          <select id="merchant-list-status" [ngModel]="listStatus()" (ngModelChange)="changeStatus($event)" class="ml-2 rounded-full border border-[#e8e4df] bg-[#fbfaf8] px-3 py-2 outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]">
             <option value="PENDING">Pending</option><option value="APPROVED">Approved</option>
           </select>
-          <p class="text-xs text-slate-500">{{ merchantService.totalElements() }} merchants</p>
+          <p class="text-xs text-[#77748a]">{{ merchantService.totalElements() }} merchants</p>
         </div>
         <div class="flex gap-2">
-          <a routerLink="/admin" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600">Admin overview</a>
-          <button type="button" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600" (click)="reload()">Refresh</button>
+          <a routerLink="/admin" class="rounded-full border border-[#e8e4df] bg-white px-4 py-2 text-sm font-bold text-[#77748a] hover:border-[#d7b4a7] hover:text-[#9b432f]">Admin overview</a>
+          <button type="button" class="rounded-full border border-[#e8e4df] bg-white px-4 py-2 text-sm font-bold text-[#77748a] hover:border-[#d7b4a7] hover:text-[#9b432f]" (click)="reload()">Refresh</button>
         </div>
       </div>
 
       @if (feedback(); as message) {
-        <div role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{{ message }}</div>
+        <div role="status" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">{{ message }}</div>
       }
 
       @if (handoff(); as credentials) {
         <section aria-label="One-time merchant credential handoff">
-          <p class="mb-3 text-sm font-semibold text-slate-800">Credentials for {{ handoffBusinessName() }}</p>
+          <p class="mb-3 text-sm font-bold text-[#211f32]">Credentials for {{ handoffBusinessName() }}</p>
           <app-merchant-credentials [credentials]="credentials" (secretSaved)="clearHandoff()" />
           @if (!credentials.clientSecret) {
-            <button id="dismiss-merchant-handoff" type="button" class="mt-3 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" (click)="clearHandoff()">Close</button>
+            <button id="dismiss-merchant-handoff" type="button" class="mt-3 rounded-full border border-[#e8e4df] px-4 py-2 text-sm font-bold text-[#77748a]" (click)="clearHandoff()">Close</button>
           }
         </section>
       }
 
       @if (merchantService.error() && !merchantService.loading()) {
-        <div id="merchant-approval-error" class="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+        <div id="merchant-approval-error" class="flex items-center justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800" role="alert">
           <span>{{ merchantService.error() }}</span>
-          <button id="merchant-approval-retry" type="button" class="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700" (click)="reload()">Retry</button>
+          <button id="merchant-approval-retry" type="button" class="rounded-full bg-[#b23b32] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#922d27]" (click)="reload()">Retry</button>
         </div>
       }
 
       @if (merchantService.loading()) {
-        <div id="merchant-approval-loading" class="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm" role="status">
-          <div class="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent"></div>
-          <p class="text-sm font-semibold text-slate-600">Loading pending merchants...</p>
+        <div id="merchant-approval-loading" class="rounded-[1.5rem] border border-[#e9e3dd] bg-white p-12 text-center shadow-[0_8px_24px_rgba(42,32,25,0.04)]" role="status">
+          <div class="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-[#9b432f] border-t-transparent"></div>
+          <p class="text-sm font-semibold text-[#77748a]">Loading pending merchants...</p>
         </div>
       } @else if (merchantService.merchants().length === 0 && !merchantService.error()) {
-        <div id="merchant-approval-empty" class="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-          <h2 class="text-lg font-bold text-slate-800">No pending merchants</h2>
-          <p class="mt-2 text-sm text-slate-500">New merchant registrations will appear here for review.</p>
+        <div id="merchant-approval-empty" class="rounded-[1.5rem] border border-dashed border-[#d9d3cd] bg-[#f8f6f3] p-12 text-center">
+          <h2 class="text-lg font-black text-[#211f32]">No pending merchants</h2>
+          <p class="mt-2 text-sm text-[#77748a]">New merchant registrations will appear here for review.</p>
         </div>
       } @else if (!merchantService.error()) {
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <section class="overflow-hidden rounded-[1.5rem] border border-[#e9e3dd] bg-white shadow-[0_8px_24px_rgba(42,32,25,0.04)]">
           <div class="overflow-x-auto">
             <table class="w-full min-w-[760px] text-left text-sm">
-              <thead class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
+              <thead class="border-b border-[#eeeae5] bg-[#f8f6f3] text-xs font-bold uppercase tracking-wide text-[#77748a]">
                 <tr>
                   <th class="px-5 py-3">Business</th>
                   <th class="px-5 py-3">Contact</th>
@@ -87,9 +87,9 @@ type Action = 'approve' | 'reject' | 'recover';
                   <th class="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-100">
+              <tbody class="divide-y divide-[#eeeae5]">
                 @for (merchant of merchantService.merchants(); track merchant.id) {
-                  <tr class="hover:bg-slate-50">
+                  <tr class="hover:bg-[#fffaf7]">
                     <td class="px-5 py-4">
                       <p class="font-bold text-slate-900">{{ merchant.businessName }}</p>
                       <p class="text-xs text-slate-500">{{ merchant.email }}</p>
@@ -137,7 +137,7 @@ type Action = 'approve' | 'reject' | 'recover';
               <h2 id="merchant-details-title" class="text-xl font-bold text-slate-900">{{ merchant.businessName }}</h2>
               <p class="mt-1 text-sm text-slate-500">Merchant ID: {{ merchant.id }}</p>
             </div>
-            <button type="button" class="text-slate-500 hover:text-slate-900" aria-label="Close details" (click)="selected.set(null)">✕</button>
+            <button type="button" class="text-slate-500 hover:text-slate-900" aria-label="Close details" (click)="selected.set(null)"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
           </div>
           <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
             <div><dt class="font-semibold text-slate-500">Contact</dt><dd>{{ merchant.contactName }}</dd></div>
