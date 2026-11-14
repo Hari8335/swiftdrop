@@ -42,7 +42,9 @@ export class App {
       cleanUrl === '/courier' ||
       cleanUrl.startsWith('/courier/') ||
       cleanUrl === '/track' ||
-      cleanUrl.startsWith('/track/')
+      cleanUrl.startsWith('/track/') ||
+      cleanUrl === '/dispatch' ||
+      cleanUrl.startsWith('/dispatch/')
     );
   }
 
