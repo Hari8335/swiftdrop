@@ -324,4 +324,17 @@ describe('CourierService', () => {
     const refresh = httpMock.expectOne('/api/v1/courier/deliveries');
     refresh.flush(mockDeliveriesResponse);
   });
+
+  it('retains the selected date filter when refreshing deliveries after reporting a failure', () => {
+    service.loadDeliveries('2026-11-14').subscribe();
+    const loadReq = httpMock.expectOne((req) => req.url === '/api/v1/courier/deliveries' && req.params.get('date') === '2026-11-14');
+    loadReq.flush(mockDeliveriesResponse);
+
+    service.reportFailedDelivery('parcel-1', { reasonCode: 'RECIPIENT_UNAVAILABLE' }).subscribe();
+    const fail = httpMock.expectOne('/api/v1/courier/deliveries/parcel-1/fail');
+    fail.flush(null, { status: 202, statusText: 'Accepted' });
+
+    const refresh = httpMock.expectOne((req) => req.url === '/api/v1/courier/deliveries' && req.params.get('date') === '2026-11-14');
+    refresh.flush(mockDeliveriesResponse);
+  });
 });
