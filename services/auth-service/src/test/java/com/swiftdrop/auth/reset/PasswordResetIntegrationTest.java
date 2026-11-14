@@ -127,20 +127,19 @@ class PasswordResetIntegrationTest {
         assertThat(firstMessage.get("To").get(0).get("Address").asText()).isEqualTo(email);
         assertThat(firstMessage.get("Subject").asText()).isEqualTo("Reset your SwiftDrop password");
 
-        // 4. Retrieve full email body and extract token
+        // 4. Retrieve full email body and extract the six-digit code
         String messageId = firstMessage.get("ID").asText();
         JsonNode fullMsg = mailpitClient.get().uri("/api/v1/message/" + messageId).retrieve().body(JsonNode.class);
         String textBody = fullMsg.get("Text").asText();
-        assertThat(textBody).contains("/reset-password?token=");
-
-        Matcher matcher = Pattern.compile("token=([a-zA-Z0-9\\-]+)").matcher(textBody);
+        Matcher matcher = Pattern.compile("(?m)^\\s*(\\d{6})\\s*$").matcher(textBody);
         assertThat(matcher.find()).isTrue();
         String extractedToken = matcher.group(1);
 
         // 5. Complete password reset with new password
         String newPassword = "BrandNewP@ssw0rd2026!";
-        ResetPasswordResponse resetResponse = passwordResetService.resetPassword(extractedToken, newPassword, "192.168.1.10", "corr-test");
-        assertThat(resetResponse.message()).isEqualTo(ResetPasswordResponse.DEFAULT_MESSAGE);
+        PasswordResetResult resetResult = passwordResetService.resetPassword(
+                email, extractedToken, newPassword, "192.168.1.10", "corr-test");
+        assertThat(resetResult.response().message()).isEqualTo(ResetPasswordResponse.DEFAULT_MESSAGE);
 
         // 6. Verify password hash updated in DB
         User updatedUser = userRepository.findById(userId).orElseThrow();
@@ -152,13 +151,14 @@ class PasswordResetIntegrationTest {
         assertThat(updatedRt.isRevoked()).isTrue();
 
         // 8. Verify reset token cannot be reused
-        assertThatThrownBy(() -> passwordResetService.resetPassword(extractedToken, "AnotherPassword!", "192.168.1.10", "corr-test"))
+        assertThatThrownBy(() -> passwordResetService.resetPassword(
+                email, extractedToken, "AnotherPassword!", "192.168.1.10", "corr-test"))
                 .isInstanceOf(InvalidResetTokenException.class);
     }
 
     @Test
-    @DisplayName("Password reset token expires after 30 minutes")
-    void resetPassword_expiresAfter30Minutes() {
+    @DisplayName("Password reset code expires after 10 minutes")
+    void resetPassword_expiresAfter10Minutes() {
         String userId = "usr-" + UUID.randomUUID();
         String email = "timeout.user@example.com";
         User user = new User(userId, email, passwordEncoder.encode("InitialPassword123!"), "Timeout User", null, "CUSTOMER", true, null);
@@ -172,15 +172,16 @@ class PasswordResetIntegrationTest {
         JsonNode messages = getMailpitMessages();
         String messageId = messages.get("messages").get(0).get("ID").asText();
         JsonNode fullMsg = mailpitClient.get().uri("/api/v1/message/" + messageId).retrieve().body(JsonNode.class);
-        Matcher matcher = Pattern.compile("token=([a-zA-Z0-9\\-]+)").matcher(fullMsg.get("Text").asText());
+        Matcher matcher = Pattern.compile("(?m)^\\s*(\\d{6})\\s*$").matcher(fullMsg.get("Text").asText());
         assertThat(matcher.find()).isTrue();
         String token = matcher.group(1);
 
-        // Advance clock by 31 minutes
-        Instant t31 = t0.plus(31, ChronoUnit.MINUTES);
+        // Advance clock by 11 minutes
+        Instant t31 = t0.plus(11, ChronoUnit.MINUTES);
         passwordResetService.setClock(Clock.fixed(t31, ZoneOffset.UTC));
 
-        assertThatThrownBy(() -> passwordResetService.resetPassword(token, "NewPassword12345!", "127.0.0.1", "corr-timeout"))
+        assertThatThrownBy(() -> passwordResetService.resetPassword(
+                email, token, "NewPassword12345!", "127.0.0.1", "corr-timeout"))
                 .isInstanceOf(InvalidResetTokenException.class)
                 .hasMessageContaining("Invalid, expired, or already-used reset token");
 

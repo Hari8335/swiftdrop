@@ -3,6 +3,7 @@ package com.swiftdrop.auth.reset;
 import com.swiftdrop.auth.audit.AuditService;
 import com.swiftdrop.auth.reset.dto.ForgotPasswordResponse;
 import com.swiftdrop.auth.reset.dto.ResetPasswordResponse;
+import com.swiftdrop.auth.security.jwt.JwtIssuer;
 import com.swiftdrop.auth.token.RefreshTokenRepository;
 import com.swiftdrop.auth.user.User;
 import com.swiftdrop.auth.user.UserRepository;
@@ -49,6 +50,9 @@ class PasswordResetServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Mock
+    private JwtIssuer jwtIssuer;
+
     private PasswordResetService resetService;
 
     private final Instant fixedNow = Instant.parse("2026-11-07T10:00:00Z");
@@ -63,13 +67,14 @@ class PasswordResetServiceTest {
                 refreshTokenRepository,
                 passwordEncoder,
                 mailSender,
-                auditService
+                auditService,
+                jwtIssuer
         );
         resetService.setClock(clock);
     }
 
     @Test
-    @DisplayName("Registered active user produces token hashed with 30-min expiry, sends email, and returns HTTP 202 generic response")
+    @DisplayName("Registered active user produces a hashed 6-digit code with 10-min expiry and sends a generic response")
     void requestPasswordReset_registeredUser_succeeds() {
         User user = new User("usr-123", "alice@example.com", "hashed_old", "Alice", null, "CUSTOMER", true, null);
         when(userRepository.findByEmailIgnoreCase("alice@example.com")).thenReturn(Optional.of(user));
@@ -86,13 +91,14 @@ class PasswordResetServiceTest {
         verify(tokenRepository).save(tokenCaptor.capture());
         PasswordResetToken savedToken = tokenCaptor.getValue();
         assertThat(savedToken.getUserId()).isEqualTo("usr-123");
-        assertThat(savedToken.getExpiresAt()).isEqualTo(fixedNow.plus(30, ChronoUnit.MINUTES));
+        assertThat(savedToken.getExpiresAt()).isEqualTo(fixedNow.plus(10, ChronoUnit.MINUTES));
         assertThat(savedToken.getTokenHash()).matches("^[a-f0-9]{64}$");
 
         // Verify email dispatched with raw token
         ArgumentCaptor<String> rawTokenCaptor = ArgumentCaptor.forClass(String.class);
         verify(mailSender).sendResetEmail(eq("alice@example.com"), rawTokenCaptor.capture());
         String rawToken = rawTokenCaptor.getValue();
+        assertThat(rawToken).matches("^\\d{6}$");
         assertThat(resetService.hashToken(rawToken)).isEqualTo(savedToken.getTokenHash());
 
         // Verify audit log has no raw token or password
@@ -143,7 +149,7 @@ class PasswordResetServiceTest {
     @Test
     @DisplayName("Valid reset token updates password hash, marks token consumed, revokes refresh sessions, and logs audit")
     void resetPassword_validToken_succeeds() {
-        String rawToken = "my-secret-token";
+        String rawToken = "123456";
         String tokenHash = resetService.hashToken(rawToken);
         PasswordResetToken token = new PasswordResetToken("tok-1", "usr-123", tokenHash, fixedNow.plus(15, ChronoUnit.MINUTES));
         User user = new User("usr-123", "alice@example.com", "old_hash", "Alice", null, "CUSTOMER", true, null);
@@ -152,9 +158,16 @@ class PasswordResetServiceTest {
         when(userRepository.findById("usr-123")).thenReturn(Optional.of(user));
         when(passwordEncoder.encode("NewSecret123!")).thenReturn("new_bcrypt_hash");
 
-        ResetPasswordResponse response = resetService.resetPassword(rawToken, "NewSecret123!", "127.0.0.1", "corr-4");
+        when(jwtIssuer.issueAccessToken("usr-123", "alice@example.com", "CUSTOMER", null))
+                .thenReturn("access-token");
+
+        PasswordResetResult result = resetService.resetPassword(
+                "alice@example.com", rawToken, "NewSecret123!", "127.0.0.1", "corr-4");
+        ResetPasswordResponse response = result.response();
 
         assertThat(response.message()).isEqualTo(ResetPasswordResponse.DEFAULT_MESSAGE);
+        assertThat(response.accessToken()).isEqualTo("access-token");
+        assertThat(result.refreshToken()).isNotBlank();
 
         // Verify token consumed
         assertThat(token.isConsumed()).isTrue();
@@ -180,11 +193,42 @@ class PasswordResetServiceTest {
     }
 
     @Test
+    @DisplayName("Valid code is verified only for the matching email and remains usable until reset")
+    void verifyResetCode_validCodeAndEmail_succeeds() {
+        String rawToken = "123456";
+        PasswordResetToken token = new PasswordResetToken(
+                "tok-verify", "usr-123", resetService.hashToken(rawToken), fixedNow.plus(10, ChronoUnit.MINUTES));
+        User user = new User("usr-123", "alice@example.com", "old_hash", "Alice", null, "CUSTOMER", true, null);
+        when(tokenRepository.findByTokenHash(token.getTokenHash())).thenReturn(Optional.of(token));
+        when(userRepository.findById("usr-123")).thenReturn(Optional.of(user));
+
+        resetService.verifyResetCode("alice@example.com", rawToken, "127.0.0.1", "corr-verify");
+
+        assertThat(token.isConsumed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Code for another email is rejected")
+    void verifyResetCode_emailMismatch_throwsException() {
+        String rawToken = "123456";
+        PasswordResetToken token = new PasswordResetToken(
+                "tok-verify", "usr-123", resetService.hashToken(rawToken), fixedNow.plus(10, ChronoUnit.MINUTES));
+        User user = new User("usr-123", "alice@example.com", "old_hash", "Alice", null, "CUSTOMER", true, null);
+        when(tokenRepository.findByTokenHash(token.getTokenHash())).thenReturn(Optional.of(token));
+        when(userRepository.findById("usr-123")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> resetService.verifyResetCode(
+                "another@example.com", rawToken, "127.0.0.1", "corr-mismatch"))
+                .isInstanceOf(InvalidResetTokenException.class);
+    }
+
+    @Test
     @DisplayName("Non-existent token throws InvalidResetTokenException")
     void resetPassword_nonExistentToken_throwsException() {
         when(tokenRepository.findByTokenHash(any())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> resetService.resetPassword("non-existent", "NewSecret123!", "127.0.0.1", "corr-5"))
+        assertThatThrownBy(() -> resetService.resetPassword(
+                "alice@example.com", "654321", "NewSecret123!", "127.0.0.1", "corr-5"))
                 .isInstanceOf(InvalidResetTokenException.class)
                 .hasMessageContaining("Invalid, expired, or already-used reset token");
 
@@ -194,14 +238,15 @@ class PasswordResetServiceTest {
     @Test
     @DisplayName("Already consumed token throws InvalidResetTokenException")
     void resetPassword_alreadyConsumedToken_throwsException() {
-        String rawToken = "used-token";
+        String rawToken = "123456";
         String tokenHash = resetService.hashToken(rawToken);
         PasswordResetToken token = new PasswordResetToken("tok-1", "usr-123", tokenHash, fixedNow.plus(15, ChronoUnit.MINUTES));
         token.setConsumedAt(fixedNow.minus(5, ChronoUnit.MINUTES));
 
         when(tokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.of(token));
 
-        assertThatThrownBy(() -> resetService.resetPassword(rawToken, "NewSecret123!", "127.0.0.1", "corr-6"))
+        assertThatThrownBy(() -> resetService.resetPassword(
+                "alice@example.com", rawToken, "NewSecret123!", "127.0.0.1", "corr-6"))
                 .isInstanceOf(InvalidResetTokenException.class)
                 .hasMessageContaining("Invalid, expired, or already-used reset token");
 
@@ -212,14 +257,15 @@ class PasswordResetServiceTest {
     @Test
     @DisplayName("Expired token (30 min past creation) throws InvalidResetTokenException using controllable clock")
     void resetPassword_expiredToken_throwsException() {
-        String rawToken = "expired-token";
+        String rawToken = "123456";
         String tokenHash = resetService.hashToken(rawToken);
         // Token expired 1 minute ago
         PasswordResetToken token = new PasswordResetToken("tok-1", "usr-123", tokenHash, fixedNow.minus(1, ChronoUnit.MINUTES));
 
         when(tokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.of(token));
 
-        assertThatThrownBy(() -> resetService.resetPassword(rawToken, "NewSecret123!", "127.0.0.1", "corr-7"))
+        assertThatThrownBy(() -> resetService.resetPassword(
+                "alice@example.com", rawToken, "NewSecret123!", "127.0.0.1", "corr-7"))
                 .isInstanceOf(InvalidResetTokenException.class)
                 .hasMessageContaining("Invalid, expired, or already-used reset token");
 

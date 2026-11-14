@@ -306,8 +306,8 @@ paths:
         Initiates the password reset workflow for the specified email address.
         To prevent account enumeration attacks, this endpoint always returns HTTP 202 Accepted,
         regardless of whether the email address exists in the system. If the account exists,
-        a single-use token valid for 30 minutes is generated, stored hashed, and dispatched
-        via email (using Mailpit mock SMTP).
+        a single-use 6-digit code valid for 10 minutes is generated, stored hashed, and dispatched
+        via email (using the configured SMTP provider).
       operationId: forgotPassword
       tags:
         - Password Reset
@@ -336,8 +336,8 @@ paths:
       summary: Reset password with token (owned by M3)
       description: |
         Completes the password reset by validating the single-use token, updating the user's
-        password hash with BCrypt, invalidating the reset token, and terminating all existing
-        active user sessions.
+        password hash with BCrypt, invalidating the reset code, and terminating all existing
+        active user sessions. A new authenticated session is issued after the reset.
       operationId: resetPassword
       tags:
         - Password Reset
@@ -355,7 +355,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResetPasswordResponse'
         '400':
-          description: Invalid request, weak password, or expired/already-used reset token.
+          description: Invalid request, weak password, or expired/already-used reset code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/password/verify:
+    post:
+      summary: Verify password reset code (owned by M3)
+      description: Validates the email-bound 6-digit reset code without consuming it.
+      operationId: verifyResetCode
+      tags:
+        - Password Reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyResetCodeRequest'
+      responses:
+        '200':
+          description: Reset code is valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForgotPasswordResponse'
+        '400':
+          description: Invalid or expired reset code.
           content:
             application/json:
               schema:
@@ -686,16 +713,38 @@ components:
           type: string
           example: If an account exists with this email, password reset instructions have been sent.
 
+    VerifyResetCodeRequest:
+      type: object
+      required:
+        - email
+        - token
+      properties:
+        email:
+          type: string
+          format: email
+          example: customer@example.com
+        token:
+          type: string
+          pattern: '^[0-9]{6}$'
+          example: '482019'
+          description: Six-digit code sent to the registered email address.
+
     ResetPasswordRequest:
       type: object
       required:
+        - email
         - token
         - newPassword
       properties:
+        email:
+          type: string
+          format: email
+          example: customer@example.com
         token:
           type: string
-          example: 4a2b9f1e-87c3-4d62-9e11-d0b5f12e8731
-          description: Single-use reset token received via email.
+          pattern: '^[0-9]{6}$'
+          example: '482019'
+          description: Six-digit, single-use reset code received via email.
         newPassword:
           type: string
           format: password
@@ -708,10 +757,24 @@ components:
       type: object
       required:
         - message
+        - accessToken
+        - tokenType
+        - expiresIn
+        - user
       properties:
         message:
           type: string
-          example: Password has been successfully reset. Please log in with your new password.
+          example: Password has been successfully reset.
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          example: 900
+        user:
+          $ref: '#/components/schemas/UserSummary'
 
     UserContactResponse:
       type: object

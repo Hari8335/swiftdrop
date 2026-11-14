@@ -4,5 +4,10 @@ public record AuthResponse(
     String accessToken,
     String tokenType,
     long expiresIn,
-    UserSummary user
-) {}
+    UserSummary user,
+    boolean mustChangePassword
+) {
+    public AuthResponse(String accessToken, String tokenType, long expiresIn, UserSummary user) {
+        this(accessToken, tokenType, expiresIn, user, false);
+    }
+}

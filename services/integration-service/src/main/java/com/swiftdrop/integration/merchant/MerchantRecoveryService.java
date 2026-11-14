@@ -2,6 +2,7 @@ package com.swiftdrop.integration.merchant;
 
 import static com.swiftdrop.integration.merchant.AuthProvisioningClient.*;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,12 +16,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class MerchantRecoveryService {
     private final MerchantRepository merchants;
     private final AuthProvisioningClient auth;
+    private final MerchantApprovalMailSender approvalMailSender;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transaction;
 
     public MerchantRecoveryService(MerchantRepository merchants, AuthProvisioningClient auth,
-            JdbcTemplate jdbc, PlatformTransactionManager manager) {
-        this.merchants = merchants; this.auth = auth; this.jdbc = jdbc;
+            MerchantApprovalMailSender approvalMailSender, JdbcTemplate jdbc, PlatformTransactionManager manager) {
+        this.merchants = merchants; this.auth = auth; this.approvalMailSender = approvalMailSender; this.jdbc = jdbc;
         this.transaction = new TransactionTemplate(manager);
     }
 
@@ -43,6 +45,7 @@ public class MerchantRecoveryService {
             return merchant.getProvisioningOperationId();
         });
         MerchantApprovalResponse result;
+        AtomicReference<String> temporaryPassword = new AtomicReference<>();
         try {
             result = transaction.execute(status -> {
                 Merchant merchant = lock(id);
@@ -50,6 +53,7 @@ public class MerchantRecoveryService {
                 var response = auth.provision(operation, new ProvisioningRequest(id, merchant.getEmail(),
                         merchant.getContactName(), merchant.getPhoneNumber(), merchant.getAuthUserId(), actor));
                 validate(response, operation, merchant);
+                temporaryPassword.set(response.temporaryPassword());
                 if (replacement != null) {
                     merchant.recordProvisioned(response.user().id(), response.clientId());
                     response = auth.replaceCredential(operation, new ReplacementRequest(replacement, actor, true));
@@ -75,6 +79,10 @@ public class MerchantRecoveryService {
             throw conflict(replacement == null
                     ? "Credential handoff requires explicit ADMIN recovery; the existing client was not duplicated"
                     : "Replacement already completed and its secret cannot be replayed; confirm another recovery with a new key if the handoff was lost");
+        }
+        if (replacement == null && result.merchant().status() == MerchantStatus.APPROVED) {
+            approvalMailSender.sendApprovalEmail(
+                    result.merchant().email(), result.merchant().businessName(), temporaryPassword.get());
         }
         return result;
     }
