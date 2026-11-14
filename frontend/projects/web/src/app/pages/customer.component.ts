@@ -432,23 +432,28 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                         </span>
                       </td>
                       <td class="py-3.5 px-4 text-right">
-                        @if (parcel.status === 'CREATED') {
-                        <button
-                          type="button"
-                          (click)="openCancelModal(parcel)"
-                          class="text-[#a53a26] hover:underline font-bold text-xs cursor-pointer mr-2"
-                          data-testid="open-cancel-modal-btn"
-                        >
-                          Cancel
-                        </button>
-                        }
-                        <button
-                          type="button"
-                          (click)="viewParcelDetails(parcel)"
-                          class="text-[#a53a26] hover:text-[#7e2615] hover:underline font-bold text-xs cursor-pointer"
-                        >
-                          View details &gt;
-                        </button>
+                        <div class="inline-flex items-center justify-end gap-2">
+                          @if (parcel.status === 'CREATED') {
+                          <button
+                            type="button"
+                            (click)="openCancelModal(parcel)"
+                            class="px-2.5 py-1 rounded-lg border border-[#d8d0c7] hover:border-rose-400 text-[#6f6d85] hover:text-rose-600 bg-transparent font-semibold text-xs transition-colors cursor-pointer inline-flex items-center"
+                            data-testid="open-cancel-modal-btn"
+                          >
+                            Cancel
+                          </button>
+                          }
+                          <button
+                            type="button"
+                            (click)="viewParcelDetails(parcel)"
+                            class="px-2.5 py-1 rounded-lg border border-[#d8d0c7] hover:border-[#a53a26] text-[#1d1b2c] hover:text-[#a53a26] bg-transparent font-semibold text-xs transition-colors cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <span>View details</span>
+                            <svg class="w-3 h-3 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                     }
