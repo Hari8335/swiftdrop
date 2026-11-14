@@ -75,7 +75,7 @@ type TrackPageState = PageState | 'search' | 'invalid';
           <!-- 1. Grid Icon (My Deliveries) -->
           <a
             routerLink="/customer"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
+            class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer"
             title="My Deliveries"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -89,37 +89,38 @@ type TrackPageState = PageState | 'search' | 'invalid';
           <!-- 2. Package Clock Icon (Live Tracking) - ACTIVE HERE -->
           <a
             routerLink="/track"
-            class="rail-icon-btn rail-active relative w-10 h-10 rounded-xl flex items-center justify-center text-[#a53a26] bg-white shadow-sm transition-all cursor-pointer no-underline"
+            class="rail-icon-btn rail-active relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] bg-white border border-[#eee7e0] shadow-xs transition-all cursor-pointer no-underline"
             title="Live Tracking"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M16.5 9.4 7.55 4.24a1.78 1.78 0 0 0-2.5 1.55v12.42a1.78 1.78 0 0 0 2.5 1.55L16.5 14.6a1.78 1.78 0 0 0 0-3.2z"></path>
               <circle cx="18" cy="6" r="3"></circle>
             </svg>
-            <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
           </a>
 
-          <!-- 3. Address / Home Icon -->
+          <!-- 3. Plus Button (Book New Delivery) -->
           <a
             routerLink="/customer"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Address Book"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-              <polyline points="9 22 9 12 15 12 15 22"></polyline>
-            </svg>
-          </a>
-
-          <!-- 4. Plus Button (Book New Delivery) -->
-          <a
-            routerLink="/customer"
-            class="w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
+            class="w-11 h-11 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-xs shadow-[#a53a26]/25 hover:shadow-sm hover:scale-[1.03] transition-all cursor-pointer"
             title="Book New Delivery"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </a>
+
+          <!-- 4. Chat Sparkle Icon (AI Assistant) -->
+          <a
+            routerLink="/customer/assistant"
+            id="nav-assistant-link"
+            class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer no-underline"
+            title="AI Assistant"
+            aria-label="AI Assistant"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a8 8 0 0 1-11.6 7.14L4 20.5l1.36-4.6A8 8 0 1 1 21 12z"></path>
+              <path d="M12 8.5l.9 1.85 1.85.9-1.85.9L12 14l-.9-1.85-1.85-.9 1.85-.9z"></path>
             </svg>
           </a>
         </nav>
@@ -128,10 +129,10 @@ type TrackPageState = PageState | 'search' | 'invalid';
         <div class="hidden md:flex flex-col items-center gap-3 pt-4 border-t border-[#f0ebe5]/60 mt-auto">
           <a
             routerLink="/"
-            class="w-9 h-9 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-colors cursor-pointer"
+            class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-colors cursor-pointer"
             title="SwiftDrop Home"
           >
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
               <polyline points="16 17 21 12 16 7"></polyline>
               <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -375,7 +376,8 @@ type TrackPageState = PageState | 'search' | 'invalid';
       .rail-icon-btn.rail-active {
         color: var(--terracotta);
         background: #ffffff;
-        box-shadow: 0 4px 12px rgba(165, 58, 38, 0.12);
+        border: 1px solid #eee7e0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       }
       :host ::ng-deep .tracking-search-input input {
         border-radius: 9999px !important;

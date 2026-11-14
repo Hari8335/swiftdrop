@@ -68,7 +68,7 @@ import { ParcelDetail } from './tracking.model';
           <!-- 1. Grid Icon (My Deliveries) - Active Rail Indicator -->
           <a
             routerLink="/customer"
-            class="rail-icon-btn rail-active relative w-10 h-10 rounded-xl flex items-center justify-center text-[#a53a26] bg-white shadow-sm transition-all cursor-pointer no-underline"
+            class="rail-icon-btn rail-active relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] bg-white border border-[#eee7e0] shadow-xs transition-all cursor-pointer no-underline"
             title="My Deliveries"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -77,13 +77,12 @@ import { ParcelDetail } from './tracking.model';
               <rect x="14" y="14" width="7" height="7" rx="2"></rect>
               <rect x="3" y="14" width="7" height="7" rx="2"></rect>
             </svg>
-            <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
           </a>
 
           <!-- 2. Plus Button (Book New Delivery) -->
           <a
             routerLink="/customer"
-            class="w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
+            class="w-11 h-11 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-xs shadow-[#a53a26]/25 hover:shadow-sm hover:scale-[1.03] transition-all cursor-pointer no-underline"
             title="Book New Delivery"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -96,7 +95,7 @@ import { ParcelDetail } from './tracking.model';
           <a
             routerLink="/customer/assistant"
             id="nav-assistant-link"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
+            class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer no-underline"
             title="AI Assistant"
             aria-label="AI Assistant"
           >
@@ -108,10 +107,10 @@ import { ParcelDetail } from './tracking.model';
         </nav>
 
         <!-- Bottom Actions (Sign Out / Home) -->
-        <div class="hidden md:flex flex-col items-center gap-5 mt-auto pb-4">
+        <div class="hidden md:flex flex-col items-center gap-4 mt-auto pt-4 border-t border-[#f0ebe5]/60">
           <button
             (click)="signOut()"
-            class="text-[#6f6d85] hover:text-[#a53a26] transition-colors p-2 cursor-pointer"
+            class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-colors cursor-pointer"
             title="Sign Out"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -330,7 +329,8 @@ import { ParcelDetail } from './tracking.model';
       .rail-icon-btn.rail-active {
         color: var(--terracotta);
         background: #ffffff;
-        box-shadow: 0 4px 12px rgba(165, 58, 38, 0.12);
+        border: 1px solid #eee7e0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       }
     `,
   ],

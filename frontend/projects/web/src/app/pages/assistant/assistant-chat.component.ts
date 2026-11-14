@@ -71,7 +71,7 @@ const SUGGESTIONS = [
           <!-- 1. Grid Icon (My Deliveries) -->
           <a
             routerLink="/customer"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
+            class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer no-underline"
             title="My Deliveries"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -85,7 +85,7 @@ const SUGGESTIONS = [
           <!-- 2. Plus Button (Book New Delivery) -->
           <a
             routerLink="/customer"
-            class="w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
+            class="w-11 h-11 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-xs shadow-[#a53a26]/25 hover:shadow-sm hover:scale-[1.03] transition-all cursor-pointer no-underline"
             title="Book New Delivery"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -98,7 +98,7 @@ const SUGGESTIONS = [
           <a
             routerLink="/customer/assistant"
             id="nav-assistant-link"
-            class="rail-icon-btn rail-active relative w-10 h-10 rounded-xl flex items-center justify-center text-[#a53a26] bg-white shadow-sm transition-all cursor-pointer no-underline"
+            class="rail-icon-btn rail-active relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] bg-white border border-[#eee7e0] shadow-xs transition-all cursor-pointer no-underline"
             title="AI Assistant"
             aria-label="AI Assistant"
           >
@@ -106,7 +106,6 @@ const SUGGESTIONS = [
               <path d="M21 12a8 8 0 0 1-11.6 7.14L4 20.5l1.36-4.6A8 8 0 1 1 21 12z"></path>
               <path d="M12 8.5l.9 1.85 1.85.9-1.85.9L12 14l-.9-1.85-1.85-.9 1.85-.9z"></path>
             </svg>
-            <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
           </a>
         </nav>
 
@@ -116,7 +115,7 @@ const SUGGESTIONS = [
           <button
             type="button"
             (click)="logout()"
-            class="text-[#6f6d85] hover:text-[#a53a26] transition-colors p-2 cursor-pointer"
+            class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-colors cursor-pointer"
             title="Sign Out"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -359,7 +358,8 @@ const SUGGESTIONS = [
       .rail-icon-btn.rail-active {
         color: var(--terracotta);
         background: #ffffff;
-        box-shadow: 0 4px 12px rgba(165, 58, 38, 0.12);
+        border: 1px solid #eee7e0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       }
     `,
   ],

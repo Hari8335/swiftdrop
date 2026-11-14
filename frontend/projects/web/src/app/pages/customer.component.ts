@@ -54,7 +54,12 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               id="tab-deliveries-btn"
               (click)="activeTab.set('deliveries')"
               [class.rail-active]="activeTab() === 'deliveries'"
-              class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
+              [class.bg-white]="activeTab() === 'deliveries'"
+              [class.border]="activeTab() === 'deliveries'"
+              [class.border-[#eee7e0]]="activeTab() === 'deliveries'"
+              [class.shadow-xs]="activeTab() === 'deliveries'"
+              [class.text-[#a53a26]]="activeTab() === 'deliveries'"
+              class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer"
               title="My Deliveries"
             >
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -63,9 +68,6 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                 <rect x="14" y="14" width="7" height="7" rx="2"></rect>
                 <rect x="3" y="14" width="7" height="7" rx="2"></rect>
               </svg>
-              @if (activeTab() === 'deliveries') {
-              <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-              }
             </button>
 
             <!-- 2. Plus Button (New Delivery Wizard) -->
@@ -74,7 +76,8 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               id="tab-wizard-btn"
               (click)="startNewDelivery()"
               [class.ring-2]="activeTab() === 'wizard'"
-              class="w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
+              [class.ring-[#a53a26]/30]="activeTab() === 'wizard'"
+              class="w-11 h-11 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-xs shadow-[#a53a26]/25 hover:shadow-sm hover:scale-[1.03] transition-all cursor-pointer"
               title="Book New Delivery"
             >
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -87,7 +90,7 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
             <a
               routerLink="/customer/assistant"
               id="nav-assistant-link"
-              class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
+              class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer no-underline"
               title="AI Assistant"
               aria-label="AI Assistant"
             >
@@ -104,7 +107,7 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
             <button
               type="button"
               (click)="signOut()"
-              class="text-[#6f6d85] hover:text-[#a53a26] transition-colors p-2 cursor-pointer"
+              class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-colors cursor-pointer"
               title="Sign Out"
             >
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -1523,7 +1526,8 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
       .rail-icon-btn.rail-active {
         color: var(--terracotta);
         background: #ffffff;
-        box-shadow: 0 4px 12px rgba(165, 58, 38, 0.12);
+        border: 1px solid #eee7e0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       }
       .filter-pill {
         background: #f1f5f9;
