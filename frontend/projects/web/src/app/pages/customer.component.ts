@@ -68,19 +68,7 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               }
             </button>
 
-            <!-- 2. Package Clock Icon (Live Tracking) -->
-            <a
-              routerLink="/track"
-              class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
-              title="Live Tracking"
-            >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M16.5 9.4 7.55 4.24a1.78 1.78 0 0 0-2.5 1.55v12.42a1.78 1.78 0 0 0 2.5 1.55L16.5 14.6a1.78 1.78 0 0 0 0-3.2z"></path>
-                <circle cx="18" cy="6" r="3"></circle>
-              </svg>
-            </a>
-
-            <!-- 3. Plus Button (New Delivery Wizard) -->
+            <!-- 2. Plus Button (New Delivery Wizard) -->
             <button
               type="button"
               id="tab-wizard-btn"
@@ -95,7 +83,7 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               </svg>
             </button>
 
-            <!-- 5. Chat Sparkle Icon (AI Assistant) -->
+            <!-- 3. Chat Sparkle Icon (AI Assistant) -->
             <a
               routerLink="/customer/assistant"
               id="nav-assistant-link"
@@ -111,8 +99,20 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
           </nav>
 
           <!-- Sidebar Footer Utilities -->
-          <div class="hidden md:flex flex-col items-center gap-3 pt-4 md:!mt-4 border-t border-[#f0ebe5]/60">
+          <div class="hidden md:flex flex-col items-center gap-4 mt-auto pt-4 border-t border-[#f0ebe5]/60">
             <app-notification-bell placement="right"></app-notification-bell>
+            <button
+              type="button"
+              (click)="signOut()"
+              class="text-[#6f6d85] hover:text-[#a53a26] transition-colors p-2 cursor-pointer"
+              title="Sign Out"
+            >
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+            </button>
           </div>
         </aside>
 

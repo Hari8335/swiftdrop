@@ -80,19 +80,7 @@ import { ParcelDetail } from './tracking.model';
             <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
           </a>
 
-          <!-- 2. Package Clock Icon (Live Tracking) -->
-          <a
-            routerLink="/track"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Live Tracking"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M16.5 9.4 7.55 4.24a1.78 1.78 0 0 0-2.5 1.55v12.42a1.78 1.78 0 0 0 2.5 1.55L16.5 14.6a1.78 1.78 0 0 0 0-3.2z"></path>
-              <circle cx="18" cy="6" r="3"></circle>
-            </svg>
-          </a>
-
-          <!-- 3. Plus Button (Book New Delivery) -->
+          <!-- 2. Plus Button (Book New Delivery) -->
           <a
             routerLink="/customer"
             class="w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
@@ -101,6 +89,20 @@ import { ParcelDetail } from './tracking.model';
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </a>
+
+          <!-- 3. Chat Sparkle Icon (AI Assistant) -->
+          <a
+            routerLink="/customer/assistant"
+            id="nav-assistant-link"
+            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
+            title="AI Assistant"
+            aria-label="AI Assistant"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a8 8 0 0 1-11.6 7.14L4 20.5l1.36-4.6A8 8 0 1 1 21 12z"></path>
+              <path d="M12 8.5l.9 1.85 1.85.9-1.85.9L12 14l-.9-1.85-1.85-.9 1.85-.9z"></path>
             </svg>
           </a>
         </nav>

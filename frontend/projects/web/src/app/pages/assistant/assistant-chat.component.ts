@@ -15,6 +15,7 @@ import { Router, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { catchError, finalize, of } from 'rxjs';
 import { AuthService } from 'shared-auth';
+import { NotificationBellComponent } from '../../notification/notification-bell/notification-bell.component';
 
 interface ChatMessage {
   id: string;
@@ -45,80 +46,83 @@ const SUGGESTIONS = [
 @Component({
   selector: 'app-assistant-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, RouterLink],
+  imports: [CommonModule, FormsModule, DatePipe, RouterLink, NotificationBellComponent],
   template: `
     <div class="min-h-screen bg-[#faf8f6] flex flex-col md:flex-row antialiased font-sans text-[#1d1b2c]">
-      <!-- Left Icon Navigation Rail (Customer Portal Theme) -->
+      <!-- Slim Left Sidebar Navigation Rail (Docked & Sticky) -->
       <aside
-        class="w-full md:w-20 bg-[#faf8f6] border-b md:border-b-0 md:border-r border-[#eee7e0] flex md:flex-col items-center justify-between p-4 md:py-6 flex-shrink-0 z-20"
+        class="w-full md:w-20 flex-shrink-0 flex md:flex-col items-center justify-between md:justify-start py-4 md:py-7 px-4 md:px-0 border-b md:border-b-0 md:border-r border-[#f0ebe5] bg-[#faf8f6] md:sticky md:top-0 md:h-screen md:space-y-7 z-20"
       >
-        <!-- Logo Hexagon -->
+        <!-- Brand Logo Icon -->
         <a
           routerLink="/customer"
-          class="w-12 h-12 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md hover:scale-105 transition-transform"
-          title="SwiftDrop Portal"
+          class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 group cursor-pointer hover:scale-105 transition-transform"
+          title="SwiftDrop Home"
         >
-          <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
           </svg>
         </a>
 
-        <!-- Main Navigation Icons -->
-        <nav class="flex md:flex-col items-center gap-3">
-          <!-- Deliveries List -->
+        <!-- Navigation Icons Stack -->
+        <nav class="flex md:flex-col items-center gap-3 sm:gap-4" aria-label="Customer Navigation">
+          <!-- 1. Grid Icon (My Deliveries) -->
           <a
             routerLink="/customer"
-            class="w-11 h-11 rounded-2xl text-[#6f6d85] hover:bg-[#eee7e0] hover:text-[#1d1b2c] flex items-center justify-center transition-colors"
-            title="Deliveries"
+            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
+            title="My Deliveries"
           >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="3" y="3" width="7" height="7" rx="2"></rect>
+              <rect x="14" y="3" width="7" height="7" rx="2"></rect>
+              <rect x="14" y="14" width="7" height="7" rx="2"></rect>
+              <rect x="3" y="14" width="7" height="7" rx="2"></rect>
             </svg>
           </a>
 
-          <!-- AI Assistant (Active) -->
+          <!-- 2. Plus Button (Book New Delivery) -->
+          <a
+            routerLink="/customer"
+            class="w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
+            title="Book New Delivery"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </a>
+
+          <!-- 3. Chat Sparkle Icon (AI Assistant) - ACTIVE HERE -->
           <a
             routerLink="/customer/assistant"
-            class="w-11 h-11 rounded-2xl bg-[#ffffff] text-[#a53a26] shadow-sm flex items-center justify-center transition-colors"
+            id="nav-assistant-link"
+            class="rail-icon-btn rail-active relative w-10 h-10 rounded-xl flex items-center justify-center text-[#a53a26] bg-white shadow-sm transition-all cursor-pointer no-underline"
             title="AI Assistant"
+            aria-label="AI Assistant"
           >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a8 8 0 0 1-11.6 7.14L4 20.5l1.36-4.6A8 8 0 1 1 21 12z"></path>
+              <path d="M12 8.5l.9 1.85 1.85.9-1.85.9L12 14l-.9-1.85-1.85-.9 1.85-.9z"></path>
             </svg>
-          </a>
-
-          <!-- Public Live Tracking -->
-          <a
-            routerLink="/track"
-            class="w-11 h-11 rounded-2xl text-[#6f6d85] hover:bg-[#eee7e0] hover:text-[#1d1b2c] flex items-center justify-center transition-colors"
-            title="Live Tracking"
-          >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+            <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
           </a>
         </nav>
 
-        <!-- Bottom Actions (New Delivery + Logout) -->
-        <div class="flex md:flex-col items-center gap-3">
-          <a
-            routerLink="/customer"
-            class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md hover:bg-[#8c2e1d] transition-colors"
-            title="New Delivery"
-          >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-          </a>
+        <!-- Sidebar Footer Utilities -->
+        <div class="hidden md:flex flex-col items-center gap-4 mt-auto pt-4 border-t border-[#f0ebe5]/60">
+          <app-notification-bell placement="right"></app-notification-bell>
           <button
             type="button"
             (click)="logout()"
-            class="w-11 h-11 rounded-2xl text-[#6f6d85] hover:bg-[#eee7e0] hover:text-[#1d1b2c] flex items-center justify-center transition-colors cursor-pointer"
+            class="text-[#6f6d85] hover:text-[#a53a26] transition-colors p-2 cursor-pointer"
             title="Sign Out"
           >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
             </svg>
           </button>
         </div>
@@ -338,6 +342,27 @@ const SUGGESTIONS = [
       </main>
     </div>
   `,
+  styles: [
+    `
+      :host {
+        --terracotta: #a53a26;
+        --terracotta-dark: #7e2615;
+        --coral: #a53a26;
+        --ink: #1d1b2c;
+        --ink-2: #3a384e;
+        --ink-3: #6f6d85;
+        --sand: #faf6f0;
+        --disp: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        display: block;
+        font-family: var(--disp);
+      }
+      .rail-icon-btn.rail-active {
+        color: var(--terracotta);
+        background: #ffffff;
+        box-shadow: 0 4px 12px rgba(165, 58, 38, 0.12);
+      }
+    `,
+  ],
 })
 export class AssistantChatComponent implements OnInit, AfterViewChecked {
   private readonly http = inject(HttpClient);

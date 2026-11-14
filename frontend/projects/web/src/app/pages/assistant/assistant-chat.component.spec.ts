@@ -1,7 +1,10 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
+import { of } from 'rxjs';
 import { AssistantChatComponent } from './assistant-chat.component';
+import { NotificationService } from '../../notification/notification.service';
 
 describe('AssistantChatComponent', () => {
   let fixture: ComponentFixture<AssistantChatComponent>;
@@ -9,9 +12,22 @@ describe('AssistantChatComponent', () => {
   let httpMock: HttpTestingController;
 
   beforeEach(async () => {
+    const mockNotificationService = {
+      unreadCount: signal(0),
+      notifications: signal([]),
+      totalElements: signal(0),
+      isLoading: signal(false),
+      error: signal(null),
+      refreshUnreadCount: () => of(0),
+      loadNotifications: () => of([]),
+    };
+
     await TestBed.configureTestingModule({
       imports: [AssistantChatComponent, HttpClientTestingModule],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        { provide: NotificationService, useValue: mockNotificationService },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AssistantChatComponent);
