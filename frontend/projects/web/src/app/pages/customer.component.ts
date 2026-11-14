@@ -440,8 +440,9 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                         @if (parcel.status === 'CREATED') {
                         <button
                           type="button"
-                          (click)="cancelParcel(parcel.id)"
+                          (click)="openCancelModal(parcel)"
                           class="text-[#a53a26] hover:underline font-bold text-xs cursor-pointer mr-2"
+                          data-testid="open-cancel-modal-btn"
                         >
                           Cancel
                         </button>
@@ -1322,6 +1323,121 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
           </div>
           }
 
+          <!-- Cancel Delivery Confirmation Modal -->
+          @if (parcelToCancel(); as parcel) {
+          <div
+            class="fixed inset-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            (click)="closeCancelModal()"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-modal-title"
+          >
+            <div
+              class="bg-white rounded-3xl border border-[#e8e2dc] shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-4 animate-in fade-in zoom-in-95 duration-150"
+              (click)="$event.stopPropagation()"
+            >
+              <!-- Modal Header -->
+              <div class="flex items-start justify-between border-b border-[#eee7e0] pb-3.5">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-2xl bg-[#fdf2f0] border border-[#f5d5ce] flex items-center justify-center text-[#a53a26] flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 id="cancel-modal-title" class="text-base sm:text-lg font-black text-[#1d1b2c]">
+                      Cancel Delivery Order?
+                    </h3>
+                    <p class="text-xs font-semibold text-[#6f6d85]">
+                      This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  (click)="closeCancelModal()"
+                  class="text-[#6f6d85] hover:text-[#1d1b2c] p-1 rounded-lg cursor-pointer"
+                  aria-label="Close modal"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Modal Body -->
+              <div class="space-y-3.5 text-xs">
+                <!-- Parcel Details Summary -->
+                <div class="p-3.5 rounded-2xl bg-[#faf8f6] border border-[#eee7e0] space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[#6f6d85] font-bold text-[11px] uppercase tracking-wider">Tracking Number</span>
+                    <span class="font-mono font-black text-[#a53a26] text-xs bg-white px-2 py-0.5 rounded-md border border-[#a53a26]/10" data-testid="cancel-modal-tracking-number">
+                      {{ parcel.trackingNumber }}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs font-semibold text-[#1d1b2c]">
+                    <span class="text-[#6f6d85]">Route</span>
+                    <span>{{ parcel.pickupAddress.city || parcel.pickupAddress.district }} &rarr; {{ parcel.dropoffAddress.city || parcel.dropoffAddress.district }}</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs font-semibold text-[#1d1b2c]">
+                    <span class="text-[#6f6d85]">Fee</span>
+                    <span class="font-black">{{ parcel.fee | currency: 'LKR' : 'symbol' : '1.2-2' }}</span>
+                  </div>
+                </div>
+
+                <p class="text-[#3a384e] font-medium leading-relaxed">
+                  Are you sure you want to cancel this delivery order? Cancellation is only permitted before courier pickup.
+                </p>
+
+                <!-- Reason (Optional) -->
+                <div>
+                  <label for="cancel-reason-input" class="block mb-1 text-[11px] font-bold uppercase tracking-wider text-[#3a384e]">
+                    Reason for Cancellation (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    id="cancel-reason-input"
+                    [(ngModel)]="cancellationReason"
+                    placeholder="e.g. Changed plans, duplicate order"
+                    class="w-full px-3.5 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-xs font-semibold text-[#1d1b2c] focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <!-- Modal Footer -->
+              <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-[#eee7e0]">
+                <button
+                  type="button"
+                  id="cancel-modal-dismiss-btn"
+                  (click)="closeCancelModal()"
+                  [disabled]="isCancelling()"
+                  class="px-4 py-2 bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#1d1b2c] font-bold text-xs rounded-full transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Keep Delivery
+                </button>
+                <button
+                  type="button"
+                  id="cancel-modal-confirm-btn"
+                  (click)="confirmCancelParcel()"
+                  [disabled]="isCancelling()"
+                  class="action-pill-btn inline-flex items-center gap-1.5 px-5 py-2 bg-[#a53a26] hover:bg-[#7e2615] disabled:opacity-50 text-white font-bold text-xs rounded-full transition-all shadow-sm cursor-pointer"
+                >
+                  @if (isCancelling()) {
+                    <svg class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Cancelling...</span>
+                  } @else {
+                    <span>Yes, Cancel Delivery</span>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+          }
+
           @if (activeTab() === 'settings') {
           <div id="settings-panel" class="space-y-6 max-w-3xl">
             <div>
@@ -1552,8 +1668,10 @@ export class CustomerComponent implements OnInit {
   }
 
   @HostListener('document:keydown.escape')
-  closeProfileMenuOnEscape(): void {
+  closeOnEscape(): void {
     this.profileMenuOpen.set(false);
+    this.showAddressModal.set(false);
+    this.closeCancelModal();
   }
 
   customerInitials = computed(() => {
@@ -1618,6 +1736,11 @@ export class CustomerComponent implements OnInit {
     postalCode: '',
     isDefault: false,
   };
+
+  // Cancel delivery confirmation modal state
+  parcelToCancel = signal<CustomerParcel | null>(null);
+  cancellationReason = 'Cancelled by customer';
+  isCancelling = signal<boolean>(false);
 
   ngOnInit(): void {
     this.loadParcels();
@@ -1763,8 +1886,40 @@ export class CustomerComponent implements OnInit {
     });
   }
 
-  cancelParcel(id: string): void {
-    this.customerService.cancelParcel(id, 'Cancelled by customer').subscribe({
+  openCancelModal(parcel: CustomerParcel): void {
+    this.parcelToCancel.set(parcel);
+    this.cancellationReason = 'Cancelled by customer';
+    this.isCancelling.set(false);
+  }
+
+  closeCancelModal(): void {
+    if (!this.isCancelling()) {
+      this.parcelToCancel.set(null);
+    }
+  }
+
+  confirmCancelParcel(): void {
+    const parcel = this.parcelToCancel();
+    if (!parcel) return;
+
+    this.isCancelling.set(true);
+    const reason = this.cancellationReason.trim() || 'Cancelled by customer';
+    this.customerService.cancelParcel(parcel.id, reason).subscribe({
+      next: (cancelled) => {
+        this.isCancelling.set(false);
+        this.parcelToCancel.set(null);
+        this.loadParcels();
+        this.notification.set(`Delivery order ${cancelled.trackingNumber} has been cancelled.`);
+      },
+      error: (err) => {
+        this.isCancelling.set(false);
+        this.notification.set(this.apiErrorMessage(err, 'Failed to cancel parcel.'));
+      },
+    });
+  }
+
+  cancelParcel(id: string, reason?: string): void {
+    this.customerService.cancelParcel(id, reason || 'Cancelled by customer').subscribe({
       next: (cancelled) => {
         this.loadParcels();
         this.notification.set(`Delivery order ${cancelled.trackingNumber} has been cancelled.`);
