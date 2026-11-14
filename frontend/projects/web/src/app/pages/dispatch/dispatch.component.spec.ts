@@ -216,6 +216,17 @@ describe('DispatchComponent (Real API Integration)', () => {
     expect(compiled.querySelector('#tab-pricing-link')).toBeTruthy();
   });
 
+  it('should render interactive delivery zones and pricing rules buttons on home page', () => {
+    component.activeTab.set('home');
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#home-delivery-zones-btn')).toBeTruthy();
+    expect(compiled.querySelector('#home-pricing-rules-btn')).toBeTruthy();
+    expect(compiled.querySelector('#home-online-couriers-btn')).toBeTruthy();
+    expect(compiled.querySelector('#home-active-load-btn')).toBeTruthy();
+    expect(compiled.querySelector('#home-failed-parcels-btn')).toBeTruthy();
+  });
+
   it('should call loadUnassignedParcels, loadCourierWorkload, and loadFailedParcels on initialization', () => {
     expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalled();
     expect(dispatchServiceSpy.loadCourierWorkload).toHaveBeenCalled();
@@ -332,6 +343,7 @@ describe('DispatchComponent (Real API Integration)', () => {
   });
 
   it('should display error banner with retry button when queue loading fails', () => {
+    component.activeTab.set('queue');
     dispatchServiceSpy.parcelsError = jest.fn(() => 'Network Error');
     fixture.detectChanges();
 
@@ -346,6 +358,7 @@ describe('DispatchComponent (Real API Integration)', () => {
   });
 
   it('should display loading spinner when loading parcels', () => {
+    component.activeTab.set('queue');
     dispatchServiceSpy.isLoadingParcels = jest.fn(() => true);
     fixture.detectChanges();
 

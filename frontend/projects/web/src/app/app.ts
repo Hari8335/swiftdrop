@@ -40,7 +40,9 @@ export class App {
       cleanUrl === '/customer' ||
       cleanUrl.startsWith('/customer/') ||
       cleanUrl === '/track' ||
-      cleanUrl.startsWith('/track/')
+      cleanUrl.startsWith('/track/') ||
+      cleanUrl === '/dispatch' ||
+      cleanUrl.startsWith('/dispatch/')
     );
   }
 
