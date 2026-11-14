@@ -39,84 +39,53 @@ import { RouterLink } from '@angular/router';
             Say “two packages to Colombo by 2 PM”, and dispatch is scheduled.
             SwiftDrop calculates dynamic rates, coordinates couriers live, and tracks every stop across Sri Lanka.
           </p>
-
-          <!-- Action Buttons -->
-          <div class="hero-cta-group">
-            <a routerLink="/register" class="btn-dark">
-              <span>Get Started Free</span>
-              <svg class="btn-arrow" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
-              </svg>
-            </a>
-            <a routerLink="/track" class="btn-white">
-              <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="11" cy="11" r="8"/>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              <span>Track a Parcel</span>
-            </a>
-            <a routerLink="/login" class="btn-glass">
-              <span>Sign In</span>
-            </a>
-          </div>
-
-          <!-- Spoken Chips (YumLog hallmark) -->
-          <ul class="said-chips" aria-label="Spoken delivery commands">
-            <li class="said-chip chip-1">
-              <svg class="chip-icon mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
-              </svg>
-              <span>“Deliver package #SD-8942 by 2 PM”</span>
-            </li>
-            <li class="said-chip chip-2">
-              <svg class="chip-icon parcel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-              </svg>
-              <span>“Courier arriving in 8 minutes”</span>
-            </li>
-            <li class="said-chip chip-3">
-              <svg class="chip-icon store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-              <span>“Bulk dispatch 50 orders today”</span>
-            </li>
-          </ul>
         </section>
 
         <!-- Feature Bento Grid (Tactile YumLog Cards) -->
         <section class="bento-section">
           <div class="bento-grid">
             <div class="bento-card">
-              <div class="card-icon-badge">🚀</div>
+              <div class="card-icon-badge badge-gps" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+                  <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </div>
               <h3>Live GPS &amp; Timeline Tracking</h3>
-              <p>Watch couriers approach in real time via live Server-Sent Events, instant milestone alerts, and verified proof photos.</p>
-              <a routerLink="/track" class="card-link">Try live tracking →</a>
+              <p>Real-time courier telematics, live milestone progression via Server-Sent Events, and automated proof-of-delivery photo capture.</p>
             </div>
 
             <div class="bento-card">
-              <div class="card-icon-badge">⚡</div>
+              <div class="card-icon-badge badge-pricing" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+                  <line x1="12" y1="1" x2="12" y2="23"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+              </div>
               <h3>Dynamic Pricing Engine</h3>
-              <p>Transparent rates computed by distance, parcel weight, delivery zones, and urgent handling with zero hidden charges.</p>
-              <a routerLink="/register" class="card-link">Calculate delivery fee →</a>
+              <p>Automated zone-based rating factoring distance, parcel weight thresholds, and SLA priority with full transparency.</p>
             </div>
 
             <div class="bento-card">
-              <div class="card-icon-badge">🏪</div>
+              <div class="card-icon-badge badge-logistics" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              </div>
               <h3>Merchant Bulk Logistics</h3>
-              <p>High-volume CSV order booking, OAuth API credentials, and webhooks designed for e-commerce scale.</p>
-              <a routerLink="/merchant-registration" class="card-link">Join partner network →</a>
+              <p>High-throughput CSV order orchestration, dedicated OAuth 2.0 API credentials, and resilient webhook dispatch.</p>
             </div>
 
             <div class="bento-card">
-              <div class="card-icon-badge">🤖</div>
+              <div class="card-icon-badge badge-ai" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+                  <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/>
+                </svg>
+              </div>
               <h3>AI Delivery Assistant</h3>
-              <p>Natural language delivery queries, automated schedule lookups, and instant courier dispatch assistance.</p>
-              <a routerLink="/register" class="card-link">Explore AI chat →</a>
+              <p>Natural-language parcel tracking, intelligent schedule queries, and conversational dispatch support powered by Gemini.</p>
             </div>
           </div>
         </section>
@@ -209,7 +178,7 @@ import { RouterLink } from '@angular/router';
       text-decoration: none;
       transition: background-color 0.2s, transform 0.2s;
     }
-    .nav-pill:hover, .btn-dark:hover {
+    .nav-pill:hover {
       background: #000;
       transform: translateY(-1px);
     }
@@ -222,7 +191,7 @@ import { RouterLink } from '@angular/router';
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 1.5rem 0 4rem;
+      padding: 1.5rem 0 3rem;
     }
     .hero-badge {
       display: inline-flex;
@@ -260,100 +229,10 @@ import { RouterLink } from '@angular/router';
       font-size: 1.2rem;
       line-height: 1.55;
       color: rgba(255,255,255,0.9);
-      margin: 0 0 2.5rem;
-    }
-    .hero-cta-group {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 3.5rem;
-    }
-    .btn-dark {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.6rem;
-      height: 54px;
-      padding: 0 1.75rem;
-      border-radius: 9999px;
-      background: var(--ink);
-      color: #fff;
-      font-size: 1.05rem;
-      font-weight: 800;
-      text-decoration: none;
-      box-shadow: 0 14px 30px -10px rgba(29,27,44,0.5);
-      transition: all 0.2s ease;
-    }
-    .btn-arrow { width: 18px; height: 18px; }
-    .btn-white {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.6rem;
-      height: 54px;
-      padding: 0 1.75rem;
-      border-radius: 9999px;
-      background: #fff;
-      color: var(--ink);
-      font-size: 1.05rem;
-      font-weight: 800;
-      text-decoration: none;
-      box-shadow: 0 14px 30px -10px rgba(90,15,5,0.4);
-      transition: all 0.2s ease;
-    }
-    .btn-white:hover {
-      background: #f8fafc;
-      transform: translateY(-1px);
-    }
-    .icon-small { width: 18px; height: 18px; color: var(--coral); }
-    .btn-glass {
-      display: inline-flex;
-      align-items: center;
-      height: 54px;
-      padding: 0 1.5rem;
-      border-radius: 9999px;
-      background: rgba(255,255,255,0.15);
-      color: #fff;
-      font-size: 1.05rem;
-      font-weight: 700;
-      text-decoration: none;
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.2);
-      transition: all 0.2s ease;
-    }
-    .btn-glass:hover {
-      background: rgba(255,255,255,0.25);
-      transform: translateY(-1px);
-    }
-    .said-chips {
-      list-style: none;
-      padding: 0;
       margin: 0;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 1rem;
-      max-width: 48rem;
     }
-    .said-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1.25rem;
-      border-radius: 9999px;
-      background: #fff;
-      color: var(--ink);
-      font-size: 0.95rem;
-      font-weight: 700;
-      box-shadow: 0 14px 30px -12px rgba(90,15,5,0.45);
-      animation: bob 7s ease-in-out infinite;
-    }
-    .chip-2 { animation-delay: -2.3s; }
-    .chip-3 { animation-delay: -4.6s; }
-    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-    .chip-icon { width: 18px; height: 18px; color: var(--coral); flex-shrink: 0; }
     .bento-section {
-      padding: 2rem 0 4rem;
+      padding: 1.5rem 0 4rem;
     }
     .bento-grid {
       display: grid;
@@ -376,8 +255,34 @@ import { RouterLink } from '@angular/router';
       box-shadow: 0 24px 55px -12px rgba(29,27,44,0.4);
     }
     .card-icon-badge {
-      font-size: 2rem;
-      margin-bottom: 1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      margin-bottom: 1.25rem;
+      flex-shrink: 0;
+    }
+    .badge-gps {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+    .badge-pricing {
+      background: #ecfdf5;
+      color: #059669;
+    }
+    .badge-logistics {
+      background: #fffbeb;
+      color: #d97706;
+    }
+    .badge-ai {
+      background: #f5f3ff;
+      color: #7c3aed;
+    }
+    .card-icon {
+      width: 24px;
+      height: 24px;
     }
     .bento-card h3 {
       font-family: var(--disp);
@@ -390,17 +295,10 @@ import { RouterLink } from '@angular/router';
     .bento-card p {
       font-size: 0.95rem;
       color: var(--ink-3);
-      line-height: 1.5;
-      margin: 0 0 1.25rem;
+      line-height: 1.55;
+      margin: 0;
       flex-grow: 1;
     }
-    .card-link {
-      font-size: 0.875rem;
-      font-weight: 800;
-      color: var(--terracotta);
-      text-decoration: none;
-    }
-    .card-link:hover { text-decoration: underline; }
     .landing-footer {
       border-top: 1px solid rgba(255,255,255,0.15);
       padding: 2.5rem 0 1.5rem;
@@ -434,8 +332,6 @@ import { RouterLink } from '@angular/router';
     @media (max-width: 768px) {
       .top-bar { flex-direction: column; gap: 1rem; margin-bottom: 2rem; }
       .hero-headline { font-size: 2.5rem; }
-      .hero-cta-group { flex-direction: column; width: 100%; }
-      .btn-dark, .btn-white, .btn-glass { width: 100%; justify-content: center; }
       .footer-inner { flex-direction: column; text-align: center; }
     }
   `]

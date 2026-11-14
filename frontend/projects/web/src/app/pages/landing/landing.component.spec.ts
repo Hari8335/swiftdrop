@@ -48,13 +48,24 @@ describe('LandingComponent', () => {
     expect(navLinks[2].textContent.trim()).toBe('Sign In');
   });
 
-  it('renders spoken chips and feature bento cards', () => {
+  it('renders four professional feature bento cards without chips or card links', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const chips = compiled.querySelectorAll('.said-chip');
-    expect(chips.length).toBe(3);
+    expect(chips.length).toBe(0);
 
     const bentoCards = compiled.querySelectorAll('.bento-card');
     expect(bentoCards.length).toBe(4);
+
+    const cardLinks = compiled.querySelectorAll('.bento-card a');
+    expect(cardLinks.length).toBe(0);
+
+    const cardHeadings = Array.from(compiled.querySelectorAll('.bento-card h3')).map((h) => h.textContent?.trim());
+    expect(cardHeadings).toEqual([
+      'Live GPS & Timeline Tracking',
+      'Dynamic Pricing Engine',
+      'Merchant Bulk Logistics',
+      'AI Delivery Assistant',
+    ]);
   });
 });
 

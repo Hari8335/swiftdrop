@@ -54,83 +54,71 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               id="tab-deliveries-btn"
               (click)="activeTab.set('deliveries')"
               [class.rail-active]="activeTab() === 'deliveries'"
-              class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
+              [class.bg-white]="activeTab() === 'deliveries'"
+              [class.border]="activeTab() === 'deliveries'"
+              [class.border-[#eee7e0]]="activeTab() === 'deliveries'"
+              [class.shadow-xs]="activeTab() === 'deliveries'"
+              [class.text-[#a53a26]]="activeTab() === 'deliveries'"
+              class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer"
               title="My Deliveries"
             >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <rect x="3" y="3" width="7" height="7" rx="2"></rect>
-                <rect x="14" y="3" width="7" height="7" rx="2"></rect>
-                <rect x="14" y="14" width="7" height="7" rx="2"></rect>
-                <rect x="3" y="14" width="7" height="7" rx="2"></rect>
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/>
+                <path d="M12 22V12"/>
+                <polyline points="3.29 7 12 12 20.71 7"/>
+                <path d="m7.5 4.27 9 5.15"/>
               </svg>
-              @if (activeTab() === 'deliveries') {
-              <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-              }
             </button>
 
-            <!-- 2. Package Clock Icon (Live Tracking) -->
-            <a
-              routerLink="/track"
-              class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
-              title="Live Tracking"
-            >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M16.5 9.4 7.55 4.24a1.78 1.78 0 0 0-2.5 1.55v12.42a1.78 1.78 0 0 0 2.5 1.55L16.5 14.6a1.78 1.78 0 0 0 0-3.2z"></path>
-                <circle cx="18" cy="6" r="3"></circle>
-              </svg>
-            </a>
-
-            <!-- 3. Address / Home Icon (Address Book) -->
-            <button
-              type="button"
-              id="tab-addresses-btn"
-              (click)="activeTab.set('addresses')"
-              [class.rail-active]="activeTab() === 'addresses'"
-              class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-              title="Address Book"
-            >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-              </svg>
-              @if (activeTab() === 'addresses') {
-              <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-              }
-            </button>
-
-            <!-- 4. Plus Button (New Delivery Wizard) -->
+            <!-- 2. Plus Button (New Delivery Wizard) -->
             <button
               type="button"
               id="tab-wizard-btn"
               (click)="startNewDelivery()"
               [class.ring-2]="activeTab() === 'wizard'"
-              class="w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
+              [class.ring-[#a53a26]/30]="activeTab() === 'wizard'"
+              class="w-11 h-11 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-xs shadow-[#a53a26]/25 hover:shadow-sm hover:scale-[1.03] transition-all cursor-pointer"
               title="Book New Delivery"
             >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
             </button>
 
-            <!-- 5. Chat Sparkle Icon (AI Assistant) -->
+            <!-- 3. Chat Sparkle Icon (AI Assistant) -->
             <a
               routerLink="/customer/assistant"
               id="nav-assistant-link"
-              class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
+              class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer no-underline"
               title="AI Assistant"
               aria-label="AI Assistant"
             >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12a8 8 0 0 1-11.6 7.14L4 20.5l1.36-4.6A8 8 0 1 1 21 12z"></path>
-                <path d="M12 8.5l.9 1.85 1.85.9-1.85.9L12 14l-.9-1.85-1.85-.9 1.85-.9z"></path>
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                <path d="M5 3v4"/>
+                <path d="M19 17v4"/>
+                <path d="M3 5h4"/>
+                <path d="M17 19h4"/>
               </svg>
             </a>
           </nav>
 
           <!-- Sidebar Footer Utilities -->
-          <div class="hidden md:flex flex-col items-center gap-3 pt-4 md:!mt-4 border-t border-[#f0ebe5]/60">
+          <div class="hidden md:flex flex-col items-center gap-4 mt-auto pt-4 border-t border-[#f0ebe5]/60">
             <app-notification-bell placement="right"></app-notification-bell>
+            <button
+              type="button"
+              (click)="signOut()"
+              class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-colors cursor-pointer"
+              title="Sign Out"
+            >
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
           </div>
         </aside>
 
@@ -267,11 +255,14 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
           <!-- ================================================================= -->
           @if (activeTab() === 'deliveries') {
           <div class="space-y-6">
-            <!-- Greeting Banner -->
-            <div>
-              <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
-                Welcome back, {{ customerName() }}!
-              </h1>
+            <!-- Greeting Banner & Header Actions -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
+                  Welcome back, {{ customerName() }}!
+                </h1>
+                <p class="text-xs text-[#6f6d85] font-semibold mt-1">Track and manage your SwiftDrop parcel deliveries</p>
+              </div>
             </div>
 
             <!-- Two Hero Cards Grid -->
@@ -290,8 +281,11 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                       <span class="text-sm font-bold text-[#6f6d85] ml-2">in delivery today</span>
                     </div>
                     <p class="text-xs text-[#6f6d85] font-medium mt-3 max-w-xs leading-relaxed">
-                      The delivery of your parcel is estimated at
-                      <strong class="text-[#1d1b2c]">10:30 AM to 11:30 AM</strong>. Not going to be home?
+                      @if (activeDeliveriesCount() > 0) {
+                        Your active shipments are currently in transit with assigned couriers across Sri Lanka.
+                      } @else {
+                        No active shipments out for delivery today. All recent deliveries are up to date.
+                      }
                     </p>
                   </div>
 
@@ -327,14 +321,15 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                     (click)="startNewDelivery()"
                     class="px-5 py-2.5 rounded-full bg-[#a53a26] hover:bg-[#7e2615] text-white font-bold text-xs transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer"
                   >
-                    Reschedule
+                    Book Delivery
                   </button>
                   <button
                     type="button"
-                    (click)="activeTab.set('addresses')"
+                    id="hero-add-address-btn"
+                    (click)="openAddressModal()"
                     class="px-5 py-2.5 rounded-full border border-[#a53a26] text-[#a53a26] hover:bg-[#faf6f0] font-bold text-xs transition-all cursor-pointer"
                   >
-                    Manage Preferences
+                    Add Address
                   </button>
                 </div>
               </div>
@@ -437,22 +432,28 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                         </span>
                       </td>
                       <td class="py-3.5 px-4 text-right">
-                        @if (parcel.status === 'CREATED') {
-                        <button
-                          type="button"
-                          (click)="cancelParcel(parcel.id)"
-                          class="text-[#a53a26] hover:underline font-bold text-xs cursor-pointer mr-2"
-                        >
-                          Cancel
-                        </button>
-                        }
-                        <button
-                          type="button"
-                          (click)="viewParcelDetails(parcel)"
-                          class="text-[#a53a26] hover:text-[#7e2615] hover:underline font-bold text-xs cursor-pointer"
-                        >
-                          View details &gt;
-                        </button>
+                        <div class="inline-flex items-center justify-end gap-2">
+                          @if (parcel.status === 'CREATED') {
+                          <button
+                            type="button"
+                            (click)="openCancelModal(parcel)"
+                            class="px-2.5 py-1 rounded-lg border border-[#d8d0c7] hover:border-rose-400 text-[#6f6d85] hover:text-rose-600 bg-transparent font-semibold text-xs transition-colors cursor-pointer inline-flex items-center"
+                            data-testid="open-cancel-modal-btn"
+                          >
+                            Cancel
+                          </button>
+                          }
+                          <button
+                            type="button"
+                            (click)="viewParcelDetails(parcel)"
+                            class="px-2.5 py-1 rounded-lg border border-[#d8d0c7] hover:border-[#a53a26] text-[#1d1b2c] hover:text-[#a53a26] bg-transparent font-semibold text-xs transition-colors cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <span>View details</span>
+                            <svg class="w-3 h-3 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                     }
@@ -1322,6 +1323,121 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
           </div>
           }
 
+          <!-- Cancel Delivery Confirmation Modal -->
+          @if (parcelToCancel(); as parcel) {
+          <div
+            class="fixed inset-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            (click)="closeCancelModal()"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-modal-title"
+          >
+            <div
+              class="bg-white rounded-3xl border border-[#e8e2dc] shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-4 animate-in fade-in zoom-in-95 duration-150"
+              (click)="$event.stopPropagation()"
+            >
+              <!-- Modal Header -->
+              <div class="flex items-start justify-between border-b border-[#eee7e0] pb-3.5">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-2xl bg-[#fdf2f0] border border-[#f5d5ce] flex items-center justify-center text-[#a53a26] flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 id="cancel-modal-title" class="text-base sm:text-lg font-black text-[#1d1b2c]">
+                      Cancel Delivery Order?
+                    </h3>
+                    <p class="text-xs font-semibold text-[#6f6d85]">
+                      This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  (click)="closeCancelModal()"
+                  class="text-[#6f6d85] hover:text-[#1d1b2c] p-1 rounded-lg cursor-pointer"
+                  aria-label="Close modal"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Modal Body -->
+              <div class="space-y-3.5 text-xs">
+                <!-- Parcel Details Summary -->
+                <div class="p-3.5 rounded-2xl bg-[#faf8f6] border border-[#eee7e0] space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[#6f6d85] font-bold text-[11px] uppercase tracking-wider">Tracking Number</span>
+                    <span class="font-mono font-black text-[#a53a26] text-xs bg-white px-2 py-0.5 rounded-md border border-[#a53a26]/10" data-testid="cancel-modal-tracking-number">
+                      {{ parcel.trackingNumber }}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs font-semibold text-[#1d1b2c]">
+                    <span class="text-[#6f6d85]">Route</span>
+                    <span>{{ parcel.pickupAddress.city || parcel.pickupAddress.district }} &rarr; {{ parcel.dropoffAddress.city || parcel.dropoffAddress.district }}</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs font-semibold text-[#1d1b2c]">
+                    <span class="text-[#6f6d85]">Fee</span>
+                    <span class="font-black">{{ parcel.fee | currency: 'LKR' : 'symbol' : '1.2-2' }}</span>
+                  </div>
+                </div>
+
+                <p class="text-[#3a384e] font-medium leading-relaxed">
+                  Are you sure you want to cancel this delivery order? Cancellation is only permitted before courier pickup.
+                </p>
+
+                <!-- Reason (Optional) -->
+                <div>
+                  <label for="cancel-reason-input" class="block mb-1 text-[11px] font-bold uppercase tracking-wider text-[#3a384e]">
+                    Reason for Cancellation (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    id="cancel-reason-input"
+                    [(ngModel)]="cancellationReason"
+                    placeholder="e.g. Changed plans, duplicate order"
+                    class="w-full px-3.5 py-2.5 bg-white border border-[#e2e8f0] rounded-xl text-xs font-semibold text-[#1d1b2c] focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <!-- Modal Footer -->
+              <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-[#eee7e0]">
+                <button
+                  type="button"
+                  id="cancel-modal-dismiss-btn"
+                  (click)="closeCancelModal()"
+                  [disabled]="isCancelling()"
+                  class="px-4 py-2 bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#1d1b2c] font-bold text-xs rounded-full transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Keep Delivery
+                </button>
+                <button
+                  type="button"
+                  id="cancel-modal-confirm-btn"
+                  (click)="confirmCancelParcel()"
+                  [disabled]="isCancelling()"
+                  class="action-pill-btn inline-flex items-center gap-1.5 px-5 py-2 bg-[#a53a26] hover:bg-[#7e2615] disabled:opacity-50 text-white font-bold text-xs rounded-full transition-all shadow-sm cursor-pointer"
+                >
+                  @if (isCancelling()) {
+                    <svg class="animate-spin -ml-1 mr-1 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Cancelling...</span>
+                  } @else {
+                    <span>Yes, Cancel Delivery</span>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+          }
+
           @if (activeTab() === 'settings') {
           <div id="settings-panel" class="space-y-6 max-w-3xl">
             <div>
@@ -1418,7 +1534,8 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
       .rail-icon-btn.rail-active {
         color: var(--terracotta);
         background: #ffffff;
-        box-shadow: 0 4px 12px rgba(165, 58, 38, 0.12);
+        border: 1px solid #eee7e0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       }
       .filter-pill {
         background: #f1f5f9;
@@ -1552,8 +1669,10 @@ export class CustomerComponent implements OnInit {
   }
 
   @HostListener('document:keydown.escape')
-  closeProfileMenuOnEscape(): void {
+  closeOnEscape(): void {
     this.profileMenuOpen.set(false);
+    this.showAddressModal.set(false);
+    this.closeCancelModal();
   }
 
   customerInitials = computed(() => {
@@ -1618,6 +1737,11 @@ export class CustomerComponent implements OnInit {
     postalCode: '',
     isDefault: false,
   };
+
+  // Cancel delivery confirmation modal state
+  parcelToCancel = signal<CustomerParcel | null>(null);
+  cancellationReason = 'Cancelled by customer';
+  isCancelling = signal<boolean>(false);
 
   ngOnInit(): void {
     this.loadParcels();
@@ -1763,8 +1887,40 @@ export class CustomerComponent implements OnInit {
     });
   }
 
-  cancelParcel(id: string): void {
-    this.customerService.cancelParcel(id, 'Cancelled by customer').subscribe({
+  openCancelModal(parcel: CustomerParcel): void {
+    this.parcelToCancel.set(parcel);
+    this.cancellationReason = 'Cancelled by customer';
+    this.isCancelling.set(false);
+  }
+
+  closeCancelModal(): void {
+    if (!this.isCancelling()) {
+      this.parcelToCancel.set(null);
+    }
+  }
+
+  confirmCancelParcel(): void {
+    const parcel = this.parcelToCancel();
+    if (!parcel) return;
+
+    this.isCancelling.set(true);
+    const reason = this.cancellationReason.trim() || 'Cancelled by customer';
+    this.customerService.cancelParcel(parcel.id, reason).subscribe({
+      next: (cancelled) => {
+        this.isCancelling.set(false);
+        this.parcelToCancel.set(null);
+        this.loadParcels();
+        this.notification.set(`Delivery order ${cancelled.trackingNumber} has been cancelled.`);
+      },
+      error: (err) => {
+        this.isCancelling.set(false);
+        this.notification.set(this.apiErrorMessage(err, 'Failed to cancel parcel.'));
+      },
+    });
+  }
+
+  cancelParcel(id: string, reason?: string): void {
+    this.customerService.cancelParcel(id, reason || 'Cancelled by customer').subscribe({
       next: (cancelled) => {
         this.loadParcels();
         this.notification.set(`Delivery order ${cancelled.trackingNumber} has been cancelled.`);
@@ -1904,7 +2060,7 @@ export class CustomerComponent implements OnInit {
   getStatusBadgeClass(status: ParcelStatus): string {
     switch (status) {
       case 'CREATED':
-        return 'bg-blue-50 text-blue-700 border border-blue-200/80';
+        return 'bg-emerald-50 text-emerald-700 border border-emerald-200/80';
       case 'PICKED_UP':
       case 'IN_TRANSIT':
       case 'OUT_FOR_DELIVERY':
