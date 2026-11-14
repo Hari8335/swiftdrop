@@ -22,6 +22,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
@@ -311,6 +312,26 @@ class InternalParcelControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(1)))
                 .andExpect(jsonPath("$.content[0].trackingNumber", is("SD-20261027-COUR01")));
+    }
+
+    @Test
+    @DisplayName("Lookup by ID: GET /internal/v1/parcels/{id} returns 200 OK for internal service callers")
+    void testGetParcelById() throws Exception {
+        Parcel parcel = createSampleParcel("SD-20261027-LOOKUP1", ParcelStatus.CREATED, "usr-courier-42");
+
+        mockMvc.perform(get("/internal/v1/parcels/" + parcel.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(parcel.getId())))
+                .andExpect(jsonPath("$.trackingNumber", is("SD-20261027-LOOKUP1")))
+                .andExpect(jsonPath("$.status", is("CREATED")))
+                .andExpect(jsonPath("$.courierId", is("usr-courier-42")));
+    }
+
+    @Test
+    @DisplayName("Lookup by ID: GET /internal/v1/parcels/{id} returns 404 NOT_FOUND when parcel does not exist")
+    void testGetParcelByIdNotFound() throws Exception {
+        mockMvc.perform(get("/internal/v1/parcels/" + UUID.randomUUID()))
+                .andExpect(status().isNotFound());
     }
 
     @Test

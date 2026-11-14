@@ -25,6 +25,12 @@ public class InternalParcelController {
         this.parcelService = parcelService;
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ParcelResponse> getParcelById(@PathVariable String id) {
+        ParcelResponse response = parcelService.getParcel(id, null, true);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/{id}/assignment")
     public ResponseEntity<ParcelResponse> assignCourier(
             @PathVariable String id,

@@ -416,7 +416,7 @@ public class CourierExecutionService {
                 return p;
             }
         } catch (ResponseStatusException rse) {
-            if (rse.getStatusCode().value() == 403 || rse.getStatusCode().value() == 404) {
+            if (rse.getStatusCode().value() == 401 || rse.getStatusCode().value() == 403 || rse.getStatusCode().value() == 404) {
                 return findInCourierAssignments(courierId, parcelId)
                     .orElseThrow(() -> rse);
             }
