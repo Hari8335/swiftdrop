@@ -223,10 +223,13 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
-              Welcome back, {{ courierDisplayName() }}!
+              Welcome back, {{ profileLoaded() ? (profile().name || courierDisplayName()) : (profileLoading() ? 'Loading courier profile...' : 'Courier') }}!
             </h1>
             <p class="text-xs font-semibold text-[#6f6d85] mt-1">
-              {{ profile().zone || 'Colombo Central' }} Dispatch Zone • {{ stats().outForDelivery + stats().created + stats().inTransit }} active deliveries in progress
+              <ng-container *ngIf="profileLoaded()">
+                (ID: {{ profile().userId }}) • {{ profile().zone || 'Assigned Zone' }} •
+              </ng-container>
+              {{ stats().outForDelivery + stats().created + stats().inTransit }} active deliveries in progress
             </p>
           </div>
           <div class="flex items-center gap-2 self-start sm:self-auto">
@@ -238,12 +241,12 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
             <button
               type="button"
               id="refresh-btn"
-              (click)="refreshDeliveries()"
-              [disabled]="isLoading()"
+              (click)="refreshDashboard()"
+              [disabled]="isLoading() || profileLoading()"
               title="Refresh Run Sheet"
               class="p-2.5 rounded-full border border-[#e8e2dc] bg-[#faf8f6] hover:bg-white text-[#6f6d85] hover:text-[#a53a26] transition-all shadow-2xs cursor-pointer"
             >
-              <span [class.animate-spin]="isLoading()" class="inline-block text-sm">🔄</span>
+              <span [class.animate-spin]="isLoading() || profileLoading()" class="inline-block text-sm">🔄</span>
             </button>
           </div>
         </div>
@@ -445,17 +448,17 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
 
         <!-- Error State Alert -->
         <div
-          *ngIf="errorMessage()"
+          *ngIf="errorMessage() || profileError()"
           id="courier-error-banner"
           class="rounded-2xl p-4 bg-rose-50 border border-rose-200 text-rose-900 text-sm flex items-center justify-between shadow-sm"
         >
           <div class="flex items-center gap-2.5">
             <span class="text-base">⚠️</span>
-            <span class="font-semibold">{{ errorMessage() }}</span>
+            <span class="font-semibold">{{ errorMessage() || profileError() }}</span>
           </div>
           <button
             type="button"
-            (click)="refreshDeliveries()"
+            (click)="refreshDashboard()"
             class="px-4 py-1.5 bg-white border border-rose-200 rounded-full text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors shadow-2xs cursor-pointer"
           >
             Retry
@@ -1091,13 +1094,23 @@ export class CourierComponent implements OnInit {
   readonly isLoading = this.courierService.isLoading;
   readonly errorMessage = this.courierService.error;
 
+  profileLoading = signal(true);
+  profileLoaded = signal(false);
+  profileError = signal<string | null>(null);
+
   activeFilter = signal<FilterTab>('ALL');
   searchQuery = signal<string>('');
   toastMessage = signal<string>('');
   profileMenuOpen = signal<boolean>(false);
 
   readonly courierDisplayName = computed(() => {
-    return this.authService?.currentUser()?.fullName || this.profile().name || 'Sample Courier';
+    if (this.profileLoaded()) {
+      return this.profile().name || this.authService?.currentUser()?.fullName || 'Courier';
+    }
+    if (this.profileLoading()) {
+      return 'Loading courier profile...';
+    }
+    return this.authService?.currentUser()?.fullName || 'Courier';
   });
 
   readonly courierEmail = computed(() => {
@@ -1133,7 +1146,12 @@ export class CourierComponent implements OnInit {
   isLoadingProofImage = signal<boolean>(false);
 
   ngOnInit(): void {
+    this.refreshDashboard();
+  }
+
+  refreshDashboard(): void {
     this.refreshDeliveries();
+    this.loadProfile();
   }
 
   refreshDeliveries(): void {
@@ -1175,6 +1193,32 @@ export class CourierComponent implements OnInit {
     } else {
       this.navigateTo('/login');
     }
+  }
+
+  loadProfile(): void {
+    this.profileLoading.set(true);
+    this.profileLoaded.set(false);
+    this.profileError.set(null);
+
+    this.courierService.getProfile().subscribe({
+      next: () => {
+        this.profileLoaded.set(true);
+      },
+      error: (error) => {
+        this.profileError.set(this.profileErrorMessage(error));
+        this.profileLoading.set(false);
+      },
+      complete: () => {
+        this.profileLoading.set(false);
+      },
+    });
+  }
+
+  private profileErrorMessage(error: { status?: number; error?: { message?: string } }): string {
+    if (error?.status === 401) return 'Your session has expired. Please sign in again.';
+    if (error?.status === 403) return 'Only authenticated couriers can load this profile.';
+    if (error?.status === 404) return 'No courier profile is available for this account.';
+    return error?.error?.message || 'Unable to load the courier profile.';
   }
 
   isActionPending(parcelId: string): boolean {
