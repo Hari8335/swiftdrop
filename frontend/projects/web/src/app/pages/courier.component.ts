@@ -263,7 +263,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
                   <span class="text-5xl font-black text-[#1d1b2c] tracking-tight">
                     {{ stats().outForDelivery + stats().created + stats().inTransit }}
                   </span>
-                  <span class="text-sm font-bold text-[#6f6d85] ml-2">in delivery today</span>
+                  <span class="text-sm font-bold text-[#6f6d85] ml-2">in delivery {{ selectedDate() ? 'on ' + selectedDate() : 'today' }}</span>
                 </div>
                 <p class="text-xs text-[#6f6d85] font-medium mt-3 max-w-xs leading-relaxed">
                   Active route in <strong class="text-[#1d1b2c]">{{ profile().zone || 'Colombo Central' }}</strong>.
@@ -344,10 +344,34 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
         <!-- Section Title & Deliveries Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
           <div>
-            <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight">Today's Run Sheet Deliveries</h2>
+            <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight">
+              {{ selectedDate() ? 'Run Sheet Deliveries (' + selectedDate() + ')' : "Today's Run Sheet Deliveries" }}
+            </h2>
             <p class="text-xs font-semibold text-[#6f6d85] mt-0.5">
               Review assigned packages, execute routes, and record delivery confirmation.
             </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <label class="flex items-center gap-2 text-xs font-bold text-[#6f6d85]">
+              <span>View date</span>
+              <input
+                type="date"
+                id="courier-run-sheet-date"
+                [value]="selectedDate()"
+                (change)="selectDate($any($event.target).value)"
+                class="rounded-full border border-[#e8e2dc] bg-[#faf8f6] px-4 py-2 text-xs font-bold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all cursor-pointer shadow-2xs"
+              />
+            </label>
+            <button
+              *ngIf="selectedDate()"
+              type="button"
+              id="reset-date-btn"
+              (click)="resetToToday()"
+              title="Reset to today's deliveries"
+              class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-white text-[#a53a26] hover:bg-[#faf6f0] text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+            >
+              <span>Today</span>
+            </button>
           </div>
         </div>
         <!-- Filter Tabs (Segmented Pill Bar matching Customer Portal) -->
@@ -710,7 +734,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
             </p>
             <button
               type="button"
-              (click)="activeFilter.set('ALL'); searchQuery.set('')"
+              (click)="activeFilter.set('ALL'); searchQuery.set(''); selectDate('')"
               class="mt-4 px-5 py-2 bg-[#faf6f0] text-[#a53a26] hover:bg-[#a53a26] hover:text-white font-bold text-xs rounded-full border border-[#a53a26]/20 transition-all cursor-pointer"
             >
               Clear Filters
@@ -1102,6 +1126,7 @@ export class CourierComponent implements OnInit {
   searchQuery = signal<string>('');
   toastMessage = signal<string>('');
   profileMenuOpen = signal<boolean>(false);
+  readonly selectedDate = signal<string>('');
 
   readonly courierDisplayName = computed(() => {
     if (this.profileLoaded()) {
@@ -1155,11 +1180,22 @@ export class CourierComponent implements OnInit {
   }
 
   refreshDeliveries(): void {
-    this.courierService.loadDeliveries().subscribe({
+    const dateParam = this.selectedDate()?.trim() || undefined;
+    this.courierService.loadDeliveries(dateParam).subscribe({
       error: () => {
         // Handled in service signal
       },
     });
+  }
+
+  selectDate(date: string): void {
+    this.selectedDate.set(date);
+    this.refreshDeliveries();
+  }
+
+  resetToToday(): void {
+    this.selectedDate.set('');
+    this.refreshDeliveries();
   }
 
   navigateTo(path: string): void {
