@@ -80,25 +80,7 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
               </svg>
             </a>
 
-            <!-- 3. Address / Home Icon (Address Book) -->
-            <button
-              type="button"
-              id="tab-addresses-btn"
-              (click)="activeTab.set('addresses')"
-              [class.rail-active]="activeTab() === 'addresses'"
-              class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-              title="Address Book"
-            >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-              </svg>
-              @if (activeTab() === 'addresses') {
-              <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-              }
-            </button>
-
-            <!-- 4. Plus Button (New Delivery Wizard) -->
+            <!-- 3. Plus Button (New Delivery Wizard) -->
             <button
               type="button"
               id="tab-wizard-btn"
@@ -267,11 +249,30 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
           <!-- ================================================================= -->
           @if (activeTab() === 'deliveries') {
           <div class="space-y-6">
-            <!-- Greeting Banner -->
-            <div>
-              <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
-                Welcome back, {{ customerName() }}!
-              </h1>
+            <!-- Greeting Banner & Header Actions -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
+                  Welcome back, {{ customerName() }}!
+                </h1>
+                <p class="text-xs text-[#6f6d85] font-semibold mt-1">Track and manage your SwiftDrop parcel deliveries</p>
+              </div>
+
+              <!-- Top Action Buttons -->
+              <div class="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  id="deliveries-add-address-btn"
+                  (click)="openAddressModal()"
+                  class="px-5 py-2.5 rounded-full border border-[#eee7e0] bg-white hover:bg-[#faf6f0] hover:border-[#a53a26] text-[#1d1b2c] hover:text-[#a53a26] font-bold text-xs transition-all shadow-2xs flex items-center gap-2 cursor-pointer"
+                >
+                  <svg class="w-4 h-4 text-[#a53a26]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span>Add New Address</span>
+                </button>
+              </div>
             </div>
 
             <!-- Two Hero Cards Grid -->
@@ -331,10 +332,11 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                   </button>
                   <button
                     type="button"
-                    (click)="activeTab.set('addresses')"
+                    id="hero-add-address-btn"
+                    (click)="openAddressModal()"
                     class="px-5 py-2.5 rounded-full border border-[#a53a26] text-[#a53a26] hover:bg-[#faf6f0] font-bold text-xs transition-all cursor-pointer"
                   >
-                    Manage Preferences
+                    Add Address
                   </button>
                 </div>
               </div>

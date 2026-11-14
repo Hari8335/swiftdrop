@@ -92,19 +92,7 @@ import { ParcelDetail } from './tracking.model';
             </svg>
           </a>
 
-          <!-- 3. Address / Home Icon -->
-          <a
-            routerLink="/customer"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Address Book"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-              <polyline points="9 22 9 12 15 12 15 22"></polyline>
-            </svg>
-          </a>
-
-          <!-- 4. Plus Button (Book New Delivery) -->
+          <!-- 3. Plus Button (Book New Delivery) -->
           <a
             routerLink="/customer"
             class="w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
