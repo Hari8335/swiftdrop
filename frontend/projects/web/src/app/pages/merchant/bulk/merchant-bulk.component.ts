@@ -92,13 +92,17 @@ import { CSV_HEADER, MAX_CSV_BYTES, PreviewRow, encodeMerchantCsv, parseMerchant
 
           <!-- Reading Status Banner -->
           <div *ngIf="reading()" role="status" class="p-4 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] text-xs font-bold text-[#6f6d85] flex items-center gap-2">
-            <span class="inline-block animate-spin">⏳</span>
+            <div class="w-4 h-4 rounded-full border-2 border-[#a53a26] border-t-transparent animate-spin"></div>
             <span>Reading CSV…</span>
           </div>
 
           <!-- Error Alert Banner -->
           <div *ngIf="error()" role="alert" class="p-4 rounded-2xl border border-rose-200 bg-rose-50 text-xs font-semibold text-rose-800 flex items-center gap-2">
-            <span class="text-rose-600 font-bold">⚠️</span>
+            <svg class="w-4 h-4 text-rose-600 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
             <span>{{ error() }}</span>
           </div>
         </div>
