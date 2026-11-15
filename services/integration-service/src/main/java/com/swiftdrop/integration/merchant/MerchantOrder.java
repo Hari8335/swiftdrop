@@ -13,11 +13,14 @@ public record MerchantOrder(
         String externalReference,
         MerchantOrderStatus status,
         BigDecimal fee,
+        String recipientName,
+        String recipientAddress,
         Instant createdAt,
         Instant updatedAt) {
 
     public MerchantOrder(UUID orderId, UUID merchantId, UUID parcelId, String trackingNumber,
                          String externalReference, MerchantOrderStatus status, Instant createdAt) {
-        this(orderId, merchantId, parcelId, trackingNumber, externalReference, status, null, createdAt, null);
+        this(orderId, merchantId, parcelId, trackingNumber, externalReference, status, null,
+                null, null, createdAt, null);
     }
 }
