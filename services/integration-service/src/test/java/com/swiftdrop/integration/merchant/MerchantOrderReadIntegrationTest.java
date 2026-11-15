@@ -70,6 +70,12 @@ class MerchantOrderReadIntegrationTest {
 
     private MerchantOrderEntity createOrder(UUID merchantId, String trackingNumber,
                                             MerchantOrderStatus status, BigDecimal fee, Instant createdAt) {
+        return createOrder(merchantId, trackingNumber, status, fee, createdAt, null, null);
+    }
+
+    private MerchantOrderEntity createOrder(UUID merchantId, String trackingNumber,
+                                            MerchantOrderStatus status, BigDecimal fee, Instant createdAt,
+                                            String recipientName, String recipientAddress) {
         return orderRepository.saveAndFlush(new MerchantOrderEntity(
                 UUID.randomUUID(),
                 merchantId,
@@ -78,6 +84,8 @@ class MerchantOrderReadIntegrationTest {
                 "ref-" + UUID.randomUUID(),
                 status,
                 fee,
+                recipientName,
+                recipientAddress,
                 createdAt
         ));
     }
@@ -93,8 +101,10 @@ class MerchantOrderReadIntegrationTest {
     @Test
     @DisplayName("GET /api/v1/merchant/orders returns 200 OK with paginated orders for authenticated merchant")
     void listOrders_success() throws Exception {
-        createOrder(merchantA, "SD-20261028-0001", MerchantOrderStatus.CREATED, new BigDecimal("450.00"), now.minus(2, ChronoUnit.HOURS));
-        createOrder(merchantA, "SD-20261028-0002", MerchantOrderStatus.IN_TRANSIT, new BigDecimal("650.00"), now.minus(1, ChronoUnit.HOURS));
+        createOrder(merchantA, "SD-20261028-0001", MerchantOrderStatus.CREATED, new BigDecimal("450.00"),
+                now.minus(2, ChronoUnit.HOURS), "Asha Perera", "20 Lake Road, Gampaha, Gampaha, 11000");
+        createOrder(merchantA, "SD-20261028-0002", MerchantOrderStatus.IN_TRANSIT, new BigDecimal("650.00"),
+                now.minus(1, ChronoUnit.HOURS), "Nimal Silva", "5 Temple Road, Colombo, Colombo, 00100");
 
         mockMvc.perform(merchantGet("/api/v1/merchant/orders", merchantA))
                 .andExpect(status().isOk())
@@ -106,9 +116,13 @@ class MerchantOrderReadIntegrationTest {
                 .andExpect(jsonPath("$.content[0].trackingNumber").value("SD-20261028-0002"))
                 .andExpect(jsonPath("$.content[0].status").value("IN_TRANSIT"))
                 .andExpect(jsonPath("$.content[0].fee").value(650.00))
+                .andExpect(jsonPath("$.content[0].recipientName").value("Nimal Silva"))
+                .andExpect(jsonPath("$.content[0].recipientAddress").value("5 Temple Road, Colombo, Colombo, 00100"))
                 .andExpect(jsonPath("$.content[1].trackingNumber").value("SD-20261028-0001"))
                 .andExpect(jsonPath("$.content[1].status").value("CREATED"))
-                .andExpect(jsonPath("$.content[1].fee").value(450.00));
+                .andExpect(jsonPath("$.content[1].fee").value(450.00))
+                .andExpect(jsonPath("$.content[1].recipientName").value("Asha Perera"))
+                .andExpect(jsonPath("$.content[1].recipientAddress").value("20 Lake Road, Gampaha, Gampaha, 11000"));
     }
 
     @Test

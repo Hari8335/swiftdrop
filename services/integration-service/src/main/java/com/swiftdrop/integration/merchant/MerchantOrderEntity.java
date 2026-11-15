@@ -30,6 +30,12 @@ public class MerchantOrderEntity {
     @Column(name = "external_reference", nullable = false, length = 128)
     private String externalReference;
 
+    @Column(name = "recipient_name", length = 255)
+    private String recipientName;
+
+    @Column(name = "recipient_address", length = 1024)
+    private String recipientAddress;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private MerchantOrderStatus status;
@@ -48,6 +54,13 @@ public class MerchantOrderEntity {
     public MerchantOrderEntity(UUID orderId, UUID merchantId, UUID parcelId, String trackingNumber,
                                String externalReference, MerchantOrderStatus status, BigDecimal fee,
                                Instant createdAt) {
+        this(orderId, merchantId, parcelId, trackingNumber, externalReference, status, fee,
+                null, null, createdAt);
+    }
+
+    public MerchantOrderEntity(UUID orderId, UUID merchantId, UUID parcelId, String trackingNumber,
+                               String externalReference, MerchantOrderStatus status, BigDecimal fee,
+                               String recipientName, String recipientAddress, Instant createdAt) {
         this.orderId = orderId;
         this.merchantId = merchantId;
         this.parcelId = parcelId;
@@ -55,13 +68,15 @@ public class MerchantOrderEntity {
         this.externalReference = externalReference;
         this.status = status;
         this.fee = fee;
+        this.recipientName = recipientName;
+        this.recipientAddress = recipientAddress;
         this.createdAt = createdAt;
         this.updatedAt = createdAt;
     }
 
     public MerchantOrder toReadModel() {
         return new MerchantOrder(orderId, merchantId, parcelId, trackingNumber,
-                externalReference, status, fee, createdAt, updatedAt);
+                externalReference, status, fee, recipientName, recipientAddress, createdAt, updatedAt);
     }
 
     public void updateStatus(MerchantOrderStatus status, Instant updatedAt) {
@@ -74,6 +89,8 @@ public class MerchantOrderEntity {
     public UUID getParcelId() { return parcelId; }
     public String getTrackingNumber() { return trackingNumber; }
     public String getExternalReference() { return externalReference; }
+    public String getRecipientName() { return recipientName; }
+    public String getRecipientAddress() { return recipientAddress; }
     public MerchantOrderStatus getStatus() { return status; }
     public BigDecimal getFee() { return fee; }
     public Instant getCreatedAt() { return createdAt; }

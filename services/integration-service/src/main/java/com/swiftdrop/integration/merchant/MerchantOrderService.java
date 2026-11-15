@@ -104,7 +104,8 @@ public class MerchantOrderService {
             MerchantOrderStatus status = MerchantOrderStatus.valueOf(parcel.status());
             BigDecimal fee = parcel.fee() != null ? parcel.fee() : quote;
             MerchantOrderEntity entity = new MerchantOrderEntity(UUID.randomUUID(), merchantId, parcelId,
-                    parcel.trackingNumber(), request.externalReference(), status, fee, parcel.createdAt());
+                    parcel.trackingNumber(), request.externalReference(), status, fee,
+                    request.recipientName(), formatAddress(request.dropoffAddress()), parcel.createdAt());
             MerchantOrderEntity saved = orderRepository.saveAndFlush(entity);
             MerchantOrderResponse response = MerchantOrderResponse.from(saved);
             idempotencyStore.complete(merchantId, CREATE_OPERATION, idempotencyKey, 201, response);
@@ -150,6 +151,15 @@ public class MerchantOrderService {
             }
             throw exception;
         }
+    }
+
+    private String formatAddress(StructuredAddress address) {
+        return java.util.stream.Stream.of(address.line1(), address.line2(), address.city(),
+                        address.district(), address.postalCode())
+                .filter(part -> part != null && !part.isBlank())
+                .map(String::trim)
+                .distinct()
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 
     @Transactional
