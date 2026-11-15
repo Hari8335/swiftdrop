@@ -33,6 +33,7 @@ export class CourierService {
   private readonly deliveriesSignal = signal<CourierDelivery[]>([]);
   private readonly isLoadingSignal = signal<boolean>(false);
   private readonly errorSignal = signal<string | null>(null);
+  private lastLoadedDate?: string;
 
   // The execution page reads this signal synchronously during its initial render.
   // Empty values are only a render-safe placeholder; authenticated profile data is
@@ -100,6 +101,7 @@ export class CourierService {
    * Convenience loader with loading/error signal tracking
    */
   loadDeliveries(date?: string, status?: string): Observable<CourierDeliveriesResponse> {
+    this.lastLoadedDate = date?.trim() || undefined;
     this.isLoadingSignal.set(true);
     this.errorSignal.set(null);
 
@@ -160,7 +162,7 @@ export class CourierService {
     }
 
     return this.http.post<void>(`/api/v1/courier/deliveries/${encodeURIComponent(parcelId)}/fail`, normalized).pipe(
-      switchMap(() => this.loadDeliveries().pipe(map(() => void 0)))
+      switchMap(() => this.loadDeliveries(this.lastLoadedDate).pipe(map(() => void 0)))
     );
   }
 

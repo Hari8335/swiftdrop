@@ -11,7 +11,10 @@
     "target": "http://localhost:8082",
     "secure": false
   },
-  "/api/v1/tracking": { "target": "http://localhost:8082", "secure": false },
+  "/api/v1/tracking": {
+    "target": "http://localhost:8082",
+    "secure": false
+  },
   "/tracking": {
     "target": "http://localhost:8082",
     "secure": false
@@ -36,7 +39,15 @@
     "target": "http://localhost:8083",
     "secure": false
   },
+  "/api/v1/admin/zones": {
+    "target": "http://localhost:8083",
+    "secure": false
+  },
   "/admin/zones": {
+    "target": "http://localhost:8083",
+    "secure": false
+  },
+  "/api/v1/admin/pricing-rules": {
     "target": "http://localhost:8083",
     "secure": false
   },
@@ -44,14 +55,27 @@
     "target": "http://localhost:8083",
     "secure": false
   },
+  "/api/v1/admin/reports": {
+    "target": "http://localhost:8083",
+    "secure": false
+  },
   "/admin/reports": {
     "target": "http://localhost:8083",
+    "secure": false
+  },
+  "/api/v1/admin/merchants": {
+    "target": "http://localhost:8084",
+    "secure": false
+  },
+  "/admin/merchants": {
+    "target": "http://localhost:8084",
     "secure": false
   },
   "/api/v1/merchants": {
     "target": "http://localhost:8084",
     "secure": false
   },
+  "/api/v1/merchant": {
   "/api/v1/admin/merchants": {
     "target": "http://localhost:8084",
     "secure": false
@@ -60,11 +84,15 @@
     "target": "http://localhost:8084",
     "secure": false
   },
-  "/admin/merchants": {
+  "/api/v1/assistant": {
     "target": "http://localhost:8084",
     "secure": false
   },
   "/assistant": {
+    "target": "http://localhost:8084",
+    "secure": false
+  },
+  "/api/v1/notifications": {
     "target": "http://localhost:8084",
     "secure": false
   },

@@ -1,6 +1,10 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { provideRouter, Router } from '@angular/router';
+import { of } from 'rxjs';
 import { AssistantChatComponent } from './assistant-chat.component';
+import { NotificationService } from '../../notification/notification.service';
 
 describe('AssistantChatComponent', () => {
   let fixture: ComponentFixture<AssistantChatComponent>;
@@ -8,8 +12,22 @@ describe('AssistantChatComponent', () => {
   let httpMock: HttpTestingController;
 
   beforeEach(async () => {
+    const mockNotificationService = {
+      unreadCount: signal(0),
+      notifications: signal([]),
+      totalElements: signal(0),
+      isLoading: signal(false),
+      error: signal(null),
+      refreshUnreadCount: () => of(0),
+      loadNotifications: () => of([]),
+    };
+
     await TestBed.configureTestingModule({
       imports: [AssistantChatComponent, HttpClientTestingModule],
+      providers: [
+        provideRouter([]),
+        { provide: NotificationService, useValue: mockNotificationService },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AssistantChatComponent);
@@ -125,5 +143,32 @@ describe('AssistantChatComponent', () => {
     component['onEnter'](shiftEnter);
     expect(spy).not.toHaveBeenCalled();
   }));
+
+  it('should navigate back to customer deliveries on goBack()', () => {
+    const router = TestBed.inject(Router);
+    const navigateSpy = jest.spyOn(router, 'navigate');
+    (component as any).goBack();
+    expect(navigateSpy).toHaveBeenCalledWith(['/customer']);
+  });
+
+  it('should format markdown bold into strong tags without raw asterisks', () => {
+    const input = 'Here are details for parcel **SD-20261114-BEK6JR**:\n• **Status:** CANCELLED';
+    const output = (component as any).formatMessage(input);
+    const html = (output as any).changingThisBreaksApplicationSecurity || output.toString();
+
+    expect(html).toContain('<strong class="font-bold">SD-20261114-BEK6JR</strong>');
+    expect(html).toContain('<strong class="font-bold">Status:</strong>');
+    expect(html).not.toContain('**');
+  });
+
+  it('should safely escape raw HTML tags', () => {
+    const input = '<script>alert(1)</script> **safe bold**';
+    const output = (component as any).formatMessage(input);
+    const html = (output as any).changingThisBreaksApplicationSecurity || output.toString();
+
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('<strong class="font-bold">safe bold</strong>');
+  });
 });
 

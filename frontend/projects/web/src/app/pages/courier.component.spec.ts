@@ -359,4 +359,26 @@ describe('CourierComponent', () => {
     expect(component.selectedDeliveryForProofView()).toBeNull();
     expect(component.viewProofImageUrl()).toBeNull();
   }));
+
+  it('omits date query param initially and sends explicit date query param when date is selected', fakeAsync(() => {
+    expect(component.selectedDate()).toBe('');
+
+    component.selectDate('2026-11-14');
+    expect(component.selectedDate()).toBe('2026-11-14');
+
+    const dateReq = httpMock.expectOne((req) => req.url === '/api/v1/courier/deliveries' && req.params.get('date') === '2026-11-14');
+    expect(dateReq.request.method).toBe('GET');
+    dateReq.flush({
+      ...mockDeliveriesResponse,
+      date: '2026-11-14',
+    });
+    tick();
+
+    component.resetToToday();
+    expect(component.selectedDate()).toBe('');
+    const todayReq = httpMock.expectOne((req) => req.url === '/api/v1/courier/deliveries' && !req.params.has('date'));
+    expect(todayReq.request.method).toBe('GET');
+    todayReq.flush(mockDeliveriesResponse);
+    tick();
+  }));
 });

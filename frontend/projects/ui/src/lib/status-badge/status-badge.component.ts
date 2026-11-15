@@ -13,7 +13,7 @@ const TONE_CLASSES: Record<BadgeTone, string> = {
 
 /** Tones for the parcel lifecycle (contracts/openapi/parcel.yaml ParcelStatus). */
 export const PARCEL_STATUS_TONES: Record<string, BadgeTone> = {
-  CREATED: 'info',
+  CREATED: 'success',
   PICKED_UP: 'brand',
   IN_TRANSIT: 'brand',
   OUT_FOR_DELIVERY: 'warning',
