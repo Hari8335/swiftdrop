@@ -15,10 +15,10 @@ import { AdminUsersService } from './admin-users.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div class="mx-auto max-w-[1320px] space-y-6 pb-16 text-[#211f32]">
+    <div class="mx-auto max-w-[1320px] px-4 py-3 sm:px-6 lg:px-8 space-y-6 pb-16 text-[#211f32]">
       <!-- Top Bar Header -->
       <div
-        class="flex flex-col justify-between gap-4 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-7 shadow-[0_8px_24px_rgba(42,32,25,0.04)] md:flex-row md:items-center"
+        class="mt-8 flex flex-col justify-between gap-4 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-7 shadow-[0_8px_24px_rgba(42,32,25,0.04)] md:flex-row md:items-center"
       >
         <div class="flex items-center gap-4">
           <div
