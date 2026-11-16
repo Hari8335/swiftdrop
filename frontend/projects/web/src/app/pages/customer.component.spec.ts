@@ -361,6 +361,41 @@ describe('CustomerComponent', () => {
     expect(() => component.signOut()).not.toThrow();
   });
 
+  describe('active deliveries summary', () => {
+    const summaryText = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('.hero-summary-card')!.textContent!.replace(/\s+/g, ' ');
+
+    it('shows 0 and the "no active shipments" message when every parcel is cancelled or delivered', () => {
+      component.parcels.set([
+        { ...mockCreatedParcel, id: 'c1', status: 'CANCELLED' },
+        { ...mockCreatedParcel, id: 'c2', status: 'CANCELLED' },
+        { ...mockCreatedParcel, id: 'd1', status: 'DELIVERED' },
+      ]);
+      fixture.detectChanges();
+
+      expect(component.activeDeliveriesCount()).toBe(0);
+      expect(summaryText()).toContain('0 in delivery today');
+      expect(summaryText()).toContain('No active shipments');
+    });
+
+    it('shows 0 when the customer has no parcels at all', () => {
+      component.parcels.set([]);
+      expect(component.activeDeliveriesCount()).toBe(0);
+    });
+
+    it('counts only parcels that are still moving', () => {
+      component.parcels.set([
+        { ...mockCreatedParcel, id: 'a', status: 'CREATED' },
+        { ...mockCreatedParcel, id: 'b', status: 'PICKED_UP' },
+        { ...mockCreatedParcel, id: 'c', status: 'IN_TRANSIT' },
+        { ...mockCreatedParcel, id: 'd', status: 'OUT_FOR_DELIVERY' },
+        { ...mockCreatedParcel, id: 'e', status: 'CANCELLED' },
+        { ...mockCreatedParcel, id: 'f', status: 'DELIVERED' },
+      ]);
+      expect(component.activeDeliveriesCount()).toBe(4);
+    });
+  });
+
   it('logo keeps the customer signed in and returns to My Deliveries', () => {
     component.activeTab.set('settings');
     fixture.detectChanges();

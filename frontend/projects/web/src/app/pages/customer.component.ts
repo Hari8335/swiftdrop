@@ -1691,7 +1691,7 @@ export class CustomerComponent implements OnInit {
         p.status === 'PICKED_UP' ||
         p.status === 'OUT_FOR_DELIVERY'
     );
-    return active.length || 1;
+    return active.length;
   });
 
   // Wizard state
