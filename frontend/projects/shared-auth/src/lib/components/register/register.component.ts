@@ -124,7 +124,7 @@ import { AuthService } from '../../services/auth.service';
                   autocomplete="email"
                 />
                 @if (isFieldInvalid('email')) {
-                  <span class="field-error">Please enter a valid email address</span>
+                  <span class="field-error">Please enter a valid email address (e.g. you@example.com)</span>
                 }
               </div>
 
@@ -133,10 +133,17 @@ import { AuthService } from '../../services/auth.service';
                 <input
                   id="phoneNumber"
                   type="tel"
+                  inputmode="numeric"
+                  maxlength="10"
                   formControlName="phoneNumber"
-                  placeholder="+94771234567"
+                  placeholder="0771234567"
+                  [class.invalid]="isFieldInvalid('phoneNumber')"
+                  (input)="onPhoneInput($event)"
                   autocomplete="tel"
                 />
+                @if (isFieldInvalid('phoneNumber')) {
+                  <span class="field-error">Phone number must be exactly 10 digits (e.g. 0771234567)</span>
+                }
               </div>
 
               <div class="form-group">
@@ -525,10 +532,19 @@ export class RegisterComponent {
 
   readonly registerForm: FormGroup = this.fb.group({
     fullName: ['', [Validators.required]],
-    email: ['', [Validators.required, Validators.email]],
-    phoneNumber: [''],
+    email: ['', [Validators.required, Validators.email, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
+    phoneNumber: ['', [Validators.pattern(/^[0-9]{10}$/)]],
     password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(128)]]
   });
+
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const digitsOnly = input.value.replace(/\D/g, '').slice(0, 10);
+    if (input.value !== digitsOnly) {
+      input.value = digitsOnly;
+      this.registerForm.get('phoneNumber')?.setValue(digitsOnly);
+    }
+  }
 
   isFieldInvalid(fieldName: string): boolean {
     const field = this.registerForm.get(fieldName);

@@ -84,4 +84,23 @@ describe('MerchantApprovalService', () => {
     request.flush({ message: 'conflict' }, { status: 409, statusText: 'Conflict' });
     expect(service.error()).toContain('no longer pending');
   });
+
+  it('loads pending count and updates pendingCount signal', () => {
+    service.loadPendingCount().subscribe((count) => {
+      expect(count).toBe(5);
+    });
+    const request = httpMock.expectOne('/api/v1/admin/merchants?status=PENDING&page=0&size=1');
+    expect(request.request.method).toBe('GET');
+    request.flush({ ...page, totalElements: 5 });
+    expect(service.pendingCount()).toBe(5);
+  });
+
+  it('handles loadPendingCount error gracefully by returning 0', () => {
+    service.loadPendingCount().subscribe((count) => {
+      expect(count).toBe(0);
+    });
+    const request = httpMock.expectOne('/api/v1/admin/merchants?status=PENDING&page=0&size=1');
+    request.flush({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+    expect(service.pendingCount()).toBe(0);
+  });
 });

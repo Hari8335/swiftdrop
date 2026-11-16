@@ -19,6 +19,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.core.Authentication;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import com.swiftdrop.auth.security.jwt.JwtKeyProvider;
 
 import java.util.UUID;
 import java.time.Duration;
@@ -28,9 +32,13 @@ import java.time.Duration;
 public class PasswordResetController {
 
     private final PasswordResetService passwordResetService;
+    private final JwtKeyProvider jwtKeyProvider;
 
-    public PasswordResetController(PasswordResetService passwordResetService) {
+    public PasswordResetController(
+            PasswordResetService passwordResetService,
+            @Autowired(required = false) JwtKeyProvider jwtKeyProvider) {
         this.passwordResetService = passwordResetService;
+        this.jwtKeyProvider = jwtKeyProvider;
     }
 
     @PostMapping("/forgot")
@@ -78,13 +86,32 @@ public class PasswordResetController {
             @Valid @RequestBody InitialPasswordChangeRequest request,
             Authentication authentication,
             HttpServletRequest httpRequest) {
-        if (authentication == null || !authentication.isAuthenticated()
-                || "anonymousUser".equals(authentication.getName())) {
+        String userId = resolveUserId(authentication, httpRequest);
+        if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         passwordResetService.changeInitialPassword(
-                authentication.getName(), request.newPassword(), extractClientIp(httpRequest));
+                userId, request.newPassword(), extractClientIp(httpRequest));
         return ResponseEntity.ok(new ForgotPasswordResponse("Password updated successfully."));
+    }
+
+    private String resolveUserId(Authentication authentication, HttpServletRequest httpRequest) {
+        if (authentication != null && authentication.isAuthenticated()
+                && !"anonymousUser".equals(authentication.getName())) {
+            return authentication.getName();
+        }
+        String authHeader = httpRequest.getHeader(HttpHeaders.AUTHORIZATION);
+        if (authHeader != null && authHeader.startsWith("Bearer ") && jwtKeyProvider != null) {
+            try {
+                String token = authHeader.substring(7).trim();
+                NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(jwtKeyProvider.getPublicKey()).build();
+                Jwt jwt = decoder.decode(token);
+                return jwt.getSubject();
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private String extractClientIp(HttpServletRequest request) {

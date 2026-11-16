@@ -122,8 +122,7 @@ describe('AdminUsersComponent', () => {
   it('should validate form fields according to OpenAPI contract constraints', () => {
     component.newUserFullName = '';
     component.newUserEmail = 'invalid-email';
-    component.newUserPhone = '123'; // invalid: must be 10-14 digits
-    component.newUserPassword = 'short'; // invalid: min 8 chars
+    component.newUserPhone = '123'; // invalid: must be exactly 10 digits
     component.newUserRole = 'COURIER';
 
     expect(component.isPhoneValid()).toBe(false);
@@ -131,8 +130,7 @@ describe('AdminUsersComponent', () => {
 
     component.newUserFullName = 'Saman Kumara';
     component.newUserEmail = 'courier.saman@swiftdrop.lk';
-    component.newUserPhone = '+94771234567'; // valid
-    component.newUserPassword = 'SecurePassword#2026'; // valid
+    component.newUserPhone = '0771234567'; // valid 10 digits
 
     expect(component.isPhoneValid()).toBe(true);
     expect(component.isFormValid()).toBe(true);
@@ -142,15 +140,14 @@ describe('AdminUsersComponent', () => {
     component.openCreateUserModal();
     component.newUserFullName = 'Saman Kumara';
     component.newUserEmail = 'courier.saman@swiftdrop.lk';
-    component.newUserPhone = '+94771234567';
-    component.newUserPassword = 'SecurePassword#2026';
+    component.newUserPhone = '0771234567';
     component.newUserRole = 'COURIER';
 
     const createdResponse: UserSummary = {
       id: 'usr-new-1',
       email: 'courier.saman@swiftdrop.lk',
       fullName: 'Saman Kumara',
-      phoneNumber: '+94771234567',
+      phoneNumber: '0771234567',
       role: 'COURIER',
       enabled: true,
       createdAt: '2026-10-28T12:00:00Z',
@@ -162,13 +159,12 @@ describe('AdminUsersComponent', () => {
     expect(adminUsersServiceMock.createStaffUser).toHaveBeenCalledWith({
       fullName: 'Saman Kumara',
       email: 'courier.saman@swiftdrop.lk',
-      phoneNumber: '+94771234567',
-      password: 'SecurePassword#2026',
+      phoneNumber: '0771234567',
       role: 'COURIER',
     });
-    expect(component.toastMessage()).toContain('created successfully');
+    expect(component.toastMessage()).toContain('provisioned');
     expect(component.isCreateUserModalOpen()).toBe(false);
-    expect(component.newUserPassword).toBe(''); // sensitive field cleared
+    expect(component.newUserPhone).toBe('');
     expect(adminUsersServiceMock.loadUsers).toHaveBeenCalled();
   });
 
@@ -176,8 +172,7 @@ describe('AdminUsersComponent', () => {
     component.openCreateUserModal();
     component.newUserFullName = 'Saman Kumara';
     component.newUserEmail = 'courier.duplicate@swiftdrop.lk';
-    component.newUserPhone = '+94771234567';
-    component.newUserPassword = 'SecurePassword#2026';
+    component.newUserPhone = '0771234567';
     component.newUserRole = 'COURIER';
 
     adminUsersServiceMock.createStaffUser.mockReturnValue(

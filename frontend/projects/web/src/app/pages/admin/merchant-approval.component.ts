@@ -129,7 +129,7 @@ type Action = 'approve' | 'reject' | 'recover';
       }
     </main>
 
-    @if (selected(); as merchant) {
+    @if (!action() && selected(); as merchant) {
       <div class="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/50 p-4" role="presentation" (click)="selected.set(null)">
         <section class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="merchant-details-title" (click)="$event.stopPropagation()">
           <div class="flex items-start justify-between gap-4">
@@ -165,6 +165,14 @@ type Action = 'approve' | 'reject' | 'recover';
           <section class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" role="dialog" aria-modal="true" [attr.aria-labelledby]="currentAction + '-merchant-title'">
             <h2 [id]="currentAction + '-merchant-title'" class="text-xl font-bold text-slate-900">{{ currentAction === 'recover' ? 'Replace lost credentials?' : (currentAction === 'approve' ? 'Approve merchant?' : 'Reject merchant?') }}</h2>
             <p class="mt-2 text-sm text-slate-600">Confirm this action for <strong>{{ merchant.businessName }}</strong>.</p>
+            @if (currentAction === 'approve') {
+              <div class="mt-4 space-y-1 rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-600">
+                <p><strong>Contact:</strong> {{ merchant.contactName }}</p>
+                <p><strong>Email:</strong> {{ merchant.email }}</p>
+                <p><strong>Phone:</strong> {{ merchant.phoneNumber }}</p>
+                <p class="pt-1 font-medium text-emerald-700">Approving will activate this merchant partnership and dispatch temporary sign-in credentials to their email.</p>
+              </div>
+            }
             @if (currentAction === 'recover') {
               <p class="mt-4 text-sm text-amber-900">This replaces the secret on the existing client. The old secret will stop obtaining new tokens. Already issued tokens keep their normal expiry.</p>
               <label class="mt-4 block"><input type="checkbox" [ngModel]="confirmReplacement()" (ngModelChange)="confirmReplacement.set($event)" /> I confirm replacement of the lost secret.</label>
@@ -251,7 +259,10 @@ export class MerchantApprovalComponent implements OnInit, OnDestroy {
   }
 
   closeAction(): void {
-    if (!this.isSubmitting()) this.action.set(null);
+    if (!this.isSubmitting()) {
+      this.action.set(null);
+      this.selected.set(null);
+    }
   }
 
   confirmAction(): void {

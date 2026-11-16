@@ -21,6 +21,7 @@ describe('ResetPasswordComponent', () => {
       verifyResetCode: jest.fn(),
       resetPassword: jest.fn(),
       changeInitialPassword: jest.fn(),
+      forgotPassword: jest.fn(),
       setSession: jest.fn(),
       userRole: jest.fn().mockReturnValue('CUSTOMER'),
     };
@@ -177,6 +178,16 @@ describe('ResetPasswordComponent', () => {
       expect(component.isLoading()).toBe(false);
       expect(component.isSuccess()).toBe(false);
       expect(component.errorMessage()).toBe('Code is expired');
+    });
+
+    it('should call forgotPassword on resendCode and update status', () => {
+      authServiceMock.forgotPassword.mockReturnValue(of({ message: 'Code resent.' }));
+
+      component.resendCode();
+
+      expect(authServiceMock.forgotPassword).toHaveBeenCalledWith({ email: 'user@example.com' });
+      expect(component.isResending()).toBe(false);
+      expect(component.resendSuccessMessage()).toBe('Code resent.');
     });
   });
 

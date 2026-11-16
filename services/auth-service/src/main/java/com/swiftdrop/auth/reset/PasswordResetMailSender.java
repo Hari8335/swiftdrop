@@ -47,9 +47,9 @@ public class PasswordResetMailSender {
                     """.formatted(resetCode));
 
             mailSender.send(message);
-            log.info("Password reset email sent to recipient");
+            log.info("Password reset email successfully sent to recipient: {}", recipientEmail);
         } catch (Exception e) {
-            log.error("Failed to send password reset email: {}", e.getMessage());
+            log.error("Failed to send password reset email to {}: {}", recipientEmail, e.getMessage(), e);
         }
     }
 }

@@ -21,7 +21,7 @@ export interface UserListPage {
 
 export interface CreateStaffUserRequest {
   email: string;
-  password: string;
+  password?: string;
   fullName: string;
   phoneNumber: string;
   role: 'COURIER' | 'DISPATCHER';

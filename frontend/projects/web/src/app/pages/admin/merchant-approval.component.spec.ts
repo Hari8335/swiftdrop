@@ -210,4 +210,14 @@ describe('MerchantApprovalComponent', () => {
     expect(fixture.nativeElement.querySelector('[role=alert]').textContent).toContain('Action failed');
     expect(component.handoff()).toBeNull();
   });
+
+  it('renders only one modal dialog when approving a merchant without overlapping details modal', () => {
+    component.openApprove(merchant);
+    fixture.detectChanges();
+
+    const dialogs = fixture.nativeElement.querySelectorAll('section[role="dialog"]');
+    expect(dialogs.length).toBe(1);
+    expect(fixture.nativeElement.querySelector('#merchant-details-title')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#approve-merchant-title')).toBeTruthy();
+  });
 });
