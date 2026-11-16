@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { AuthService } from 'shared-auth';
 import { NotificationBellComponent } from './notification/notification-bell/notification-bell.component';
+import { MerchantApprovalService } from './pages/admin/merchant-approval.service';
 
 @Component({
   selector: 'app-root',
@@ -16,7 +17,11 @@ import { NotificationBellComponent } from './notification/notification-bell/noti
 export class App {
   public authService = inject(AuthService);
   private readonly router = inject(Router);
+  public readonly merchantApprovalService = inject(MerchantApprovalService);
   protected readonly title = signal('web');
+
+  readonly pendingMerchantCount = computed(() => this.merchantApprovalService.pendingCount());
+  readonly isNotificationOpen = signal(false);
 
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
@@ -25,6 +30,39 @@ export class App {
     ),
     { initialValue: this.router.url }
   );
+
+  constructor() {
+    this.router.events
+      .pipe(
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => {
+        this.closeAdminNotifications();
+        if (this.isAdminPage() && this.authService.hasRole('ADMIN')) {
+          this.refreshMerchantPendingCount();
+        }
+      });
+  }
+
+  toggleAdminNotifications(): void {
+    this.isNotificationOpen.update((open) => !open);
+    if (this.isNotificationOpen()) {
+      this.refreshMerchantPendingCount();
+    }
+  }
+
+  closeAdminNotifications(): void {
+    this.isNotificationOpen.set(false);
+  }
+
+  refreshMerchantPendingCount(): void {
+    if (this.authService.hasRole('ADMIN')) {
+      this.merchantApprovalService.loadPendingCount().subscribe({
+        error: () => undefined,
+      });
+    }
+  }
 
   isAuthPage(): boolean {
     const url = this.currentUrl() || this.router.url || '';

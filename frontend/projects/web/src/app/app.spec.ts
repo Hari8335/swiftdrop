@@ -1,17 +1,18 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { Router, provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { of } from 'rxjs';
 import { App } from './app';
 import { routes } from './app.routes';
+import { MerchantApprovalService } from './pages/admin/merchant-approval.service';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [App],
+      imports: [App, HttpClientTestingModule],
       providers: [
         provideRouter(routes),
-        provideHttpClient(),
       ],
     }).compileComponents();
   });
@@ -137,6 +138,38 @@ describe('App', () => {
     expect(compiled.querySelector('header')).toBeTruthy();
     expect(compiled.textContent).toContain('Search staff, merchants, reports');
     expect(compiled.textContent).toContain('Sign out');
+    expect(compiled.querySelector('#admin-notification-bell-btn')).toBeTruthy();
+  });
+
+  it('should display notification badge when pending merchants exist and toggle dropdown', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    const merchantService = TestBed.inject(MerchantApprovalService);
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+    // Seed the pending count signal via the service's internal signal
+    (merchantService as any).pendingCountSignal.set(3);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const badge = compiled.querySelector('#admin-notification-badge');
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent?.trim()).toBe('3');
+
+    // Click bell button to open dropdown (mock loadPendingCount to avoid HTTP)
+    jest.spyOn(merchantService, 'loadPendingCount').mockReturnValue(of(3));
+    const bellBtn = compiled.querySelector('#admin-notification-bell-btn') as HTMLButtonElement;
+    bellBtn.click();
+    fixture.detectChanges();
+
+    const dropdown = compiled.querySelector('#admin-notification-dropdown');
+    expect(dropdown).toBeTruthy();
+    expect(dropdown?.textContent).toContain('3 pending');
+    expect(dropdown?.textContent).toContain('Review applications');
+
+    // Close dropdown
+    app.closeAdminNotifications();
+    fixture.detectChanges();
+    expect(compiled.querySelector('#admin-notification-dropdown')).toBeFalsy();
   });
 
   it('should call authService.logout() and redirect to landing page on logout', () => {

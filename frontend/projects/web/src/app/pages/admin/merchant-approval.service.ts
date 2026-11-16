@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
-import { catchError, finalize, Observable, tap, throwError } from 'rxjs';
+import { catchError, finalize, map, Observable, of, tap, throwError } from 'rxjs';
 import {
   MerchantApprovalResponse,
   MerchantPage,
@@ -23,6 +23,7 @@ export class MerchantApprovalService {
   private readonly pageSizeSignal = signal(20);
   private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
+  private readonly pendingCountSignal = signal(0);
 
   readonly merchants = this.merchantsSignal.asReadonly();
   readonly totalElements = this.totalElementsSignal.asReadonly();
@@ -31,6 +32,7 @@ export class MerchantApprovalService {
   readonly pageSize = this.pageSizeSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
+  readonly pendingCount = this.pendingCountSignal.asReadonly();
 
   private lastPage = 0;
   private lastSize = 20;
@@ -55,6 +57,9 @@ export class MerchantApprovalService {
         this.totalPagesSignal.set(response.totalPages ?? 0);
         this.currentPageSignal.set(response.page ?? page);
         this.pageSizeSignal.set(response.size ?? size);
+        if (status === 'PENDING') {
+          this.pendingCountSignal.set(response.totalElements ?? 0);
+        }
       }),
       catchError((error) => {
         this.errorSignal.set(this.messageFor(error, 'Pending merchants could not be loaded.'));
@@ -64,16 +69,39 @@ export class MerchantApprovalService {
     );
   }
 
+  loadPendingCount(): Observable<number> {
+    const params = new HttpParams()
+      .set('status', 'PENDING')
+      .set('page', '0')
+      .set('size', '1');
+
+    return this.http.get<MerchantPage>(this.baseUrl, { params }).pipe(
+      tap((response) => {
+        this.pendingCountSignal.set(response.totalElements ?? 0);
+      }),
+      map((response) => response.totalElements ?? 0),
+      catchError(() => of(0))
+    );
+  }
+
   refresh(): Observable<MerchantPage> {
     return this.loadMerchants(this.lastPage, this.lastSize);
   }
 
   approve(merchantId: string): Observable<MerchantApprovalResponse> {
-    return this.http.post<MerchantApprovalResponse>(`${this.baseUrl}/${merchantId}/approve`, {});
+    return this.http.post<MerchantApprovalResponse>(`${this.baseUrl}/${merchantId}/approve`, {}).pipe(
+      tap(() => {
+        this.pendingCountSignal.update((count) => Math.max(0, count - 1));
+      })
+    );
   }
 
   reject(merchantId: string, request: MerchantRejectionRequest): Observable<MerchantSummary> {
-    return this.http.post<MerchantSummary>(`${this.baseUrl}/${merchantId}/reject`, request);
+    return this.http.post<MerchantSummary>(`${this.baseUrl}/${merchantId}/reject`, request).pipe(
+      tap(() => {
+        this.pendingCountSignal.update((count) => Math.max(0, count - 1));
+      })
+    );
   }
 
   recover(merchantId: string, key: string): Observable<MerchantApprovalResponse> {

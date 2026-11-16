@@ -40,12 +40,28 @@
     "target": "http://localhost:8083",
     "secure": false
   },
+  "/api/v1/admin/zones": {
+    "target": "http://localhost:8083",
+    "secure": false
+  },
   "/admin/pricing-rules": {
+    "target": "http://localhost:8083",
+    "secure": false
+  },
+  "/api/v1/admin/pricing-rules": {
     "target": "http://localhost:8083",
     "secure": false
   },
   "/admin/reports": {
     "target": "http://localhost:8083",
+    "secure": false
+  },
+  "/api/v1/admin/reports": {
+    "target": "http://localhost:8083",
+    "secure": false
+  },
+  "/api/v1/admin/audit": {
+    "target": "http://localhost:8081",
     "secure": false
   },
   "/api/v1/merchants": {
