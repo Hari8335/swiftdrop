@@ -115,11 +115,26 @@ export class MerchantApprovalService {
 
   messageFor(error: unknown, fallback: string): string {
     if (!error || typeof error !== 'object') return fallback;
-    const response = error as { status?: number; error?: { message?: string }; message?: string };
+    const response = error as { status?: number; error?: { message?: string } | string; message?: string };
+    const backendMessage = typeof response.error === 'object' && response.error !== null
+      ? response.error.message
+      : (typeof response.error === 'string' && response.error.trim().length > 0 ? response.error : null);
+
     if (response.status === 409) {
       return 'This merchant is no longer pending or requires credential recovery. Refresh the list. '
-        + (response.error?.message || '');
+        + (backendMessage || '');
     }
-    return response.error?.message || response.message || fallback;
+
+    if (backendMessage && !backendMessage.includes('Http failure')) {
+      return backendMessage;
+    }
+
+    if (response.status === 502) {
+      return backendMessage || 'Approval failed: this email address may already belong to another user account (such as a Courier or Customer), or the auth service encountered an error.';
+    }
+
+    return response.message && !response.message.includes('Http failure')
+      ? response.message
+      : fallback;
   }
 }

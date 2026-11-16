@@ -70,6 +70,12 @@ public class MerchantRecoveryService {
                 audit(saved, replacement, actor, replacement == null ? "APPROVED" : "CREDENTIAL_REPLACED");
                 return new MerchantApprovalResponse(MerchantSummary.from(saved), response.clientId(), response.clientSecret());
             });
+        } catch (org.springframework.web.client.HttpStatusCodeException exception) {
+            if (exception.getStatusCode() == HttpStatus.CONFLICT) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered to another account and cannot be approved as a merchant.");
+            }
+            transaction.executeWithoutResult(status -> audit(lock(id), replacement, actor, "OUTCOME_UNAVAILABLE"));
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Auth provisioning outcome unavailable; retry safely or use ADMIN credential recovery");
         } catch (RestClientException | IllegalStateException | org.springframework.dao.DataAccessException exception) {
             transaction.executeWithoutResult(status -> audit(lock(id), replacement, actor, "OUTCOME_UNAVAILABLE"));
             // The provider may have committed; never expose its body or generate another operation.
