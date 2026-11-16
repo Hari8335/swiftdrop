@@ -140,10 +140,12 @@ import { MerchantRegistrationResponse } from './merchant-registration.model';
                       inputId="phoneNumber"
                       label="Phone number"
                       type="tel"
+                      inputmode="numeric"
+                      [maxlength]="10"
                       formControlName="phoneNumber"
-                      placeholder="+94771234567"
+                      placeholder="0771234567"
                       autocomplete="tel"
-                      [messages]="{ required: 'Use 10–14 digits, optionally starting with +.', pattern: 'Use 10–14 digits, optionally starting with +.' }"
+                      [messages]="{ required: 'Phone number is required.', pattern: 'Phone number must be exactly 10 digits (e.g. 0771234567).' }"
                     />
 
                     <ui-input
@@ -153,7 +155,7 @@ import { MerchantRegistrationResponse } from './merchant-registration.model';
                       formControlName="email"
                       placeholder="merchant@example.com"
                       autocomplete="email"
-                      [messages]="{ required: 'Enter a valid email address.', email: 'Enter a valid email address.' }"
+                      [messages]="{ required: 'Enter a valid business email address.', email: 'Enter a valid email address (e.g. merchant@example.com).', pattern: 'Enter a valid email address (e.g. merchant@example.com).' }"
                     />
 
                     <ui-input
@@ -575,8 +577,8 @@ export class MerchantRegistrationComponent {
   readonly form = this.formBuilder.nonNullable.group({
     businessName: ['', [Validators.required, Validators.maxLength(200)]],
     contactName: ['', [Validators.required, Validators.maxLength(200)]],
-    email: ['', [Validators.required, Validators.email]],
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,14}$/)]],
+    email: ['', [Validators.required, Validators.email, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^[0-9]{10}$/)]],
     businessRegistrationNumber: [''],
   });
 

@@ -25,13 +25,15 @@ import { FormControlBase } from './form-control-base';
         [type]="type()"
         [placeholder]="placeholder()"
         [attr.autocomplete]="autocomplete() || null"
+        [attr.maxlength]="maxlength()"
+        [attr.inputmode]="inputmode()"
         [value]="value() ?? ''"
         [disabled]="isDisabled()"
         [attr.aria-invalid]="errorMessage ? true : null"
         [attr.aria-describedby]="describedBy"
         [attr.aria-required]="isRequired || null"
         [class]="controlClasses()"
-        (input)="onInput($any($event.target).value)"
+        (input)="onInput($any($event.target))"
         (blur)="onTouched()"
       />
       @if (errorMessage; as message) {
@@ -46,8 +48,20 @@ export class InputComponent extends FormControlBase<string | number> {
   readonly type = input<'text' | 'email' | 'password' | 'number' | 'tel' | 'search' | 'date'>('text');
   readonly placeholder = input('');
   readonly autocomplete = input('');
+  readonly maxlength = input<number | null>(null);
+  readonly inputmode = input<string | null>(null);
 
-  protected onInput(raw: string): void {
+  protected onInput(target: HTMLInputElement): void {
+    let raw = target.value ?? '';
+    if (this.inputmode() === 'numeric' && (this.type() === 'tel' || this.type() === 'text')) {
+      raw = raw.replace(/\D/g, '');
+    }
+    if (this.maxlength() != null && raw.length > this.maxlength()!) {
+      raw = raw.slice(0, this.maxlength()!);
+    }
+    if (target.value !== raw) {
+      target.value = raw;
+    }
     if (this.type() === 'number') {
       this.updateValue(raw === '' ? null : Number(raw));
     } else {

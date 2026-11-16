@@ -63,7 +63,7 @@ describe('RegisterComponent', () => {
       fullName: 'Kasun Perera',
       email: 'kasun@swiftdrop.lk',
       password: 'SecurePassword123!',
-      phoneNumber: '+94771234567',
+      phoneNumber: '0771234567',
     });
     expect(component.registerForm.valid).toBe(true);
   });
@@ -74,7 +74,7 @@ describe('RegisterComponent', () => {
     component.registerForm.setValue({
       fullName: 'Kasun Perera',
       email: 'kasun@swiftdrop.lk',
-      phoneNumber: '+94771234567',
+      phoneNumber: '0771234567',
       password: 'SecurePassword123!',
     });
 
@@ -83,7 +83,7 @@ describe('RegisterComponent', () => {
     expect(authServiceMock.register).toHaveBeenCalledWith({
       fullName: 'Kasun Perera',
       email: 'kasun@swiftdrop.lk',
-      phoneNumber: '+94771234567',
+      phoneNumber: '0771234567',
       password: 'SecurePassword123!',
     });
     expect(router.navigate).toHaveBeenCalledWith(['/customer']);

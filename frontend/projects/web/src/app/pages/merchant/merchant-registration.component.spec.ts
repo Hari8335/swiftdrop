@@ -42,7 +42,7 @@ describe('MerchantRegistrationComponent', () => {
       businessName: 'North Star Stores',
       contactName: 'Asha Perera',
       email: 'asha@example.test',
-      phoneNumber: '+94771234567',
+      phoneNumber: '0771234567',
       status: 'PENDING',
       createdAt: '2026-10-28T00:00:00Z',
       message: 'Registration submitted for administrator review.',
@@ -51,7 +51,7 @@ describe('MerchantRegistrationComponent', () => {
       businessName: 'North Star Stores',
       contactName: 'Asha Perera',
       email: 'asha@example.test',
-      phoneNumber: '+94771234567',
+      phoneNumber: '0771234567',
       businessRegistrationNumber: '',
     });
 
@@ -62,7 +62,7 @@ describe('MerchantRegistrationComponent', () => {
       businessName: 'North Star Stores',
       contactName: 'Asha Perera',
       email: 'asha@example.test',
-      phoneNumber: '+94771234567',
+      phoneNumber: '0771234567',
     });
     expect(fixture.nativeElement.textContent).toContain('Status:');
     const badge = fixture.nativeElement.querySelector('ui-status-badge');
@@ -80,7 +80,7 @@ describe('MerchantRegistrationComponent', () => {
       businessName: 'North Star Stores',
       contactName: 'Asha Perera',
       email: 'asha@example.test',
-      phoneNumber: '+94771234567',
+      phoneNumber: '0771234567',
       businessRegistrationNumber: '',
     });
 
