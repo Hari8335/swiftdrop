@@ -61,9 +61,9 @@ export const passwordMatchValidator: ValidatorFn = (
       <main class="auth-card-wrap">
         <div class="auth-card">
           <div class="card-header">
-            <span class="card-pill">{{ firstLogin() ? 'Staff Onboarding' : 'Password Reset' }}</span>
+            <span class="card-pill">{{ firstLogin() ? (portalRole() === 'merchant' ? 'Merchant Activation' : 'Account Activation') : 'Password Reset' }}</span>
             <h2>{{ firstLogin() || codeVerified() ? 'Create new password' : 'Enter reset code' }}</h2>
-            <p>{{ firstLogin() || codeVerified() ? 'Choose a strong password with at least 8 characters' : 'Enter the 6-digit code sent to your email. It expires in 10 minutes.' }}</p>
+            <p>{{ firstLogin() ? 'Welcome! Set your permanent password to activate your account.' : (codeVerified() ? 'Choose a strong password with at least 8 characters' : 'Enter the 6-digit code sent to your email. It expires in 10 minutes.') }}</p>
           </div>
 
           @if (missingEmail()) {
@@ -221,7 +221,7 @@ export const passwordMatchValidator: ValidatorFn = (
                   @if (isLoading()) {
                     <span class="spinner"></span> Updating password...
                   } @else {
-                    Reset password
+                    {{ firstLogin() ? 'Set Password & Enter Portal' : 'Reset password' }}
                   }
                 </button>
               </form>
@@ -751,7 +751,11 @@ export class ResetPasswordComponent implements OnInit {
         },
         error: (err) => {
           this.isLoading.set(false);
-          this.errorMessage.set(err.error?.message || 'Failed to update password. Please try again.');
+          if (err.status === 401) {
+            this.errorMessage.set('Session expired. Please sign in with your temporary password first.');
+          } else {
+            this.errorMessage.set(err.error?.message || 'Failed to update password. Please try again.');
+          }
         },
       });
       return;

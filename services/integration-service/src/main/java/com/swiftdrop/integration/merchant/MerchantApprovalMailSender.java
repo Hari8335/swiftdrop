@@ -53,10 +53,10 @@ public class MerchantApprovalMailSender {
 
         try {
             mailSender.send(message);
-            log.info("Merchant approval email sent to recipient");
-        } catch (RuntimeException exception) {
-            log.error("Merchant approval succeeded but approval email could not be sent: {}",
-                    exception.getMessage(), exception);
+            log.info("Merchant approval email successfully sent to recipient: {}", recipientEmail);
+        } catch (Exception exception) {
+            log.error("Merchant approval succeeded but approval email could not be sent to {}: {}",
+                    recipientEmail, exception.getMessage(), exception);
         }
     }
 }
