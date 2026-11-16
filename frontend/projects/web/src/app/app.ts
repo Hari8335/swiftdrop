@@ -81,6 +81,8 @@ export class App {
       cleanUrl === '/merchant-registration' ||
       cleanUrl === '/forgot-password' ||
       cleanUrl === '/reset-password' ||
+      cleanUrl === '/auth/callback' ||
+      cleanUrl.startsWith('/auth/') ||
       cleanUrl === '/customer' ||
       cleanUrl.startsWith('/customer/') ||
       cleanUrl === '/courier' ||
