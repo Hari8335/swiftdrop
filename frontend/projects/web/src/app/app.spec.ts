@@ -107,6 +107,13 @@ describe('App', () => {
     expect(compiled.querySelector('header')).toBeFalsy();
   });
 
+  it('should treat /auth/callback as an auth page to hide shell header and padding', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    (app as any).currentUrl = () => '/auth/callback?error=account_disabled';
+    expect(app.isAuthPage()).toBe(true);
+  });
+
   it('should hide the global top bar and page padding on merchant routes', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;

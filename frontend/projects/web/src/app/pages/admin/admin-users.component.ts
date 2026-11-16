@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from 'shared-auth';
+import { AdminSearchService } from './admin-search.service';
 import {
   CreateStaffUserRequest,
   UserSummary,
@@ -14,10 +15,10 @@ import { AdminUsersService } from './admin-users.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div class="mx-auto max-w-[1320px] space-y-6 pb-16 text-[#211f32]">
+    <div class="mx-auto max-w-[1320px] px-4 py-3 sm:px-6 lg:px-8 space-y-6 pb-16 text-[#211f32]">
       <!-- Top Bar Header -->
       <div
-        class="flex flex-col justify-between gap-4 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-7 shadow-[0_8px_24px_rgba(42,32,25,0.04)] md:flex-row md:items-center"
+        class="mt-8 flex flex-col justify-between gap-4 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-7 shadow-[0_8px_24px_rgba(42,32,25,0.04)] md:flex-row md:items-center"
       >
         <div class="flex items-center gap-4">
           <div
@@ -108,7 +109,7 @@ import { AdminUsersService } from './admin-users.service';
 
       <!-- User Filters & Total Stats -->
       <div
-        class="flex flex-col justify-between gap-3 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-5 shadow-[0_8px_24px_rgba(42,32,25,0.04)] sm:flex-row sm:items-center"
+        class="mt-6 mb-6 flex flex-col justify-between gap-3 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-5 shadow-[0_8px_24px_rgba(42,32,25,0.04)] sm:flex-row sm:items-center"
       >
         <div class="flex items-center gap-3 flex-1 flex-wrap">
           <select
@@ -145,16 +146,30 @@ import { AdminUsersService } from './admin-users.service';
           </button>
         </div>
 
-        <p class="text-xs font-medium text-[#77748a]">
-          Total Staff & Users: <strong class="text-[#211f32]">{{ adminUsersService.totalElements() }}</strong>
-        </p>
+        <div class="flex items-center gap-3">
+          <p class="text-xs font-medium text-[#77748a]">
+            @if (adminSearchService.query().trim()) {
+              Showing <strong class="text-[#211f32]">{{ filteredUsers().length }}</strong> of
+            }
+            Total Staff & Users: <strong class="text-[#211f32]">{{ adminUsersService.totalElements() }}</strong>
+          </p>
+          @if (adminSearchService.query().trim()) {
+            <button
+              type="button"
+              (click)="adminSearchService.clear()"
+              class="rounded-full border border-[#e8e4df] px-2.5 py-1 text-[11px] font-bold text-[#9b432f] hover:bg-[#fff5ef]"
+            >
+              Clear Search
+            </button>
+          }
+        </div>
       </div>
 
       <!-- Loading State -->
       <div
         *ngIf="adminUsersService.loading()"
         id="admin-users-loading"
-        class="rounded-[1.5rem] border border-[#e9e3dd] bg-white p-12 text-center shadow-[0_8px_24px_rgba(42,32,25,0.04)]"
+        class="mt-6 rounded-[1.5rem] border border-[#e9e3dd] bg-white p-12 text-center shadow-[0_8px_24px_rgba(42,32,25,0.04)]"
       >
         <div class="mb-3 inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#9b432f] border-t-transparent"></div>
         <p class="text-sm font-semibold text-[#77748a]">Loading user accounts from auth service...</p>
@@ -163,7 +178,7 @@ import { AdminUsersService } from './admin-users.service';
       <!-- Users Table -->
       <div
         *ngIf="!adminUsersService.loading()"
-        class="overflow-hidden rounded-[1.5rem] border border-[#e9e3dd] bg-white shadow-[0_8px_24px_rgba(42,32,25,0.04)]"
+        class="mt-6 overflow-hidden rounded-[1.5rem] border border-[#e9e3dd] bg-white shadow-[0_8px_24px_rgba(42,32,25,0.04)]"
       >
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs sm:text-sm">
@@ -180,7 +195,7 @@ import { AdminUsersService } from './admin-users.service';
             </thead>
             <tbody class="divide-y divide-[#eeeae5] text-[#211f32]">
               <tr
-                *ngFor="let user of adminUsersService.users()"
+                *ngFor="let user of filteredUsers()"
                 class="transition-colors hover:bg-[#fffaf7]"
               >
                 <td class="px-5 py-4">
@@ -219,12 +234,54 @@ import { AdminUsersService } from './admin-users.service';
                   </span>
                 </td>
                 <td class="px-5 py-4 text-right">
+                  <!-- Loading / Updating state -->
+                  <span
+                    *ngIf="updatingUserId() === user.id"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-500"
+                  >
+                    Updating...
+                  </span>
+
+                  <!-- Inline Confirmation State -->
+                  <div
+                    *ngIf="updatingUserId() !== user.id && pendingConfirmUserId() === user.id"
+                    class="inline-flex items-center justify-end gap-1.5"
+                  >
+                    <button
+                      *ngIf="user.enabled"
+                      type="button"
+                      [attr.id]="'confirm-toggle-user-' + user.id + '-btn'"
+                      (click)="confirmToggleUserStatus(user)"
+                      class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-colors"
+                    >
+                      Confirm Disable
+                    </button>
+                    <button
+                      *ngIf="!user.enabled"
+                      type="button"
+                      [attr.id]="'confirm-toggle-user-' + user.id + '-btn'"
+                      (click)="confirmToggleUserStatus(user)"
+                      class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors"
+                    >
+                      Confirm Enable
+                    </button>
+                    <button
+                      type="button"
+                      [attr.id]="'cancel-toggle-user-' + user.id + '-btn'"
+                      (click)="cancelConfirmToggle()"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  <!-- Default Action Button (Triggers Confirmation) -->
                   <button
+                    *ngIf="updatingUserId() !== user.id && pendingConfirmUserId() !== user.id"
                     type="button"
                     [attr.id]="'toggle-user-' + user.id + '-btn'"
-                    [disabled]="updatingUserId() === user.id"
-                    (click)="toggleUserStatus(user)"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    (click)="startConfirmToggle(user.id)"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
                     [class.border-rose-200]="user.enabled"
                     [class.text-rose-600]="user.enabled"
                     [class.hover:bg-rose-50]="user.enabled"
@@ -232,15 +289,34 @@ import { AdminUsersService } from './admin-users.service';
                     [class.text-emerald-600]="!user.enabled"
                     [class.hover:bg-emerald-50]="!user.enabled"
                   >
-                    <span *ngIf="updatingUserId() === user.id">Updating...</span>
-                    <span *ngIf="updatingUserId() !== user.id">
-                      {{ user.enabled ? 'Disable Account' : 'Enable Account' }}
-                    </span>
+                    {{ user.enabled ? 'Disable Account' : 'Enable Account' }}
                   </button>
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Search Empty State -->
+        <div
+          *ngIf="filteredUsers().length === 0 && adminUsersService.users().length > 0"
+          id="admin-users-search-empty"
+          class="p-12 text-center text-slate-500"
+        >
+          <div class="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-400">
+            <span class="text-lg">⌕</span>
+          </div>
+          <p class="text-base font-bold text-slate-700">No matching staff accounts found</p>
+          <p class="text-xs text-slate-400 mt-1">
+            No accounts match "{{ adminSearchService.query() }}". Try a different name, email, or phone.
+          </p>
+          <button
+            type="button"
+            (click)="adminSearchService.clear()"
+            class="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#e8e4df] bg-white px-3 py-1.5 text-xs font-bold text-[#9b432f] hover:bg-[#fff5ef]"
+          >
+            Clear Search
+          </button>
         </div>
 
         <!-- Empty State -->
@@ -407,6 +483,7 @@ import { AdminUsersService } from './admin-users.service';
 })
 export class AdminUsersComponent implements OnInit, OnDestroy {
   public adminUsersService = inject(AdminUsersService);
+  public adminSearchService = inject(AdminSearchService);
   public authService = inject(AuthService, { optional: true });
 
   public userRoleFilter = signal('');
@@ -414,7 +491,23 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
   public isCreateUserModalOpen = signal(false);
   public isSubmitting = signal(false);
   public updatingUserId = signal<string | null>(null);
+  public pendingConfirmUserId = signal<string | null>(null);
   public modalError = signal<string | null>(null);
+
+  public filteredUsers = computed(() => {
+    const users = this.adminUsersService.users();
+    const q = this.adminSearchService.query().trim().toLowerCase();
+    if (!q) {
+      return users;
+    }
+    return users.filter((u) => {
+      const name = (u.fullName || '').toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const phone = (u.phoneNumber || '').toLowerCase();
+      const role = (u.role || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || phone.includes(q) || role.includes(q);
+    });
+  });
 
   // Form State
   public newUserFullName = '';
@@ -466,11 +559,24 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     }
   }
 
+  public startConfirmToggle(userId: string): void {
+    this.pendingConfirmUserId.set(userId);
+  }
+
+  public cancelConfirmToggle(): void {
+    this.pendingConfirmUserId.set(null);
+  }
+
+  public confirmToggleUserStatus(user: UserSummary): void {
+    this.toggleUserStatus(user);
+  }
+
   public toggleUserStatus(user: UserSummary): void {
     if (this.updatingUserId()) {
       return; // prevent duplicate clicks
     }
 
+    this.pendingConfirmUserId.set(null);
     this.updatingUserId.set(user.id);
     const targetStatus = !user.enabled;
 

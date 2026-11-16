@@ -107,9 +107,27 @@
   <div [class.lg:ml-20]="isAdminPage()">
     @if (isAdminPage()) {
       <header class="mx-auto flex w-full max-w-[1320px] items-center justify-between gap-4 border-b border-[#ece9e4] px-4 py-3 sm:px-6 lg:px-8">
-        <div class="flex flex-1 items-center gap-3 rounded-full border border-[#e4e0db] bg-white px-4 py-2.5 text-sm text-[#9a97a8] shadow-sm sm:max-w-[480px]">
-          <span aria-hidden="true" class="text-base">⌕</span>
-          <span>Search staff, merchants, reports ...</span>
+        <div class="relative flex flex-1 items-center gap-2.5 rounded-full border border-[#e4e0db] bg-white px-4 py-2 text-sm shadow-sm transition-all focus-within:border-[#9b432f] focus-within:ring-2 focus-within:ring-[#f2e4de] sm:max-w-[480px]">
+          <span aria-hidden="true" class="text-base text-[#9a97a8]">⌕</span>
+          <span class="sr-only">Search staff, merchants, reports</span>
+          <input
+            type="text"
+            id="admin-global-search-input"
+            [ngModel]="adminSearchService.query()"
+            (ngModelChange)="adminSearchService.setQuery($event)"
+            placeholder="Search staff, merchants, reports ..."
+            class="w-full bg-transparent text-sm font-medium text-[#211f32] outline-none placeholder:text-[#9a97a8]"
+          />
+          @if (adminSearchService.query()) {
+            <button
+              type="button"
+              (click)="adminSearchService.clear()"
+              aria-label="Clear search"
+              class="grid h-5 w-5 place-items-center rounded-full text-xs text-[#9a97a8] transition hover:bg-[#f2e4de] hover:text-[#9b432f]"
+            >
+              ✕
+            </button>
+          }
         </div>
         <div class="flex items-center gap-3">
           <!-- Admin Notification Bell -->
