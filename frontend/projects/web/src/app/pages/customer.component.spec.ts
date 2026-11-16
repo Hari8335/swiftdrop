@@ -214,6 +214,45 @@ describe('CustomerComponent', () => {
     expect(component.quoteError()).toBeNull();
   }));
 
+  it('shows why the parcel cannot be delivered and offers to change addresses (422)', fakeAsync(() => {
+    const reason = "SwiftDrop doesn't deliver to Mullaitivu yet. Please choose a different drop-off district.";
+    jest.spyOn(customerService, 'getFeeQuote').mockReturnValue(
+      throwError(() => ({ error: { code: 'DROPOFF_DISTRICT_NOT_SERVED', message: reason }, status: 422 }))
+    );
+    component.startNewDelivery();
+    component.goToStep(2);
+    component.goToStep(3);
+    tick(50);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    expect(component.quoteErrorUnserved()).toBe(true);
+    expect(el.querySelector('#quote-error-title')!.textContent).toContain("We can't deliver this parcel");
+    expect(el.querySelector('#quote-error-message')!.textContent).toContain(reason);
+    expect(el.textContent).not.toContain('Parcel not found');
+    expect(el.querySelector('#retry-quote-btn')).toBeNull();
+
+    el.querySelector<HTMLButtonElement>('#change-addresses-btn')!.click();
+    expect(component.wizardStep()).toBe(1);
+  }));
+
+  it('keeps the retry option for temporary quote failures (503)', fakeAsync(() => {
+    jest.spyOn(customerService, 'getFeeQuote').mockReturnValue(
+      throwError(() => ({ error: { message: "Delivery pricing isn't set up right now. Please try again later." }, status: 503 }))
+    );
+    component.startNewDelivery();
+    component.goToStep(2);
+    component.goToStep(3);
+    tick(50);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    expect(component.quoteErrorUnserved()).toBe(false);
+    expect(el.querySelector('#quote-error-title')!.textContent).toContain('Quote Calculation Notice');
+    expect(el.querySelector('#retry-quote-btn')).not.toBeNull();
+    expect(el.querySelector('#change-addresses-btn')).toBeNull();
+  }));
+
   it('should quick-fill address from address book in wizard', fakeAsync(() => {
     tick(100);
     const firstAddr = component.addresses()[0];

@@ -277,6 +277,25 @@ class ParcelControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("Quote for an unserved drop-off district returns 422 with the real reason, not 'Parcel not found'")
+    void quoteForUnservedDistrictExplainsWhy() throws Exception {
+        when(pricingQuoteClient.fetchQuoteDetails(any(), any(), any(), any()))
+                .thenThrow(PricingQuoteClient.translate(
+                        "UNKNOWN_DISTRICT", "Unknown district: Mullaitivu", "Colombo", "Mullaitivu"));
+
+        mockMvc.perform(get("/api/v1/parcels/quote")
+                        .with(user("usr-cust-1").roles("CUSTOMER"))
+                        .param("pickupDistrict", "Colombo")
+                        .param("dropoffDistrict", "Mullaitivu")
+                        .param("weightKg", "2.5")
+                        .param("size", "MEDIUM"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code", is("DROPOFF_DISTRICT_NOT_SERVED")))
+                .andExpect(jsonPath("$.message",
+                        is("SwiftDrop doesn't deliver to Mullaitivu yet. Please choose a different drop-off district.")));
+    }
+
+    @Test
     @DisplayName("Quote request rejected for invalid Sri Lanka district")
     void shouldRejectQuoteForInvalidDistrict() throws Exception {
         mockMvc.perform(get("/api/v1/parcels/quote")
