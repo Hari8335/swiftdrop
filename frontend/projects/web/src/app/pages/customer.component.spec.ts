@@ -214,6 +214,45 @@ describe('CustomerComponent', () => {
     expect(component.quoteError()).toBeNull();
   }));
 
+  it('shows why the parcel cannot be delivered and offers to change addresses (422)', fakeAsync(() => {
+    const reason = "SwiftDrop doesn't deliver to Mullaitivu yet. Please choose a different drop-off district.";
+    jest.spyOn(customerService, 'getFeeQuote').mockReturnValue(
+      throwError(() => ({ error: { code: 'DROPOFF_DISTRICT_NOT_SERVED', message: reason }, status: 422 }))
+    );
+    component.startNewDelivery();
+    component.goToStep(2);
+    component.goToStep(3);
+    tick(50);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    expect(component.quoteErrorUnserved()).toBe(true);
+    expect(el.querySelector('#quote-error-title')!.textContent).toContain("We can't deliver this parcel");
+    expect(el.querySelector('#quote-error-message')!.textContent).toContain(reason);
+    expect(el.textContent).not.toContain('Parcel not found');
+    expect(el.querySelector('#retry-quote-btn')).toBeNull();
+
+    el.querySelector<HTMLButtonElement>('#change-addresses-btn')!.click();
+    expect(component.wizardStep()).toBe(1);
+  }));
+
+  it('keeps the retry option for temporary quote failures (503)', fakeAsync(() => {
+    jest.spyOn(customerService, 'getFeeQuote').mockReturnValue(
+      throwError(() => ({ error: { message: "Delivery pricing isn't set up right now. Please try again later." }, status: 503 }))
+    );
+    component.startNewDelivery();
+    component.goToStep(2);
+    component.goToStep(3);
+    tick(50);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    expect(component.quoteErrorUnserved()).toBe(false);
+    expect(el.querySelector('#quote-error-title')!.textContent).toContain('Quote Calculation Notice');
+    expect(el.querySelector('#retry-quote-btn')).not.toBeNull();
+    expect(el.querySelector('#change-addresses-btn')).toBeNull();
+  }));
+
   it('should quick-fill address from address book in wizard', fakeAsync(() => {
     tick(100);
     const firstAddr = component.addresses()[0];
@@ -359,6 +398,41 @@ describe('CustomerComponent', () => {
 
   it('should execute signOut without error', () => {
     expect(() => component.signOut()).not.toThrow();
+  });
+
+  describe('active deliveries summary', () => {
+    const summaryText = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('.hero-summary-card')!.textContent!.replace(/\s+/g, ' ');
+
+    it('shows 0 and the "no active shipments" message when every parcel is cancelled or delivered', () => {
+      component.parcels.set([
+        { ...mockCreatedParcel, id: 'c1', status: 'CANCELLED' },
+        { ...mockCreatedParcel, id: 'c2', status: 'CANCELLED' },
+        { ...mockCreatedParcel, id: 'd1', status: 'DELIVERED' },
+      ]);
+      fixture.detectChanges();
+
+      expect(component.activeDeliveriesCount()).toBe(0);
+      expect(summaryText()).toContain('0 in delivery today');
+      expect(summaryText()).toContain('No active shipments');
+    });
+
+    it('shows 0 when the customer has no parcels at all', () => {
+      component.parcels.set([]);
+      expect(component.activeDeliveriesCount()).toBe(0);
+    });
+
+    it('counts only parcels that are still moving', () => {
+      component.parcels.set([
+        { ...mockCreatedParcel, id: 'a', status: 'CREATED' },
+        { ...mockCreatedParcel, id: 'b', status: 'PICKED_UP' },
+        { ...mockCreatedParcel, id: 'c', status: 'IN_TRANSIT' },
+        { ...mockCreatedParcel, id: 'd', status: 'OUT_FOR_DELIVERY' },
+        { ...mockCreatedParcel, id: 'e', status: 'CANCELLED' },
+        { ...mockCreatedParcel, id: 'f', status: 'DELIVERED' },
+      ]);
+      expect(component.activeDeliveriesCount()).toBe(4);
+    });
   });
 
   it('logo keeps the customer signed in and returns to My Deliveries', () => {

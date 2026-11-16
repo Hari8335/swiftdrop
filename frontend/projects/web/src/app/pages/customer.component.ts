@@ -853,9 +853,19 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                     <line x1="12" y1="8" x2="12" y2="12"></line>
                     <line x1="12" y1="16" x2="12.01" y2="16"></line>
                   </svg>
-                  <span>Quote Calculation Notice</span>
+                  <span id="quote-error-title">{{ quoteErrorUnserved() ? "We can't deliver this parcel" : 'Quote Calculation Notice' }}</span>
                 </div>
-                <p class="text-xs text-rose-700 font-medium">{{ quoteError() }}</p>
+                <p id="quote-error-message" class="text-xs text-rose-700 font-medium">{{ quoteError() }}</p>
+                @if (quoteErrorUnserved()) {
+                <button
+                  type="button"
+                  id="change-addresses-btn"
+                  (click)="wizardStep.set(1)"
+                  class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full transition-all cursor-pointer"
+                >
+                  Change addresses
+                </button>
+                } @else {
                 <button
                   type="button"
                   id="retry-quote-btn"
@@ -864,6 +874,7 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                 >
                   Retry Quote
                 </button>
+                }
               </div>
               } @else if (feePreview(); as quote) {
               <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
@@ -1691,7 +1702,7 @@ export class CustomerComponent implements OnInit {
         p.status === 'PICKED_UP' ||
         p.status === 'OUT_FOR_DELIVERY'
     );
-    return active.length || 1;
+    return active.length;
   });
 
   // Wizard state
@@ -1721,6 +1732,8 @@ export class CustomerComponent implements OnInit {
   feePreview = signal<FeePreview | null>(null);
   isLoadingQuote = signal<boolean>(false);
   quoteError = signal<string | null>(null);
+  /** True when the quote failed because SwiftDrop doesn't serve the pickup or drop-off district (HTTP 422). */
+  quoteErrorUnserved = signal(false);
   isSubmitting = signal<boolean>(false);
   orderConfirmed = signal<boolean>(false);
   confirmedParcel = signal<CustomerParcel | null>(null);
@@ -1797,11 +1810,13 @@ export class CustomerComponent implements OnInit {
     if (!pickup || !dropoff || !weight || weight <= 0 || !size) {
       this.feePreview.set(null);
       this.quoteError.set(null);
+      this.quoteErrorUnserved.set(false);
       return;
     }
 
     this.isLoadingQuote.set(true);
     this.quoteError.set(null);
+    this.quoteErrorUnserved.set(false);
 
     this.customerService.getFeeQuote(pickup, dropoff, weight, size).subscribe({
       next: (quote) => {
@@ -1826,6 +1841,7 @@ export class CustomerComponent implements OnInit {
           err.message ||
           'Unable to calculate delivery fee. Please verify your addresses and package details.';
         this.quoteError.set(message);
+        this.quoteErrorUnserved.set(err.status === 422);
       },
     });
   }

@@ -65,6 +65,20 @@ public class ParcelExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
+    @ExceptionHandler(PricingQuoteRejectedException.class)
+    public ResponseEntity<ErrorResponse> handlePricingQuoteRejected(
+            PricingQuoteRejectedException ex,
+            HttpServletRequest request
+    ) {
+        ErrorResponse error = new ErrorResponse(
+                ex.code(),
+                ex.getMessage(),
+                resolveCorrelationId(request),
+                Instant.now()
+        );
+        return ResponseEntity.status(ex.status()).body(error);
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatus(
             ResponseStatusException ex,
