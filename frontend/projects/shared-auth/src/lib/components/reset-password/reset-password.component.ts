@@ -104,15 +104,6 @@ export const passwordMatchValidator: ValidatorFn = (
 
             @if (!firstLogin() && !codeVerified()) {
               <form [formGroup]="codeForm" (ngSubmit)="verifyCode()" class="auth-form">
-                <div class="dev-hint">
-                  <svg class="hint-icon" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                  </svg>
-                  <span>
-                    Sent to <strong>{{ email() }}</strong>. In local dev, view your code in <a href="http://localhost:8025" target="_blank" rel="noopener">Mailpit (localhost:8025)</a>.
-                  </span>
-                </div>
-
                 @if (resendSuccessMessage()) {
                   <div class="resend-success-banner" role="status">
                     {{ resendSuccessMessage() }}
@@ -451,31 +442,6 @@ export const passwordMatchValidator: ValidatorFn = (
       border-color: var(--terracotta);
       box-shadow: 0 0 0 3px rgba(165,58,38,0.12);
     }
-    .dev-hint {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.5rem;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      padding: 0.65rem 0.85rem;
-      border-radius: 12px;
-      font-size: 0.8rem;
-      color: #475569;
-      line-height: 1.4;
-      margin-bottom: 0.5rem;
-    }
-    .dev-hint a {
-      color: var(--terracotta);
-      font-weight: 700;
-      text-decoration: underline;
-    }
-    .hint-icon {
-      width: 16px;
-      height: 16px;
-      color: #64748b;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
     .code-label-row {
       display: flex;
       justify-content: space-between;
@@ -756,7 +722,7 @@ export class ResetPasswordComponent implements OnInit {
       next: (response) => {
         this.isResending.set(false);
         this.resendSuccessMessage.set(
-          response.message || 'New reset code sent! Check Mailpit (localhost:8025) or your inbox.'
+          response.message || 'New reset code sent! Please check your email inbox.'
         );
       },
       error: (err) => {
