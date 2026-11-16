@@ -58,6 +58,15 @@ import { AuthService } from '../../services/auth.service';
 
           @if (!successMessage()) {
             <form [formGroup]="forgotForm" (ngSubmit)="onSubmit()" class="auth-form">
+              <div class="sample-creds-bar">
+                <button type="button" class="sample-btn" (click)="fillSampleEmail('customer@swiftdrop.lk')">
+                  Fill Customer email
+                </button>
+                <button type="button" class="sample-btn" (click)="fillSampleEmail('admin@swiftdrop.lk')">
+                  Fill Admin email
+                </button>
+              </div>
+
               <div class="form-group">
                 <label for="email">Email address</label>
                 <input
@@ -71,6 +80,15 @@ import { AuthService } from '../../services/auth.service';
                 @if (isFieldInvalid('email')) {
                   <span class="field-error">Please enter a valid email address</span>
                 }
+              </div>
+
+              <div class="dev-hint">
+                <svg class="hint-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <span>
+                  <strong>Testing note:</strong> Email must be registered. In local dev, codes are caught in <a href="http://localhost:8025" target="_blank" rel="noopener">Mailpit (localhost:8025)</a>.
+                </span>
               </div>
 
               <button
@@ -300,6 +318,52 @@ import { AuthService } from '../../services/auth.service';
       color: #dc2626;
       margin-top: 0.15rem;
     }
+    .sample-creds-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .sample-btn {
+      background: none;
+      border: 1px solid rgba(165, 58, 38, 0.25);
+      color: var(--terracotta);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.35rem 0.7rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .sample-btn:hover {
+      background: rgba(165, 58, 38, 0.08);
+      border-color: var(--terracotta);
+    }
+    .dev-hint {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 0.65rem 0.85rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      color: #475569;
+      line-height: 1.4;
+    }
+    .dev-hint a {
+      color: var(--terracotta);
+      font-weight: 700;
+      text-decoration: underline;
+    }
+    .hint-icon {
+      width: 16px;
+      height: 16px;
+      color: #64748b;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
     .submit-btn {
       margin-top: 0.5rem;
       height: 50px;
@@ -382,6 +446,11 @@ export class ForgotPasswordComponent {
   readonly forgotForm: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
   });
+
+  fillSampleEmail(sampleEmail: string): void {
+    this.forgotForm.patchValue({ email: sampleEmail });
+    this.forgotForm.markAsDirty();
+  }
 
   isFieldInvalid(fieldName: string): boolean {
     const field = this.forgotForm.get(fieldName);

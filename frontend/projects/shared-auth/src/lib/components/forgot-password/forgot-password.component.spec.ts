@@ -73,5 +73,11 @@ describe('ForgotPasswordComponent', () => {
     expect(component.errorMessage()).toBe('Server error');
     expect(component.successMessage()).toBeNull();
   });
+
+  it('should fill sample email correctly', () => {
+    component.fillSampleEmail('customer@swiftdrop.lk');
+    expect(component.forgotForm.get('email')?.value).toBe('customer@swiftdrop.lk');
+    expect(component.forgotForm.valid).toBe(true);
+  });
 });
 

@@ -104,8 +104,28 @@ export const passwordMatchValidator: ValidatorFn = (
 
             @if (!firstLogin() && !codeVerified()) {
               <form [formGroup]="codeForm" (ngSubmit)="verifyCode()" class="auth-form">
+                <div class="dev-hint">
+                  <svg class="hint-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                  </svg>
+                  <span>
+                    Sent to <strong>{{ email() }}</strong>. In local dev, view your code in <a href="http://localhost:8025" target="_blank" rel="noopener">Mailpit (localhost:8025)</a>.
+                  </span>
+                </div>
+
+                @if (resendSuccessMessage()) {
+                  <div class="resend-success-banner" role="status">
+                    {{ resendSuccessMessage() }}
+                  </div>
+                }
+
                 <div class="form-group">
-                  <label for="resetCode">6-digit reset code</label>
+                  <div class="code-label-row">
+                    <label for="resetCode">6-digit reset code</label>
+                    <button type="button" class="resend-btn" (click)="resendCode()" [disabled]="isResending()">
+                      {{ isResending() ? 'Sending...' : 'Resend code' }}
+                    </button>
+                  </div>
                   <input
                     id="resetCode"
                     type="text"
@@ -431,6 +451,64 @@ export const passwordMatchValidator: ValidatorFn = (
       border-color: var(--terracotta);
       box-shadow: 0 0 0 3px rgba(165,58,38,0.12);
     }
+    .dev-hint {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 0.65rem 0.85rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      color: #475569;
+      line-height: 1.4;
+      margin-bottom: 0.5rem;
+    }
+    .dev-hint a {
+      color: var(--terracotta);
+      font-weight: 700;
+      text-decoration: underline;
+    }
+    .hint-icon {
+      width: 16px;
+      height: 16px;
+      color: #64748b;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .code-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .resend-btn {
+      background: none;
+      border: none;
+      color: var(--terracotta);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      text-decoration: underline;
+      transition: color 0.15s;
+    }
+    .resend-btn:hover:not(:disabled) {
+      color: var(--coral);
+    }
+    .resend-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .resend-success-banner {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+      padding: 0.6rem 0.85rem;
+      border-radius: 10px;
+      font-size: 0.825rem;
+      font-weight: 600;
+    }
     #resetCode {
       letter-spacing: 0.4em;
       text-align: center;
@@ -589,6 +667,8 @@ export class ResetPasswordComponent implements OnInit {
   readonly firstLogin = signal(false);
   readonly codeVerified = signal(false);
   readonly isLoading = signal(false);
+  readonly isResending = signal(false);
+  readonly resendSuccessMessage = signal<string | null>(null);
   readonly isSuccess = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -662,6 +742,26 @@ export class ResetPasswordComponent implements OnInit {
         this.errorMessage.set(
           err.error?.message || 'This code is invalid or expired. Please request a new code.'
         );
+      },
+    });
+  }
+
+  resendCode(): void {
+    if (!this.email() || this.isResending()) return;
+    this.isResending.set(true);
+    this.resendSuccessMessage.set(null);
+    this.errorMessage.set(null);
+
+    this.authService.forgotPassword({ email: this.email()! }).subscribe({
+      next: (response) => {
+        this.isResending.set(false);
+        this.resendSuccessMessage.set(
+          response.message || 'New reset code sent! Check Mailpit (localhost:8025) or your inbox.'
+        );
+      },
+      error: (err) => {
+        this.isResending.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to resend code. Please try again.');
       },
     });
   }
