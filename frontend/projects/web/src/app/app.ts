@@ -1,16 +1,18 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { AuthService } from 'shared-auth';
 import { NotificationBellComponent } from './notification/notification-bell/notification-bell.component';
+import { AdminSearchService } from './pages/admin/admin-search.service';
 import { MerchantApprovalService } from './pages/admin/merchant-approval.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, NotificationBellComponent],
+  imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, NotificationBellComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -18,6 +20,7 @@ export class App {
   public authService = inject(AuthService);
   private readonly router = inject(Router);
   public readonly merchantApprovalService = inject(MerchantApprovalService);
+  public readonly adminSearchService = inject(AdminSearchService);
   protected readonly title = signal('web');
 
   readonly pendingMerchantCount = computed(() => this.merchantApprovalService.pendingCount());
@@ -39,6 +42,9 @@ export class App {
       )
       .subscribe(() => {
         this.closeAdminNotifications();
+        if (!this.isAdminPage()) {
+          this.adminSearchService.clear();
+        }
         if (this.isAdminPage() && this.authService.hasRole('ADMIN')) {
           this.refreshMerchantPendingCount();
         }

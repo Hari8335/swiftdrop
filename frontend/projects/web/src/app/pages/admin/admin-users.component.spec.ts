@@ -238,4 +238,90 @@ describe('AdminUsersComponent', () => {
     component.goToPage(0);
     expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 20, undefined, undefined);
   });
+
+  it('should filter users reactively when search query is entered', () => {
+    component.adminSearchService.setQuery('Kamal');
+    fixture.detectChanges();
+
+    expect(component.filteredUsers().length).toBe(1);
+    expect(component.filteredUsers()[0].fullName).toBe('Kamal Gunaratne');
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const rows = compiled.querySelectorAll('tbody tr');
+    expect(rows.length).toBe(1);
+    expect(compiled.textContent).toContain('Kamal Gunaratne');
+    expect(compiled.textContent).not.toContain('Anura Silva');
+
+    // Clear search
+    component.adminSearchService.clear();
+    fixture.detectChanges();
+    expect(component.filteredUsers().length).toBe(2);
+  });
+
+  it('should show empty search state when no users match search query', () => {
+    component.adminSearchService.setQuery('NonExistentName');
+    fixture.detectChanges();
+
+    expect(component.filteredUsers().length).toBe(0);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#admin-users-search-empty')).toBeTruthy();
+    expect(compiled.textContent).toContain('No matching staff accounts found');
+  });
+
+  it('should require two-step inline confirmation before disabling account', () => {
+    const userToToggle = mockUsers[0]; // enabled: true
+    const updatedUser: UserSummary = { ...userToToggle, enabled: false };
+    adminUsersServiceMock.updateUserStatus.mockReturnValue(of(updatedUser));
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const initialBtn = compiled.querySelector('#toggle-user-usr-1-btn') as HTMLButtonElement;
+    expect(initialBtn.textContent?.trim()).toBe('Disable Account');
+
+    // Click Disable Account -> enters confirmation state
+    initialBtn.click();
+    fixture.detectChanges();
+
+    expect(component.pendingConfirmUserId()).toBe('usr-1');
+    expect(adminUsersServiceMock.updateUserStatus).not.toHaveBeenCalled();
+
+    const confirmBtn = compiled.querySelector('#confirm-toggle-user-usr-1-btn') as HTMLButtonElement;
+    const cancelBtn = compiled.querySelector('#cancel-toggle-user-usr-1-btn') as HTMLButtonElement;
+    expect(confirmBtn).toBeTruthy();
+    expect(confirmBtn.textContent?.trim()).toBe('Confirm Disable');
+    expect(cancelBtn).toBeTruthy();
+
+    // Click Confirm Disable -> executes update
+    confirmBtn.click();
+    fixture.detectChanges();
+
+    expect(adminUsersServiceMock.updateUserStatus).toHaveBeenCalledWith('usr-1', false);
+    expect(component.pendingConfirmUserId()).toBeNull();
+  });
+
+  it('should require two-step inline confirmation before enabling account and allow cancel', () => {
+    const userToToggle = mockUsers[1]; // enabled: false
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const initialBtn = compiled.querySelector('#toggle-user-usr-2-btn') as HTMLButtonElement;
+    expect(initialBtn.textContent?.trim()).toBe('Enable Account');
+
+    // Click Enable Account -> enters confirmation state
+    initialBtn.click();
+    fixture.detectChanges();
+
+    expect(component.pendingConfirmUserId()).toBe('usr-2');
+    const confirmBtn = compiled.querySelector('#confirm-toggle-user-usr-2-btn') as HTMLButtonElement;
+    const cancelBtn = compiled.querySelector('#cancel-toggle-user-usr-2-btn') as HTMLButtonElement;
+    expect(confirmBtn.textContent?.trim()).toBe('Confirm Enable');
+
+    // Click Cancel -> reverts back without calling service
+    cancelBtn.click();
+    fixture.detectChanges();
+
+    expect(component.pendingConfirmUserId()).toBeNull();
+    expect(adminUsersServiceMock.updateUserStatus).not.toHaveBeenCalled();
+    expect(compiled.querySelector('#toggle-user-usr-2-btn')).toBeTruthy();
+  });
 });
