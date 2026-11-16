@@ -346,44 +346,24 @@ import { AdminUsersService } from './admin-users.service';
             </div>
 
             <div>
-              <label class="mb-1 block text-xs font-bold text-[#77748a]">
-                Phone Number <span class="font-normal text-[#aaa6b5]">(10-14 digits, e.g. +94771234567)</span>
-              </label>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">Phone Number</label>
               <input
-                type="text"
+                type="tel"
+                inputmode="numeric"
+                maxlength="10"
                 id="staff-phone-input"
                 [(ngModel)]="newUserPhone"
+                (input)="onPhoneInput($event)"
                 name="phoneNumber"
                 required
-                placeholder="+94771234567"
+                placeholder="0771234567"
                 class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none placeholder:text-[#aaa6b5] focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
               />
               <p
                 *ngIf="newUserPhone && !isPhoneValid()"
                 class="mt-1 text-[11px] font-medium text-[#b23b32]"
               >
-                Phone number must be 10–14 digits with optional leading '+'
-              </p>
-            </div>
-
-            <div>
-              <label class="mb-1 block text-xs font-bold text-[#77748a]">
-                Password <span class="font-normal text-[#aaa6b5]">(min 8 characters)</span>
-              </label>
-              <input
-                type="password"
-                id="staff-password-input"
-                [(ngModel)]="newUserPassword"
-                name="password"
-                required
-                placeholder="Minimum 8 characters"
-                class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none placeholder:text-[#aaa6b5] focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
-              />
-              <p
-                *ngIf="newUserPassword && newUserPassword.length < 8"
-                class="mt-1 text-[11px] font-medium text-[#b23b32]"
-              >
-                Password must be at least 8 characters
+                Phone number must be exactly 10 digits (e.g. 0771234567)
               </p>
             </div>
 
@@ -440,7 +420,6 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
   public newUserFullName = '';
   public newUserEmail = '';
   public newUserPhone = '';
-  public newUserPassword = '';
   public newUserRole: 'COURIER' | 'DISPATCHER' = 'COURIER';
 
   // Toast State
@@ -514,17 +493,25 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     });
   }
 
+  public onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const digitsOnly = input.value.replace(/\D/g, '').slice(0, 10);
+    if (input.value !== digitsOnly) {
+      input.value = digitsOnly;
+    }
+    this.newUserPhone = digitsOnly;
+  }
+
   public isPhoneValid(): boolean {
     const phone = this.newUserPhone.trim();
-    return /^\+?[0-9]{10,14}$/.test(phone);
+    return /^[0-9]{10}$/.test(phone);
   }
 
   public isFormValid(): boolean {
     return (
       this.newUserFullName.trim().length > 0 &&
-      this.newUserEmail.trim().includes('@') &&
+      /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(this.newUserEmail.trim()) &&
       this.isPhoneValid() &&
-      this.newUserPassword.length >= 8 &&
       (this.newUserRole === 'COURIER' || this.newUserRole === 'DISPATCHER')
     );
   }
@@ -551,7 +538,6 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
       fullName: this.newUserFullName.trim(),
       email: this.newUserEmail.trim().toLowerCase(),
       phoneNumber: this.newUserPhone.trim(),
-      password: this.newUserPassword,
       role: this.newUserRole,
     };
 
@@ -559,15 +545,14 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
       next: (created) => {
         this.isSubmitting.set(false);
         this.showToast(
-          `Staff account for ${created.fullName} (${created.role}) created successfully!`,
+          `Staff account for ${created.fullName} (${created.role}) provisioned! A 6-letter temporary password has been emailed to ${created.email}.`,
           'success'
         );
 
-        // Clear password and form inputs on confirmed success
+        // Clear form inputs on confirmed success
         this.newUserFullName = '';
         this.newUserEmail = '';
         this.newUserPhone = '';
-        this.newUserPassword = '';
         this.closeCreateUserModal();
 
         // Refresh users to reconcile authoritative backend list

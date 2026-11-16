@@ -35,6 +35,9 @@ class AdminUserServiceTest {
     @Mock
     private AuthEventPublisher authEventPublisher;
 
+    @Mock
+    private StaffProvisioningMailSender staffProvisioningMailSender;
+
     @InjectMocks
     private AdminUserService adminUserService;
 
@@ -80,6 +83,14 @@ class AdminUserServiceTest {
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(adminUserRepository).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("$2a$10$hashedPassword");
+        assertThat(userCaptor.getValue().isMustChangePassword()).isTrue();
+
+        verify(staffProvisioningMailSender).sendProvisioningEmail(
+            eq("courier.kamal@swiftdrop.lk"),
+            eq("Kamal Gunaratne"),
+            eq("COURIER"),
+            eq("SecurePass#2026")
+        );
 
         verify(authEventPublisher).publishUserRegistered(
             eq(summary.id()),
@@ -119,6 +130,39 @@ class AdminUserServiceTest {
             isNull(),
             eq(true)
         );
+    }
+
+    @Test
+    @DisplayName("createStaffUser generates 6-letter temporary password and sets mustChangePassword when password omitted")
+    void createStaffUser_generates6LetterTemporaryPasswordWhenPasswordOmitted() {
+        CreateStaffUserRequest request = new CreateStaffUserRequest(
+            "courier.new@swiftdrop.lk",
+            null,
+            "New Courier",
+            "0771234567",
+            "COURIER"
+        );
+
+        when(adminUserRepository.existsByEmailIgnoreCase("courier.new@swiftdrop.lk")).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$tempPasswordHash");
+        when(adminUserRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserSummary summary = adminUserService.createStaffUser(request);
+
+        assertThat(summary.email()).isEqualTo("courier.new@swiftdrop.lk");
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(adminUserRepository, atLeastOnce()).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().isMustChangePassword()).isTrue();
+
+        ArgumentCaptor<String> passwordCaptor = ArgumentCaptor.forClass(String.class);
+        verify(staffProvisioningMailSender).sendProvisioningEmail(
+            eq("courier.new@swiftdrop.lk"),
+            eq("New Courier"),
+            eq("COURIER"),
+            passwordCaptor.capture()
+        );
+        assertThat(passwordCaptor.getValue()).matches("^[A-Za-z]{6}$");
     }
 
     @Test

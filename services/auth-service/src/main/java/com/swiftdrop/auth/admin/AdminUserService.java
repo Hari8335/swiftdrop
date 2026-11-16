@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -18,19 +19,32 @@ import java.util.UUID;
 public class AdminUserService {
 
     private static final Set<String> ALLOWED_STAFF_ROLES = Set.of("COURIER", "DISPATCHER");
+    private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthEventPublisher authEventPublisher;
+    private final StaffProvisioningMailSender staffProvisioningMailSender;
+    private final SecureRandom random = new SecureRandom();
 
     public AdminUserService(
         AdminUserRepository adminUserRepository,
         PasswordEncoder passwordEncoder,
-        AuthEventPublisher authEventPublisher
+        AuthEventPublisher authEventPublisher,
+        StaffProvisioningMailSender staffProvisioningMailSender
     ) {
         this.adminUserRepository = adminUserRepository;
         this.passwordEncoder = passwordEncoder;
         this.authEventPublisher = authEventPublisher;
+        this.staffProvisioningMailSender = staffProvisioningMailSender;
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder sb = new StringBuilder(6);
+        for (int i = 0; i < 6; i++) {
+            sb.append(LETTERS.charAt(random.nextInt(LETTERS.length())));
+        }
+        return sb.toString();
     }
 
     @Transactional(readOnly = true)
@@ -64,8 +78,12 @@ public class AdminUserService {
             throw new EmailAlreadyExistsException("A user account with this email address already exists.");
         }
 
+        String temporaryPassword = (request.password() != null && !request.password().isBlank())
+            ? request.password().trim()
+            : generateTemporaryPassword();
+
         String userId = UUID.randomUUID().toString();
-        String passwordHash = passwordEncoder.encode(request.password());
+        String passwordHash = passwordEncoder.encode(temporaryPassword);
 
         User user = new User(
             userId,
@@ -77,6 +95,7 @@ public class AdminUserService {
             true,
             null
         );
+        user.setMustChangePassword(true);
 
         User saved = adminUserRepository.save(user);
 
@@ -89,6 +108,15 @@ public class AdminUserService {
             null,
             saved.isEnabled()
         );
+
+        if (staffProvisioningMailSender != null) {
+            staffProvisioningMailSender.sendProvisioningEmail(
+                saved.getEmail(),
+                saved.getFullName(),
+                saved.getRole(),
+                temporaryPassword
+            );
+        }
 
         return UserSummary.from(saved);
     }
