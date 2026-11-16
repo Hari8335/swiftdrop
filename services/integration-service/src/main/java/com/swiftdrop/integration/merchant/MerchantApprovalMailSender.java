@@ -26,7 +26,7 @@ public class MerchantApprovalMailSender {
     }
 
     public void sendApprovalEmail(String recipientEmail, String businessName, String temporaryPassword) {
-        if (temporaryPassword == null || !temporaryPassword.matches("\\d{6}")) {
+        if (temporaryPassword == null || !temporaryPassword.matches("^[A-Za-z0-9]{6}$")) {
             log.error("Merchant approval succeeded but no valid temporary password was available for approval email");
             return;
         }
