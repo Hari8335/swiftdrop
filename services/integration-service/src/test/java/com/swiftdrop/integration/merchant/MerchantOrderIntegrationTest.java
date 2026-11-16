@@ -70,6 +70,10 @@ class MerchantOrderIntegrationTest {
                 .andExpect(jsonPath("$.fee").value(850.0));
 
         org.assertj.core.api.Assertions.assertThat(orderRepository.count()).isEqualTo(1);
+        MerchantOrderEntity saved = orderRepository.findAll().getFirst();
+        org.assertj.core.api.Assertions.assertThat(saved.getRecipientName()).isEqualTo("Asha Perera");
+        org.assertj.core.api.Assertions.assertThat(saved.getRecipientAddress())
+                .isEqualTo("20 Lake Road, Gampaha, 11000");
         verify(parcelClient).createParcel(eq(merchantId), any(), eq(new BigDecimal("850.00")), any());
     }
 

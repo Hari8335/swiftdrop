@@ -71,7 +71,14 @@ import { MerchantApiCredentials } from './merchant.model';
                 @if (item.clientSecret) {
                   <div class="p-4 rounded-xl border border-amber-200 bg-amber-50/80 space-y-3">
                     <div class="flex items-center justify-between">
-                      <span class="text-[11px] font-bold text-amber-900">⚠️ Active One-Time Client Secret</span>
+                      <div class="flex items-center gap-1.5 text-[11px] font-bold text-amber-900">
+                        <svg class="w-3.5 h-3.5 text-amber-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                          <line x1="12" y1="9" x2="12" y2="13"></line>
+                          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        <span>Active One-Time Client Secret</span>
+                      </div>
                       <span
                         (click)="copyText(item.clientSecret, 'Client Secret')"
                         class="text-[11px] font-bold text-amber-900 hover:text-black transition-colors cursor-pointer underline select-none"
@@ -152,7 +159,9 @@ import { MerchantApiCredentials } from './merchant.model';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="p-5 rounded-2xl bg-white border border-[#eee7e0] shadow-sm space-y-2">
                 <div class="w-8 h-8 rounded-full bg-[#a53a26]/10 text-[#a53a26] flex items-center justify-center font-bold text-xs">
-                  ⚡
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                  </svg>
                 </div>
                 <h4 class="text-xs font-bold text-[#1d1b2c]">Token Endpoint</h4>
                 <p class="text-[11px] text-[#6f6d85]">
@@ -165,7 +174,9 @@ import { MerchantApiCredentials } from './merchant.model';
 
               <div class="p-5 rounded-2xl bg-white border border-[#eee7e0] shadow-sm space-y-2">
                 <div class="w-8 h-8 rounded-full bg-[#a53a26]/10 text-[#a53a26] flex items-center justify-center font-bold text-xs">
-                  🛡️
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  </svg>
                 </div>
                 <h4 class="text-xs font-bold text-[#1d1b2c]">Idempotency Guarantee</h4>
                 <p class="text-[11px] text-[#6f6d85]">

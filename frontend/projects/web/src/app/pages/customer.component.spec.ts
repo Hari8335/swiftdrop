@@ -271,6 +271,49 @@ describe('CustomerComponent', () => {
     }
   }));
 
+  it('should open and dismiss cancel confirmation modal', fakeAsync(() => {
+    tick(100);
+    const createdParcel = component.parcels().find((p) => p.status === 'CREATED');
+    expect(createdParcel).toBeTruthy();
+    if (createdParcel) {
+      component.openCancelModal(createdParcel);
+      expect(component.parcelToCancel()).toEqual(createdParcel);
+
+      fixture.detectChanges();
+      const modalTracking = fixture.nativeElement.querySelector('[data-testid="cancel-modal-tracking-number"]');
+      expect(modalTracking?.textContent).toContain(createdParcel.trackingNumber);
+
+      component.closeCancelModal();
+      expect(component.parcelToCancel()).toBeNull();
+    }
+  }));
+
+  it('should cancel parcel upon confirmation in modal', fakeAsync(() => {
+    tick(100);
+    const createdParcel = component.parcels().find((p) => p.status === 'CREATED');
+    expect(createdParcel).toBeTruthy();
+    if (createdParcel) {
+      component.openCancelModal(createdParcel);
+      component.cancellationReason = 'Customer changed mind';
+      component.confirmCancelParcel();
+      tick(100);
+
+      expect(component.parcelToCancel()).toBeNull();
+      const target = component.parcels().find((p) => p.id === createdParcel.id);
+      expect(target?.status).toBe('CANCELLED');
+      expect(component.notification()).toContain('cancelled');
+    }
+  }));
+
+  it('should open address modal from deliveries page Add Address button', () => {
+    component.activeTab.set('deliveries');
+    fixture.detectChanges();
+    const btn = fixture.nativeElement.querySelector('#hero-add-address-btn') as HTMLButtonElement;
+    expect(btn).toBeTruthy();
+    btn.click();
+    expect(component.showAddressModal()).toBe(true);
+  });
+
   it('should add a new address to address book', fakeAsync(() => {
     component.openAddressModal();
     expect(component.showAddressModal()).toBe(true);
