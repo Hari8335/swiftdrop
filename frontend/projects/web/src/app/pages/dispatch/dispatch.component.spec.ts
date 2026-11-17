@@ -190,6 +190,8 @@ describe('DispatchComponent (Real API Integration)', () => {
       parcelsError: parcelsErrorSignal,
       couriersError: couriersErrorSignal,
       failedError: failedErrorSignal,
+      listZones: jest.fn().mockReturnValue(of([])),
+      getZones: jest.fn().mockReturnValue(of([])),
       users: jest.fn(() => []),
     };
 
@@ -277,6 +279,75 @@ describe('DispatchComponent (Real API Integration)', () => {
     component.onQueueZoneChange('ZONE-COLOMBO-NORTH');
     expect(component.selectedZone()).toBe('ZONE-COLOMBO-NORTH');
     expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith('ZONE-COLOMBO-NORTH');
+  });
+
+  it('should filter parcels by real zone name and resolve backend district', () => {
+    component.availableZones.set([
+      {
+        id: 'z1',
+        name: 'E2E western',
+        districts: ['Colombo'],
+        served: true,
+        baseFeeLkr: 350,
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'z2',
+        name: 'E2E central',
+        districts: ['Kandy'],
+        served: true,
+        baseFeeLkr: 450,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+
+    expect(component.resolveBackendDistrict('E2E western (Colombo)')).toBe('Colombo');
+    expect(component.resolveBackendDistrict('E2E central (Kandy)')).toBe('Kandy');
+
+    dispatchServiceSpy.loadUnassignedParcels.mockClear();
+    component.onQueueZoneChange('E2E western');
+    expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith('Colombo');
+
+    dispatchServiceSpy.loadUnassignedParcels.mockClear();
+    component.onQueueZoneChange('E2E central');
+    expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith('Kandy');
+  });
+
+  it('should filter parcels appropriately between Colombo and Kandy dropoff destinations', () => {
+    const colomboParcel: DispatchParcelSummary = {
+      parcelId: 'p-col',
+      trackingNumber: 'SD-COL-001',
+      status: 'CREATED',
+      pickupZone: 'Colombo',
+      dropoffZone: 'Colombo',
+      createdAt: '',
+    };
+    const kandyParcel: DispatchParcelSummary = {
+      parcelId: 'p-kan',
+      trackingNumber: 'SD-20261116-KAN001',
+      status: 'CREATED',
+      pickupZone: 'Colombo',
+      dropoffZone: 'Kandy',
+      createdAt: '',
+    };
+
+    (dispatchServiceSpy.unassignedParcels as any).mockReturnValue([colomboParcel, kandyParcel]);
+
+    component.selectedZone.set('E2E western');
+    let filtered = component.filteredParcels();
+    expect(filtered.length).toBe(1);
+    expect(filtered[0].trackingNumber).toBe('SD-COL-001');
+
+    component.selectedZone.set('E2E central');
+    filtered = component.filteredParcels();
+    expect(filtered.length).toBe(1);
+    expect(filtered[0].trackingNumber).toBe('SD-20261116-KAN001');
+
+    component.selectedZone.set('');
+    filtered = component.filteredParcels();
+    expect(filtered.length).toBe(2);
   });
 
   it('should open assign modal and confirm parcel assignment via real API', () => {

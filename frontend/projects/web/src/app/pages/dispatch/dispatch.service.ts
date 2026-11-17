@@ -107,6 +107,10 @@ export class DispatchService {
     );
   }
 
+  public getZones(): Observable<Zone[]> {
+    return this.listZones();
+  }
+
   public createZone(request: ZoneRequest): Observable<Zone> {
     return this.http.post<Zone>('/api/v1/admin/zones', request);
   }
