@@ -30,7 +30,7 @@ public class MerchantParcelIdempotency {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "merchant_id", nullable = false, length = 36)
+    @Column(name = "merchant_id", nullable = false, length = 64)
     private String merchantId;
 
     @Column(nullable = false, length = 64)
