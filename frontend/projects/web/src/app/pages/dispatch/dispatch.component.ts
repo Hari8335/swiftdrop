@@ -661,6 +661,11 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
                     <!-- Pickup & Dropoff Routing -->
                     <div class="mt-4 space-y-2.5 text-xs text-[#6f6d85]">
+                      <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#faf8f6] border border-[#f0ebe5] text-[11px] font-bold text-[#1d1b2c]">
+                        <span>Route:</span>
+                        <span class="text-[#a53a26]">{{ parcel.pickupZone }} → {{ parcel.dropoffZone }}</span>
+                      </div>
+
                       <div class="flex items-start gap-2">
                         <span class="text-emerald-600 font-bold mt-0.5">🟢 PICKUP:</span>
                         <div>
@@ -705,11 +710,20 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
               <ng-template #emptyQueueTemplate>
                 <div class="bg-white rounded-2xl border border-[#f0ebe5] p-12 text-center space-y-3">
-                  <div class="text-4xl">🎉</div>
-                  <h3 class="text-base font-bold text-[#1d1b2c]">All Parcels Assigned!</h3>
-                  <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
-                    There are currently no parcels in the unassigned queue awaiting courier assignment.
-                  </p>
+                  <div *ngIf="searchQuery() || selectedZone()">
+                    <div class="text-4xl">🔍</div>
+                    <h3 class="text-base font-bold text-[#1d1b2c]">No matching parcels found</h3>
+                    <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
+                      No unassigned parcels matched your current search query or zone filter. Try clearing your filters.
+                    </p>
+                  </div>
+                  <div *ngIf="!searchQuery() && !selectedZone()">
+                    <div class="text-4xl">🎉</div>
+                    <h3 class="text-base font-bold text-[#1d1b2c]">No Unassigned Parcels / All caught up!</h3>
+                    <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
+                      All parcels have been dispatched. There are currently no parcels in the unassigned queue awaiting courier assignment.
+                    </p>
+                  </div>
                 </div>
               </ng-template>
             </div>

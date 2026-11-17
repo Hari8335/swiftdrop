@@ -269,9 +269,22 @@ describe('DispatchComponent (Real API Integration)', () => {
 
   it('should filter unassigned parcels by search query', () => {
     component.searchQuery.set('Kiribathgoda');
-    const filtered = component.filteredParcels();
+    let filtered = component.filteredParcels();
     expect(filtered.length).toBe(1);
     expect(filtered[0].dropoffAddress).toContain('Kiribathgoda');
+
+    component.searchQuery.set('SD-20261028-001');
+    filtered = component.filteredParcels();
+    expect(filtered.length).toBe(1);
+    expect(filtered[0].trackingNumber).toBe('SD-20261028-001');
+
+    component.searchQuery.set('XYZ99999');
+    filtered = component.filteredParcels();
+    expect(filtered.length).toBe(0);
+
+    component.searchQuery.set('');
+    filtered = component.filteredParcels();
+    expect(filtered.length).toBe(2);
   });
 
   it('should trigger reload when zone filter changes in queue', () => {
