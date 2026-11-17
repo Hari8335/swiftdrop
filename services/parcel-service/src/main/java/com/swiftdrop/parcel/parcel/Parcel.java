@@ -27,13 +27,13 @@ public class Parcel {
     @Column(nullable = false, length = 32)
     private ParcelStatus status;
 
-    @Column(name = "customer_id", length = 36)
+    @Column(name = "customer_id", length = 64)
     private String customerId;
 
-    @Column(name = "merchant_id", length = 36)
+    @Column(name = "merchant_id", length = 64)
     private String merchantId;
 
-    @Column(name = "courier_id", length = 36)
+    @Column(name = "courier_id", length = 64)
     private String courierId;
 
     @Embedded

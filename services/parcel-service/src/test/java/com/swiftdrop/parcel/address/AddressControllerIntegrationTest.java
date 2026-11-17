@@ -74,6 +74,23 @@ class AddressControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser(username = "customer-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", roles = "CUSTOMER")
+    @DisplayName("Address ownership supports the maximum Auth identity length")
+    void shouldPersistAddressFor64CharacterCustomerId() throws Exception {
+        CreateAddressRequest request = new CreateAddressRequest(
+                "Home", "45 Galle Road", null, "Colombo 03", "Colombo", "00300", true);
+
+        mockMvc.perform(post("/api/v1/addresses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+
+        assertThat(addressRepository.findAll()).singleElement()
+                .extracting(Address::getCustomerId)
+                .isEqualTo("customer-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+    }
+
+    @Test
     @WithMockUser(username = "usr-cust-1", roles = "CUSTOMER")
     @DisplayName("Creation fails with 400 when district is not in 25 approved districts")
     void shouldRejectInvalidDistrict() throws Exception {

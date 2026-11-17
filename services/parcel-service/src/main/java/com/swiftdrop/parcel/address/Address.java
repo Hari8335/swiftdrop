@@ -19,7 +19,7 @@ public class Address {
     @Column(length = 36, nullable = false)
     private String id;
 
-    @Column(name = "customer_id", length = 36, nullable = false)
+    @Column(name = "customer_id", length = 64, nullable = false)
     private String customerId;
 
     @Column(nullable = false, length = 100)
