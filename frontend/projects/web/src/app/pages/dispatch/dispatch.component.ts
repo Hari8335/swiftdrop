@@ -537,18 +537,9 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                   class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] text-[#1d1b2c] cursor-pointer"
                 >
                   <option value="">All Delivery Zones</option>
-                  <ng-container *ngIf="availableZones().length > 0; else defaultQueueZoneOptions">
-                    <option *ngFor="let z of availableZones()" [value]="z.name">
-                      {{ z.name }} ({{ z.districts.join(', ') }})
-                    </option>
-                  </ng-container>
-                  <ng-template #defaultQueueZoneOptions>
-                    <option value="E2E western">E2E western (Colombo)</option>
-                    <option value="E2E central">E2E central (Kandy)</option>
-                  </ng-template>
-                  <option value="ZONE-COLOMBO-NORTH">Colombo North</option>
-                  <option value="ZONE-COLOMBO-SOUTH">Colombo South</option>
-                  <option value="ZONE-KANDY">Kandy Central</option>
+                  <option *ngFor="let z of availableZones()" [value]="z.name">
+                    {{ z.name }}{{ z.districts && z.districts.length > 0 ? ' (' + z.districts.join(', ') + ')' : '' }}
+                  </option>
                 </select>
 
                 <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold text-[#6f6d85] cursor-pointer hover:bg-[#f3eee9] transition-colors">
@@ -771,18 +762,9 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                   class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] text-[#1d1b2c] cursor-pointer"
                 >
                   <option value="">All Delivery Zones</option>
-                  <ng-container *ngIf="availableZones().length > 0; else defaultWorkloadZoneOptions">
-                    <option *ngFor="let z of availableZones()" [value]="z.name">
-                      {{ z.name }} ({{ z.districts.join(', ') }})
-                    </option>
-                  </ng-container>
-                  <ng-template #defaultWorkloadZoneOptions>
-                    <option value="E2E western">E2E western (Colombo)</option>
-                    <option value="E2E central">E2E central (Kandy)</option>
-                  </ng-template>
-                  <option value="ZONE-COLOMBO-NORTH">Colombo North</option>
-                  <option value="ZONE-COLOMBO-SOUTH">Colombo South</option>
-                  <option value="ZONE-KANDY">Kandy Central</option>
+                  <option *ngFor="let z of availableZones()" [value]="z.name">
+                    {{ z.name }}{{ z.districts && z.districts.length > 0 ? ' (' + z.districts.join(', ') + ')' : '' }}
+                  </option>
                 </select>
 
                 <label class="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold text-[#1d1b2c] cursor-pointer hover:bg-[#f3eee9] transition-colors">
@@ -986,18 +968,9 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                   class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-[#1d1b2c] cursor-pointer"
                 >
                   <option value="">All Delivery Zones</option>
-                  <ng-container *ngIf="availableZones().length > 0; else defaultFailedZoneOptions">
-                    <option *ngFor="let z of availableZones()" [value]="z.name">
-                      {{ z.name }} ({{ z.districts.join(', ') }})
-                    </option>
-                  </ng-container>
-                  <ng-template #defaultFailedZoneOptions>
-                    <option value="E2E western">E2E western (Colombo)</option>
-                    <option value="E2E central">E2E central (Kandy)</option>
-                  </ng-template>
-                  <option value="ZONE-COLOMBO-NORTH">Colombo North</option>
-                  <option value="ZONE-COLOMBO-SOUTH">Colombo South</option>
-                  <option value="ZONE-KANDY">Kandy Central</option>
+                  <option *ngFor="let z of availableZones()" [value]="z.name">
+                    {{ z.name }}{{ z.districts && z.districts.length > 0 ? ' (' + z.districts.join(', ') + ')' : '' }}
+                  </option>
                 </select>
 
                 <button
