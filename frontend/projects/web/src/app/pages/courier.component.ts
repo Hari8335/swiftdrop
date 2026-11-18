@@ -528,6 +528,14 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
                   <span class="w-1.5 h-1.5 rounded-full bg-current opacity-80"></span>
                   {{ getStatusLabel(delivery.status) }}
                 </span>
+                <span
+                  *ngIf="delivery.overdue"
+                  class="px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider bg-[#fdecec] text-[#b42318] border border-[#f5c2c0]"
+                  title="Assigned more than 2 days ago and not yet delivered"
+                  data-testid="overdue-badge"
+                >
+                  Overdue
+                </span>
               </div>
 
               <div class="flex items-center gap-2 text-xs text-[#6f6d85]">

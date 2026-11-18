@@ -161,7 +161,10 @@ paths:
       description: |
         Internal search endpoint supporting:
         - Unassigned parcels queue: ?unassigned=true&zone=
-        - Courier daily deliveries: ?courierId={courierId}&date={YYYY-MM-DD}
+        - Courier open work (any creation date): ?courierId={courierId}&active=true&sort=assignedAt,asc
+        - Courier parcels finished on a day: ?courierId={courierId}&completedOn={YYYY-MM-DD}
+        - Parcels created on a day: ?date={YYYY-MM-DD}
+        All day filters use Sri Lanka time (Asia/Colombo).
       operationId: queryInternalParcels
       parameters:
         - name: unassigned
@@ -189,7 +192,7 @@ paths:
         - name: date
           in: query
           required: false
-          description: Delivery/assignment date filter (YYYY-MM-DD)
+          description: Creation date filter (YYYY-MM-DD, Asia/Colombo day)
           schema:
             type: string
             format: date
@@ -200,6 +203,28 @@ paths:
           description: Optional parcel status filter
           schema:
             $ref: '#/components/schemas/ParcelStatus'
+        - name: active
+          in: query
+          required: false
+          description: When true, only parcels not yet DELIVERED, FAILED or CANCELLED (no date limit)
+          schema:
+            type: boolean
+            example: true
+        - name: completedOn
+          in: query
+          required: false
+          description: Parcels that reached DELIVERED, FAILED or CANCELLED on this day (YYYY-MM-DD, Asia/Colombo day)
+          schema:
+            type: string
+            format: date
+            example: "2026-10-26"
+        - name: sort
+          in: query
+          required: false
+          description: Sort property and direction, e.g. assignedAt,asc or completedAt,asc
+          schema:
+            type: string
+            example: "assignedAt,asc"
         - name: page
           in: query
           required: false
@@ -459,8 +484,8 @@ paths:
       summary: Cancel parcel before pickup
       description: |
         Cancels a parcel prior to courier pickup.
-        Allowed ONLY if the current status is CREATED.
-        Returns 409 Conflict if already PICKED_UP or beyond.
+        Allowed ONLY if the current status is CREATED and no courier has been assigned yet.
+        Returns 409 Conflict if a courier is already assigned, or if already PICKED_UP or beyond.
       operationId: cancelParcel
       security:
         - BearerAuth: []
@@ -494,7 +519,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict - Parcel has already been picked up and cannot be cancelled
+          description: Conflict - A courier is already assigned, or the parcel has already been picked up, so it cannot be cancelled
           content:
             application/json:
               schema:
@@ -1102,6 +1127,18 @@ components:
           type: string
           format: date-time
           example: "2026-10-26T10:00:00Z"
+        assignedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the current courier was assigned. Null when unassigned; cleared on re-queue.
+          example: "2026-10-26T11:00:00Z"
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the parcel reached DELIVERED, FAILED or CANCELLED. Null while open; cleared on re-queue.
+          example: "2026-10-26T15:30:00Z"
 
     ParcelPageResponse:
       type: object

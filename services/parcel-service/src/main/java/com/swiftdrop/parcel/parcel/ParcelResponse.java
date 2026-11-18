@@ -25,8 +25,38 @@ public record ParcelResponse(
         DeliveryProof proof,
         Long sequence,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        Instant assignedAt,
+        Instant completedAt
 ) {
+    /** Backward-compatible constructor for callers that do not track assignment or completion times. */
+    public ParcelResponse(
+            String id,
+            String trackingNumber,
+            ParcelStatus status,
+            String customerId,
+            String merchantId,
+            String courierId,
+            AddressDto pickupAddress,
+            AddressDto dropoffAddress,
+            BigDecimal weightKg,
+            ParcelSize size,
+            BigDecimal fee,
+            int attemptCount,
+            String failureReason,
+            String recipientName,
+            String recipientPhone,
+            String notes,
+            DeliveryProof proof,
+            Long sequence,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        this(id, trackingNumber, status, customerId, merchantId, courierId, pickupAddress, dropoffAddress,
+                weightKg, size, fee, attemptCount, failureReason, recipientName, recipientPhone, notes, proof,
+                sequence, createdAt, updatedAt, null, null);
+    }
+
     public static ParcelResponse from(Parcel entity) {
         return new ParcelResponse(
                 entity.getId(),
@@ -48,7 +78,9 @@ public record ParcelResponse(
                 entity.getProof(),
                 entity.getSequence(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getAssignedAt(),
+                entity.getCompletedAt()
         );
     }
 }

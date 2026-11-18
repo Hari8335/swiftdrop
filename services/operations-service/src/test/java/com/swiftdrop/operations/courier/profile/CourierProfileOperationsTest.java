@@ -78,15 +78,29 @@ class CourierProfileOperationsTest {
     void summaryMapsCompletionTimestampOnlyForCompletedStatuses() {
         UUID deliveredId = UUID.randomUUID();
         UUID pendingId = UUID.randomUUID();
-        when(parcels.getParcelsByCourierAndDate("courier-1", "2026-10-28"))
-            .thenReturn(new com.swiftdrop.operations.courier.execution.client.ParcelPageResponse(java.util.List.of(
-                new ParcelResponse(deliveredId, "SD-1", "DELIVERED", "customer", null, "courier-1", null, null, 1.0, "SMALL", 100.0, 1, null, "Recipient", null, null, null, 1L, Instant.parse("2026-10-28T10:00:00Z"), Instant.parse("2026-10-28T12:00:00Z")),
-                new ParcelResponse(pendingId, "SD-2", "OUT_FOR_DELIVERY", "customer", null, "courier-1", null, null, 1.0, "SMALL", 100.0, 1, null, "Recipient", null, null, null, 1L, Instant.parse("2026-10-28T10:00:00Z"), Instant.parse("2026-10-28T11:00:00Z"))
-            ), 2, 1, 0, 2));
+        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Colombo"));
+        when(parcels.getActiveParcelsForCourier("courier-1")).thenReturn(java.util.List.of(
+            new ParcelResponse(pendingId, "SD-2", "OUT_FOR_DELIVERY", "customer", null, "courier-1", null, null, 1.0, "SMALL", 100.0, 1, null, "Recipient", null, null, null, 1L, Instant.parse("2026-10-28T10:00:00Z"), Instant.parse("2026-10-28T11:00:00Z"))));
+        when(parcels.getParcelsCompletedByCourierOn("courier-1", today.toString())).thenReturn(java.util.List.of(
+            new ParcelResponse(deliveredId, "SD-1", "DELIVERED", "customer", null, "courier-1", null, null, 1.0, "SMALL", 100.0, 1, null, "Recipient", null, null, null, 1L, Instant.parse("2026-10-28T10:00:00Z"), Instant.parse("2026-10-28T12:00:00Z"),
+                Instant.parse("2026-10-28T10:30:00Z"), Instant.parse("2026-10-28T12:05:00Z"))));
+
+        var summary = operations.getSummary("courier-1", today);
+
+        // Open work first, then finished parcels; completedAt is taken from the parcel's completion time.
+        assertThat(summary.deliveries()).extracting("completedAt")
+            .containsExactly(null, Instant.parse("2026-10-28T12:05:00Z"));
+        assertThat(summary.pendingCount()).isEqualTo(1);
+        assertThat(summary.completedCount()).isEqualTo(1);
+    }
+
+    @Test
+    void summaryForPastDayShowsOnlyParcelsFinishedThatDay() {
+        when(parcels.getParcelsCompletedByCourierOn("courier-1", "2026-10-28")).thenReturn(java.util.List.of());
 
         var summary = operations.getSummary("courier-1", java.time.LocalDate.parse("2026-10-28"));
 
-        assertThat(summary.deliveries()).extracting("completedAt")
-            .containsExactly(Instant.parse("2026-10-28T12:00:00Z"), null);
+        assertThat(summary.deliveries()).isEmpty();
+        org.mockito.Mockito.verify(parcels, org.mockito.Mockito.never()).getActiveParcelsForCourier(org.mockito.ArgumentMatchers.any());
     }
 }

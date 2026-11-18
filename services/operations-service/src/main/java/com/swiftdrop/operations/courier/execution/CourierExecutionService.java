@@ -61,14 +61,12 @@ public class CourierExecutionService {
     }
 
     public CourierDeliveriesResponse getTodaysDeliveries(String courierId, String dateStr, String statusFilter) {
-        String effectiveDate = (dateStr != null && !dateStr.isBlank())
-            ? dateStr
-            : LocalDate.now(BUSINESS_ZONE).format(DateTimeFormatter.ISO_LOCAL_DATE);
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        LocalDate date = parseDate(dateStr, today);
+        String effectiveDate = date.format(DateTimeFormatter.ISO_LOCAL_DATE);
 
-        ParcelPageResponse response = parcelServiceClient.getParcelsByCourierAndDate(courierId, effectiveDate);
-        List<ParcelResponse> allParcels = response != null && response.content() != null
-            ? response.content()
-            : List.of();
+        List<ParcelResponse> allParcels = CourierRunSheet.load(parcelServiceClient, courierId, date, today);
+        Instant now = Instant.now();
 
         List<CourierDeliveryCard> cards = new ArrayList<>();
         int completedCount = 0;
@@ -76,14 +74,8 @@ public class CourierExecutionService {
         int sequenceIndex = 1;
 
         for (ParcelResponse p : allParcels) {
-            if (p.courierId() != null && !p.courierId().equals(courierId)) {
-                continue;
-            }
-
             String status = p.status();
-            boolean isCompleted = "DELIVERED".equalsIgnoreCase(status)
-                || "FAILED".equalsIgnoreCase(status)
-                || "CANCELLED".equalsIgnoreCase(status);
+            boolean isCompleted = CourierRunSheet.isCompleted(status);
 
             if (isCompleted) {
                 completedCount++;
@@ -111,7 +103,9 @@ public class CourierExecutionService {
                 p.weightKg(),
                 p.attemptCount() != null ? p.attemptCount() : 0,
                 sequenceIndex++,
-                isCompleted ? p.updatedAt() : null
+                CourierRunSheet.completedAt(p),
+                p.assignedAt(),
+                CourierRunSheet.isOverdue(p, now)
             ));
         }
 
@@ -122,6 +116,17 @@ public class CourierExecutionService {
             completedCount,
             cards
         );
+    }
+
+    private static LocalDate parseDate(String dateStr, LocalDate fallback) {
+        if (dateStr == null || dateStr.isBlank()) {
+            return fallback;
+        }
+        try {
+            return LocalDate.parse(dateStr.trim());
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid date, expected YYYY-MM-DD: " + dateStr);
+        }
     }
 
     public CourierDeliveryDetail getDeliveryDetail(String courierId, UUID parcelId) {
