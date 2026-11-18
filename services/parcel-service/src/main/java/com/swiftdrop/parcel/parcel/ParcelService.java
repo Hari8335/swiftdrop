@@ -20,14 +20,24 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class ParcelService {
+
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Colombo");
+
+    /** Statuses that end a courier's work on a parcel (FAILED may later be re-queued by a dispatcher). */
+    static final Set<ParcelStatus> COMPLETED_STATUSES =
+            EnumSet.of(ParcelStatus.DELIVERED, ParcelStatus.FAILED, ParcelStatus.CANCELLED);
+
+    /** Statuses a courier still has to act on. */
+    static final Set<ParcelStatus> ACTIVE_STATUSES = EnumSet.complementOf(EnumSet.copyOf(COMPLETED_STATUSES));
 
     private final ParcelRepository parcelRepository;
     private final StatusHistoryRepository statusHistoryRepository;
@@ -321,10 +331,18 @@ public class ParcelService {
                     "Cannot cancel parcel in status " + parcel.getStatus() + ". Cancellation permitted only while CREATED (before pickup).");
         }
 
+        // A dispatcher has already committed a courier to this parcel; cancelling now
+        // would send the courier out for a parcel that no longer exists.
+        if (parcel.getCourierId() != null && !parcel.getCourierId().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cannot cancel parcel: a courier has already been assigned. Please contact support.");
+        }
+
         ParcelStatus oldStatus = parcel.getStatus();
         ParcelStateMachine.validateTransition(oldStatus, ParcelStatus.CANCELLED);
 
         parcel.setStatus(ParcelStatus.CANCELLED);
+        parcel.setCompletedAt(Instant.now());
         parcel.setSequence(parcel.getSequence() + 1);
         parcel.setFailureReason(reason != null ? reason : "Cancelled by customer");
 
@@ -376,6 +394,7 @@ public class ParcelService {
         }
 
         parcel.setCourierId(courierId);
+        parcel.setAssignedAt(Instant.now());
         parcel.setSequence(parcel.getSequence() + 1);
 
         Parcel saved = parcelRepository.save(parcel);
@@ -422,6 +441,8 @@ public class ParcelService {
         if (ParcelStateMachine.isRequeue(oldStatus, request.status())) {
             previousCourier = parcel.getCourierId();
             parcel.setCourierId(null);
+            parcel.setAssignedAt(null);
+            parcel.setCompletedAt(null);
             parcel.setAttemptCount(parcel.getAttemptCount() + 1);
             parcel.setFailureReason(null);
         }
@@ -438,6 +459,9 @@ public class ParcelService {
         }
 
         parcel.setStatus(request.status());
+        if (COMPLETED_STATUSES.contains(request.status())) {
+            parcel.setCompletedAt(Instant.now());
+        }
         parcel.setSequence(parcel.getSequence() + 1);
 
         Parcel saved = parcelRepository.save(parcel);
@@ -465,6 +489,27 @@ public class ParcelService {
             ParcelStatus status,
             Pageable pageable
     ) {
+        return queryInternalParcels(unassigned, zone, courierId, date, status, null, null, pageable);
+    }
+
+    /**
+     * Internal parcel query. Day filters use Sri Lanka time (Asia/Colombo).
+     *
+     * @param date        parcels created on this day
+     * @param active      when true, only parcels a courier still has to act on (no date limit)
+     * @param completedOn parcels that reached DELIVERED, FAILED or CANCELLED on this day
+     */
+    @Transactional(readOnly = true)
+    public ParcelPageResponse queryInternalParcels(
+            Boolean unassigned,
+            String zone,
+            String courierId,
+            LocalDate date,
+            ParcelStatus status,
+            Boolean active,
+            LocalDate completedOn,
+            Pageable pageable
+    ) {
         Specification<Parcel> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -488,10 +533,18 @@ public class ParcelService {
             }
 
             if (date != null) {
-                var startOfDay = date.atStartOfDay(ZoneOffset.UTC).toInstant();
-                var endOfDay = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startOfDay));
-                predicates.add(cb.lessThan(root.get("createdAt"), endOfDay));
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), businessDayStart(date)));
+                predicates.add(cb.lessThan(root.get("createdAt"), businessDayStart(date.plusDays(1))));
+            }
+
+            if (Boolean.TRUE.equals(active)) {
+                predicates.add(root.get("status").in(ACTIVE_STATUSES));
+            }
+
+            if (completedOn != null) {
+                predicates.add(root.get("status").in(COMPLETED_STATUSES));
+                predicates.add(cb.greaterThanOrEqualTo(root.get("completedAt"), businessDayStart(completedOn)));
+                predicates.add(cb.lessThan(root.get("completedAt"), businessDayStart(completedOn.plusDays(1))));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -499,6 +552,10 @@ public class ParcelService {
 
         Page<Parcel> page = parcelRepository.findAll(spec, pageable);
         return ParcelPageResponse.from(page);
+    }
+
+    private static Instant businessDayStart(LocalDate date) {
+        return date.atStartOfDay(BUSINESS_ZONE).toInstant();
     }
 
     private void validateDistricts(String pickupDistrict, String dropoffDistrict) {

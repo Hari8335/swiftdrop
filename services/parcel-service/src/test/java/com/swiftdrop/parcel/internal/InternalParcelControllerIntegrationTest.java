@@ -72,7 +72,12 @@ class InternalParcelControllerIntegrationTest {
     }
 
     private Parcel createSampleParcel(String trackingNumber, ParcelStatus status, String courierId) {
+        return createSampleParcel(trackingNumber, status, courierId, null);
+    }
+
+    private Parcel createSampleParcel(String trackingNumber, ParcelStatus status, String courierId, java.time.Instant createdAt) {
         Parcel parcel = new Parcel();
+        parcel.setCreatedAt(createdAt);
         parcel.setTrackingNumber(trackingNumber);
         parcel.setStatus(status);
         parcel.setCourierId(courierId);
@@ -661,5 +666,106 @@ class InternalParcelControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new ParcelAssignmentRequest("  ", "dispatcher-1"))))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ---- Courier run sheet: assignedAt / completedAt / active / completedOn ----
+
+    private static final java.time.ZoneId COLOMBO = java.time.ZoneId.of("Asia/Colombo");
+
+    @Test
+    @DisplayName("Run sheet: assignment records assignedAt; re-queue clears assignedAt and completedAt")
+    void assignmentAndRequeueMaintainTimestamps() throws Exception {
+        Parcel parcel = createSampleParcel("SD-20261027-RUN001", ParcelStatus.CREATED, null);
+
+        mockMvc.perform(put("/internal/v1/parcels/" + parcel.getId() + "/assignment")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ParcelAssignmentRequest("usr-courier-42", "dispatcher-1"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assignedAt", notNullValue()));
+
+        Parcel failed = parcelRepository.findById(parcel.getId()).orElseThrow();
+        failed.setStatus(ParcelStatus.OUT_FOR_DELIVERY);
+        parcelRepository.save(failed);
+
+        mockMvc.perform(patch("/internal/v1/parcels/" + parcel.getId() + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ParcelStatusUpdateRequest(
+                                ParcelStatus.FAILED, ParcelStatus.OUT_FOR_DELIVERY, "usr-courier-42", "Recipient absent", null, "k-1"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completedAt", notNullValue()));
+
+        mockMvc.perform(patch("/internal/v1/parcels/" + parcel.getId() + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ParcelStatusUpdateRequest(
+                                ParcelStatus.CREATED, ParcelStatus.FAILED, "dispatcher-1", null, null, "k-2"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.courierId").doesNotExist())
+                .andExpect(jsonPath("$.assignedAt").doesNotExist())
+                .andExpect(jsonPath("$.completedAt").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Run sheet: active=true returns every open parcel for the courier regardless of creation date, oldest assignment first")
+    void activeFilterIgnoresCreationDate() throws Exception {
+        java.time.Instant now = java.time.Instant.now();
+        Parcel old = createSampleParcel("SD-20261001-RUN010", ParcelStatus.CREATED, "usr-courier-42",
+                now.minus(java.time.Duration.ofDays(10)));
+        old.setAssignedAt(now.minus(java.time.Duration.ofDays(3)));
+        parcelRepository.save(old);
+        Parcel recent = createSampleParcel("SD-20261027-RUN011", ParcelStatus.OUT_FOR_DELIVERY, "usr-courier-42");
+        recent.setAssignedAt(now.minus(java.time.Duration.ofHours(1)));
+        parcelRepository.save(recent);
+        Parcel delivered = createSampleParcel("SD-20261027-RUN012", ParcelStatus.DELIVERED, "usr-courier-42");
+        delivered.setCompletedAt(now);
+        parcelRepository.save(delivered);
+        createSampleParcel("SD-20261027-RUN013", ParcelStatus.CREATED, "usr-courier-other");
+
+        mockMvc.perform(get("/internal/v1/parcels")
+                        .param("courierId", "usr-courier-42")
+                        .param("active", "true")
+                        .param("sort", "assignedAt,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.content[0].trackingNumber", is("SD-20261001-RUN010")))
+                .andExpect(jsonPath("$.content[1].trackingNumber", is("SD-20261027-RUN011")));
+    }
+
+    @Test
+    @DisplayName("Run sheet: completedOn filters by the Sri Lanka day the parcel was finished")
+    void completedOnUsesColomboDayBoundaries() throws Exception {
+        java.time.LocalDate day = java.time.LocalDate.of(2026, 11, 18);
+        // 00:30 on 18 Nov in Colombo is still 17 Nov in UTC.
+        Parcel earlyMorning = createSampleParcel("SD-20261117-RUN020", ParcelStatus.DELIVERED, "usr-courier-42");
+        earlyMorning.setCompletedAt(day.atTime(0, 30).atZone(COLOMBO).toInstant());
+        parcelRepository.save(earlyMorning);
+        // 23:30 on 17 Nov in Colombo belongs to the previous day.
+        Parcel previousDay = createSampleParcel("SD-20261117-RUN021", ParcelStatus.FAILED, "usr-courier-42");
+        previousDay.setCompletedAt(day.minusDays(1).atTime(23, 30).atZone(COLOMBO).toInstant());
+        parcelRepository.save(previousDay);
+        Parcel stillOpen = createSampleParcel("SD-20261117-RUN022", ParcelStatus.IN_TRANSIT, "usr-courier-42");
+        stillOpen.setCompletedAt(day.atTime(10, 0).atZone(COLOMBO).toInstant());
+        parcelRepository.save(stillOpen);
+
+        mockMvc.perform(get("/internal/v1/parcels")
+                        .param("courierId", "usr-courier-42")
+                        .param("completedOn", "2026-11-18"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].trackingNumber", is("SD-20261117-RUN020")));
+    }
+
+    @Test
+    @DisplayName("Run sheet: date filter on creation day uses Sri Lanka time, not UTC")
+    void createdDateFilterUsesColomboDay() throws Exception {
+        // 01:00 on 18 Nov in Colombo = 19:30 on 17 Nov UTC.
+        createSampleParcel("SD-20261118-RUN030", ParcelStatus.CREATED, null,
+                java.time.LocalDate.of(2026, 11, 18).atTime(1, 0).atZone(COLOMBO).toInstant());
+
+        mockMvc.perform(get("/internal/v1/parcels").param("date", "2026-11-18"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)));
+        mockMvc.perform(get("/internal/v1/parcels").param("date", "2026-11-17"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(0)));
     }
 }

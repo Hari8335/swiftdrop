@@ -333,6 +333,45 @@ class ParcelControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("Cancel rules: rejected with 409 while CREATED once a courier is assigned; completedAt set on cancel")
+    void cancelIsRejectedOnceCourierAssigned() throws Exception {
+        Parcel parcel = new Parcel();
+        parcel.setTrackingNumber("SD-20261027-CNCL03");
+        parcel.setStatus(ParcelStatus.CREATED);
+        parcel.setCustomerId("usr-cust-1");
+        parcel.setCourierId("usr-courier-42");
+        parcel.setPickupAddress(new AddressSnapshot("A", null, "Colombo", "Colombo", "00100"));
+        parcel.setDropoffAddress(new AddressSnapshot("B", null, "Colombo", "Colombo", "00200"));
+        parcel.setWeightKg(new BigDecimal("1.00"));
+        parcel.setSize(ParcelSize.SMALL);
+        parcel.setFee(new BigDecimal("500.00"));
+        parcel.setRecipientName("Recipient");
+        parcel.setRecipientPhone("+94770000000");
+        Parcel assigned = parcelRepository.save(parcel);
+
+        mockMvc.perform(post("/api/v1/parcels/" + assigned.getId() + "/cancel")
+                        .with(user("usr-cust-1").roles("CUSTOMER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CancelParcelRequest("Changed mind"))))
+                .andExpect(status().isConflict());
+
+        Parcel unchanged = parcelRepository.findById(assigned.getId()).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(ParcelStatus.CREATED);
+        assertThat(unchanged.getCompletedAt()).isNull();
+
+        // An unassigned parcel can still be cancelled, and records when it was completed.
+        unchanged.setCourierId(null);
+        parcelRepository.save(unchanged);
+        mockMvc.perform(post("/api/v1/parcels/" + assigned.getId() + "/cancel")
+                        .with(user("usr-cust-1").roles("CUSTOMER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CancelParcelRequest("Changed mind"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("CANCELLED")));
+        assertThat(parcelRepository.findById(assigned.getId()).orElseThrow().getCompletedAt()).isNotNull();
+    }
+
+    @Test
     @DisplayName("Customer requests fee quote: returns real calculated quote and breakdown")
     void shouldReturnFeeQuoteSuccessfully() throws Exception {
         when(pricingQuoteClient.fetchQuoteDetails("Colombo", "Kandy", new BigDecimal("2.5"), ParcelSize.MEDIUM))

@@ -97,6 +97,14 @@ public class Parcel {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /** When the current courier was assigned; cleared when the parcel is re-queued. */
+    @Column(name = "assigned_at")
+    private Instant assignedAt;
+
+    /** When the parcel reached a terminal status (DELIVERED, FAILED, CANCELLED). */
+    @Column(name = "completed_at")
+    private Instant completedAt;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
