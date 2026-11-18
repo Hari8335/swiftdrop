@@ -40,7 +40,8 @@ export class NotificationService {
       effect(() => {
         const user = this.authService?.currentUser();
         const currentUserId = user?.id ?? null;
-        if (!user || !this.authService?.isAuthenticated()) {
+        // integration-service only allows CUSTOMER to read notifications.
+        if (!user || !this.authService?.isAuthenticated() || user.role !== 'CUSTOMER') {
           this.clear();
           this.lastUserId = null;
         } else if (currentUserId !== this.lastUserId) {
