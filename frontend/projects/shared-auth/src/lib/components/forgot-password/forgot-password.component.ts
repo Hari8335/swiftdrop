@@ -407,7 +407,11 @@ export class ForgotPasswordComponent {
       },
       error: (err) => {
         this.isLoading.set(false);
-        this.errorMessage.set(err.error?.message || 'Unable to process your request. Please try again.');
+        if (err.status === 404) {
+          this.errorMessage.set(err.error?.message || 'This email is not registered yet');
+        } else {
+          this.errorMessage.set(err.error?.message || 'Unable to process your request. Please try again.');
+        }
       }
     });
   }

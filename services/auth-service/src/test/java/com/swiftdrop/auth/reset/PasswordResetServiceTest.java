@@ -14,7 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -113,13 +115,15 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("Unregistered email returns identical generic response without email dispatch to prevent account enumeration")
-    void requestPasswordReset_unregisteredUser_returnsGenericResponseWithoutEmail() {
+    @DisplayName("Unregistered email throws ResponseStatusException with 404 NOT_FOUND")
+    void requestPasswordReset_unregisteredUser_throwsResponseStatusException() {
         when(userRepository.findByEmailIgnoreCase("unknown@example.com")).thenReturn(Optional.empty());
 
-        ForgotPasswordResponse response = resetService.requestPasswordReset("unknown@example.com", "127.0.0.1", "corr-2");
+        assertThatThrownBy(() -> resetService.requestPasswordReset("unknown@example.com", "127.0.0.1", "corr-2"))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("statusCode", "reason")
+                .containsExactly(HttpStatus.NOT_FOUND, "This email is not registered yet");
 
-        assertThat(response.message()).isEqualTo(ForgotPasswordResponse.DEFAULT_MESSAGE);
         verify(mailSender, never()).sendResetEmail(any(), any());
         verify(tokenRepository, never()).save(any());
 
@@ -134,14 +138,16 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    @DisplayName("Disabled user returns identical generic response without sending reset email")
-    void requestPasswordReset_disabledUser_returnsGenericResponseWithoutEmail() {
+    @DisplayName("Disabled user throws ResponseStatusException with 403 FORBIDDEN")
+    void requestPasswordReset_disabledUser_throwsResponseStatusException() {
         User user = new User("usr-disabled", "disabled@example.com", "hashed", "Disabled", null, "CUSTOMER", false, null);
         when(userRepository.findByEmailIgnoreCase("disabled@example.com")).thenReturn(Optional.of(user));
 
-        ForgotPasswordResponse response = resetService.requestPasswordReset("disabled@example.com", "127.0.0.1", "corr-3");
+        assertThatThrownBy(() -> resetService.requestPasswordReset("disabled@example.com", "127.0.0.1", "corr-3"))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting("statusCode", "reason")
+                .containsExactly(HttpStatus.FORBIDDEN, "Account is disabled. Please contact support.");
 
-        assertThat(response.message()).isEqualTo(ForgotPasswordResponse.DEFAULT_MESSAGE);
         verify(mailSender, never()).sendResetEmail(any(), any());
         verify(tokenRepository, never()).save(any());
     }
@@ -271,6 +277,34 @@ class PasswordResetServiceTest {
 
         verify(userRepository, never()).save(any());
         verify(refreshTokenRepository, never()).revokeByUserId(any());
+    }
+
+    @Test
+    @DisplayName("Password violating policy (< 8 chars, missing uppercase, digits, or special chars) throws IllegalArgumentException")
+    void resetPassword_weakPassword_throwsIllegalArgumentException() {
+        // Less than 8 characters
+        assertThatThrownBy(() -> resetService.resetPassword(
+                "alice@example.com", "123456", "Short1!", "127.0.0.1", "corr-weak-1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Password must be at least 8 characters");
+
+        // Missing uppercase
+        assertThatThrownBy(() -> resetService.resetPassword(
+                "alice@example.com", "123456", "password123!", "127.0.0.1", "corr-weak-2"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Password must contain at least one uppercase letter, one number, and one special character");
+
+        // Missing number
+        assertThatThrownBy(() -> resetService.resetPassword(
+                "alice@example.com", "123456", "PasswordOnly!", "127.0.0.1", "corr-weak-3"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Password must contain at least one uppercase letter, one number, and one special character");
+
+        // Missing special character
+        assertThatThrownBy(() -> resetService.resetPassword(
+                "alice@example.com", "123456", "Password123", "127.0.0.1", "corr-weak-4"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Password must contain at least one uppercase letter, one number, and one special character");
     }
 }
 

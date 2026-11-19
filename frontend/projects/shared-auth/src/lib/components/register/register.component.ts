@@ -3,6 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import {
+  passwordComplexityValidator,
+  getPasswordComplexityWarning,
+} from '../../validators/password.validator';
 
 @Component({
   selector: 'lib-register',
@@ -99,7 +103,7 @@ import { AuthService } from '../../services/auth.service';
 
             <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form">
               <div class="form-group">
-                <label for="fullName">Full Name</label>
+                <label for="fullName">Full Name <span class="required-star text-red-500">*</span></label>
                 <input
                   id="fullName"
                   type="text"
@@ -114,16 +118,19 @@ import { AuthService } from '../../services/auth.service';
               </div>
 
               <div class="form-group">
-                <label for="email">Email address</label>
+                <label for="email">Email address <span class="required-star text-red-500">*</span></label>
                 <input
                   id="email"
                   type="email"
                   formControlName="email"
+                  (input)="onEmailInput()"
                   placeholder="you@example.com"
-                  [class.invalid]="isFieldInvalid('email')"
+                  [class.invalid]="isFieldInvalid('email') || !!registerForm.get('email')?.hasError('alreadyExists')"
                   autocomplete="email"
                 />
-                @if (isFieldInvalid('email')) {
+                @if (registerForm.get('email')?.hasError('alreadyExists')) {
+                  <span class="field-error">An account with this email address already exists. Please sign in or use a different email.</span>
+                } @else if (isFieldInvalid('email')) {
                   <span class="field-error">Please enter a valid email address (e.g. you@example.com)</span>
                 }
               </div>
@@ -147,17 +154,19 @@ import { AuthService } from '../../services/auth.service';
               </div>
 
               <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password">Password <span class="required-star text-red-500">*</span></label>
                 <input
                   id="password"
                   type="password"
                   formControlName="password"
                   placeholder="At least 8 characters"
-                  [class.invalid]="isFieldInvalid('password')"
+                  [class.invalid]="!!getPasswordErrorMessage()"
+                  (focus)="onPasswordFocus()"
+                  (blur)="onPasswordBlur()"
                   autocomplete="new-password"
                 />
-                @if (isFieldInvalid('password')) {
-                  <span class="field-error">Password must be at least 8 characters</span>
+                @if (getPasswordErrorMessage()) {
+                  <span class="field-error">{{ getPasswordErrorMessage() }}</span>
                 }
               </div>
 
@@ -432,6 +441,11 @@ import { AuthService } from '../../services/auth.service';
       font-weight: 700;
       color: var(--ink);
     }
+    .required-star {
+      color: #ef4444;
+      margin-left: 2px;
+      font-weight: 700;
+    }
     .form-group input {
       padding: 0.85rem 1.1rem;
       border-radius: 14px;
@@ -529,13 +543,52 @@ export class RegisterComponent {
 
   readonly isLoading = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly isPasswordFocused = signal(false);
+  readonly hasLeftPassword = signal(false);
 
   readonly registerForm: FormGroup = this.fb.group({
     fullName: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
     phoneNumber: ['', [Validators.pattern(/^[0-9]{10}$/)]],
-    password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(128)]]
+    password: ['', [Validators.required, Validators.maxLength(128), passwordComplexityValidator]]
   });
+
+  onPasswordFocus(): void {
+    this.isPasswordFocused.set(true);
+  }
+
+  onPasswordBlur(): void {
+    this.isPasswordFocused.set(false);
+    this.hasLeftPassword.set(true);
+  }
+
+  getPasswordErrorMessage(): string | null {
+    const control = this.registerForm.get('password');
+    if (!control) return null;
+
+    const val = (control.value as string) || '';
+    const isDirty = control.dirty;
+    const isTouched = control.touched || this.hasLeftPassword();
+    const isFocused = this.isPasswordFocused();
+
+    if (!isDirty && !isTouched) {
+      return null;
+    }
+
+    if (!val && isTouched) {
+      return 'Password must be at least 8 characters';
+    }
+
+    if (val.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+
+    if (isFocused && !this.hasLeftPassword() && !control.touched) {
+      return null;
+    }
+
+    return getPasswordComplexityWarning(val);
+  }
 
   onPhoneInput(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -546,12 +599,25 @@ export class RegisterComponent {
     }
   }
 
+  onEmailInput(): void {
+    const emailControl = this.registerForm.get('email');
+    if (emailControl?.hasError('alreadyExists')) {
+      const errors = { ...emailControl.errors };
+      delete errors['alreadyExists'];
+      emailControl.setErrors(Object.keys(errors).length > 0 ? errors : null);
+      if (this.errorMessage()?.includes('already registered') || this.errorMessage()?.includes('already exists')) {
+        this.errorMessage.set(null);
+      }
+    }
+  }
+
   isFieldInvalid(fieldName: string): boolean {
     const field = this.registerForm.get(fieldName);
     return !!(field && field.invalid && (field.dirty || field.touched));
   }
 
   onSubmit(): void {
+    this.hasLeftPassword.set(true);
     if (this.registerForm.invalid) {
       this.registerForm.markAllAsTouched();
       return;
@@ -568,7 +634,10 @@ export class RegisterComponent {
       error: (err) => {
         this.isLoading.set(false);
         if (err.status === 409) {
-          this.errorMessage.set('This email address is already registered.');
+          const emailControl = this.registerForm.get('email');
+          emailControl?.setErrors({ alreadyExists: true });
+          emailControl?.markAsTouched();
+          this.errorMessage.set('This email address is already registered. Please sign in or use a different email.');
         } else if (err.status === 429) {
           this.errorMessage.set('Too many registration attempts. Please wait a moment and try again.');
         } else {

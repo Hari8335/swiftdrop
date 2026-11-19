@@ -12,9 +12,11 @@ import com.swiftdrop.auth.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -79,48 +81,60 @@ public class PasswordResetService {
         String normalizedEmail = email.trim().toLowerCase();
         Optional<User> userOpt = userRepository.findByEmailIgnoreCase(normalizedEmail);
 
-        if (userOpt.isPresent() && userOpt.get().isEnabled()) {
-            User user = userOpt.get();
-            Instant now = clock.instant();
-
-            // Invalidate existing active reset tokens for this user
-            tokenRepository.invalidateActiveTokensForUser(user.getId(), now);
-
-            String rawToken = String.format("%06d", secureRandom.nextInt(OTP_BOUND));
-            String tokenHash = hashToken(rawToken);
-
-            Instant expiresAt = now.plus(TOKEN_EXPIRY_MINUTES, ChronoUnit.MINUTES);
-            PasswordResetToken token = new PasswordResetToken(
-                    UUID.randomUUID().toString(),
-                    user.getId(),
-                    tokenHash,
-                    expiresAt
-            );
-            tokenRepository.save(token);
-
-            // Send code to recipient via the configured SMTP provider
-            mailSender.sendResetEmail(user.getEmail(), rawToken);
-
-            // Record audit log
-            auditService.record(
-                    user.getId(),
-                    user.getRole(),
-                    "PASSWORD_RESET_REQUESTED",
-                    "USER",
-                    user.getId(),
-                    Map.of("ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
-            );
-        } else {
-            // User does not exist or is disabled - record generic audit without leaking existence
+        if (userOpt.isEmpty()) {
             auditService.record(
                     "ANONYMOUS",
                     "ANONYMOUS",
                     "PASSWORD_RESET_REQUEST_FAILED",
                     "USER",
                     normalizedEmail,
-                    Map.of("reason", "USER_NOT_FOUND_OR_DISABLED", "ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
+                    Map.of("reason", "USER_NOT_FOUND", "ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
             );
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "This email is not registered yet");
         }
+
+        User user = userOpt.get();
+        if (!user.isEnabled()) {
+            auditService.record(
+                    user.getId(),
+                    user.getRole(),
+                    "PASSWORD_RESET_REQUEST_FAILED",
+                    "USER",
+                    normalizedEmail,
+                    Map.of("reason", "USER_DISABLED", "ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
+            );
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled. Please contact support.");
+        }
+
+        Instant now = clock.instant();
+
+        // Invalidate existing active reset tokens for this user
+        tokenRepository.invalidateActiveTokensForUser(user.getId(), now);
+
+        String rawToken = String.format("%06d", secureRandom.nextInt(OTP_BOUND));
+        String tokenHash = hashToken(rawToken);
+
+        Instant expiresAt = now.plus(TOKEN_EXPIRY_MINUTES, ChronoUnit.MINUTES);
+        PasswordResetToken token = new PasswordResetToken(
+                UUID.randomUUID().toString(),
+                user.getId(),
+                tokenHash,
+                expiresAt
+        );
+        tokenRepository.save(token);
+
+        // Send code to recipient via the configured SMTP provider
+        mailSender.sendResetEmail(user.getEmail(), rawToken);
+
+        // Record audit log
+        auditService.record(
+                user.getId(),
+                user.getRole(),
+                "PASSWORD_RESET_REQUESTED",
+                "USER",
+                user.getId(),
+                Map.of("ipAddress", ipAddress != null ? ipAddress : "UNKNOWN")
+        );
 
         return new ForgotPasswordResponse();
     }
@@ -134,6 +148,7 @@ public class PasswordResetService {
     @Transactional
     public PasswordResetResult resetPassword(
             String email, String rawToken, String newPassword, String ipAddress, String correlationId) {
+        validatePassword(newPassword);
         Instant now = clock.instant();
         PasswordResetToken token = findValidToken(email, rawToken, ipAddress, now);
         User user = userRepository.findById(token.getUserId())
@@ -210,7 +225,19 @@ public class PasswordResetService {
 
     private void validatePassword(String password) {
         if (password == null || password.length() < 8 || password.length() > 128) {
-            throw new IllegalArgumentException("Password must be between 8 and 128 characters");
+            throw new IllegalArgumentException("Password must be at least 8 characters");
+        }
+        boolean hasUpper = false;
+        boolean hasDigit = false;
+        boolean hasSpecial = false;
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) hasUpper = true;
+            if (Character.isDigit(c)) hasDigit = true;
+            if (!Character.isLetterOrDigit(c)) hasSpecial = true;
+        }
+        if (!hasUpper || !hasDigit || !hasSpecial) {
+            throw new IllegalArgumentException(
+                    "Password must contain at least one uppercase letter, one number, and one special character");
         }
     }
 

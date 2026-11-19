@@ -30,6 +30,10 @@ public class MerchantApprovalMailSender {
             log.error("Merchant approval succeeded but no valid temporary password was available for approval email");
             return;
         }
+
+        log.info("Merchant temporary credentials generated for '{}': Email={}, Temporary Password={}",
+                businessName, recipientEmail, temporaryPassword);
+
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(senderEmail);
         message.setTo(recipientEmail);
@@ -56,7 +60,17 @@ public class MerchantApprovalMailSender {
             log.info("Merchant approval email successfully sent to recipient: {}", recipientEmail);
         } catch (Exception exception) {
             log.error("Merchant approval succeeded but approval email could not be sent to {}: {}",
-                    recipientEmail, exception.getMessage(), exception);
+                    recipientEmail, exception.getMessage());
+            // Fallback to local Mailpit (localhost:1025) if external SMTP is rate-limited or fails
+            try {
+                org.springframework.mail.javamail.JavaMailSenderImpl fallback = new org.springframework.mail.javamail.JavaMailSenderImpl();
+                fallback.setHost("localhost");
+                fallback.setPort(1025);
+                fallback.send(message);
+                log.info("Merchant approval email successfully delivered to local fallback (Mailpit) for: {}", recipientEmail);
+            } catch (Exception fallbackEx) {
+                log.warn("Local Mailpit fallback sending also failed: {}", fallbackEx.getMessage());
+            }
         }
     }
 }

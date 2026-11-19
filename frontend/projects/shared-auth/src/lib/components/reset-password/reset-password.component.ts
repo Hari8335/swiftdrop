@@ -11,6 +11,10 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import {
+  passwordComplexityValidator,
+  getPasswordComplexityWarning,
+} from '../../validators/password.validator';
 
 export const passwordMatchValidator: ValidatorFn = (
   control: AbstractControl
@@ -149,7 +153,9 @@ export const passwordMatchValidator: ValidatorFn = (
                       [type]="showPassword() ? 'text' : 'password'"
                       formControlName="newPassword"
                       placeholder="At least 8 characters"
-                      [class.invalid]="isFieldInvalid('newPassword')"
+                      [class.invalid]="!!getPasswordErrorMessage()"
+                      (focus)="onPasswordFocus()"
+                      (blur)="onPasswordBlur()"
                       autocomplete="new-password"
                     />
                     <button
@@ -171,8 +177,8 @@ export const passwordMatchValidator: ValidatorFn = (
                       }
                     </button>
                   </div>
-                  @if (isFieldInvalid('newPassword')) {
-                    <span class="field-error">Password must be between 8 and 128 characters</span>
+                  @if (getPasswordErrorMessage()) {
+                    <span class="field-error">{{ getPasswordErrorMessage() }}</span>
                   }
                 </div>
 
@@ -184,6 +190,7 @@ export const passwordMatchValidator: ValidatorFn = (
                       [type]="showConfirmPassword() ? 'text' : 'password'"
                       formControlName="confirmPassword"
                       placeholder="Re-enter password"
+                      (focus)="onConfirmPasswordFocus()"
                       [class.invalid]="isFieldInvalid('confirmPassword') || hasMismatchError()"
                       autocomplete="new-password"
                     />
@@ -641,6 +648,8 @@ export class ResetPasswordComponent implements OnInit {
 
   readonly showPassword = signal(false);
   readonly showConfirmPassword = signal(false);
+  readonly isPasswordFocused = signal(false);
+  readonly hasLeftPassword = signal(false);
 
   readonly codeForm: FormGroup = this.fb.group({
     token: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
@@ -648,7 +657,7 @@ export class ResetPasswordComponent implements OnInit {
 
   readonly resetForm: FormGroup = this.fb.group(
     {
-      newPassword: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(128)]],
+      newPassword: ['', [Validators.required, Validators.maxLength(128), passwordComplexityValidator]],
       confirmPassword: ['', [Validators.required]],
     },
     { validators: passwordMatchValidator }
@@ -671,6 +680,47 @@ export class ResetPasswordComponent implements OnInit {
 
   toggleShowConfirmPassword(): void {
     this.showConfirmPassword.update((v) => !v);
+  }
+
+  onPasswordFocus(): void {
+    this.isPasswordFocused.set(true);
+  }
+
+  onPasswordBlur(): void {
+    this.isPasswordFocused.set(false);
+    this.hasLeftPassword.set(true);
+  }
+
+  onConfirmPasswordFocus(): void {
+    this.hasLeftPassword.set(true);
+  }
+
+  getPasswordErrorMessage(): string | null {
+    const control = this.resetForm.get('newPassword');
+    if (!control) return null;
+
+    const val = (control.value as string) || '';
+    const isDirty = control.dirty;
+    const isTouched = control.touched || this.hasLeftPassword();
+    const isFocused = this.isPasswordFocused();
+
+    if (!isDirty && !isTouched) {
+      return null;
+    }
+
+    if (!val && isTouched) {
+      return 'Password must be at least 8 characters';
+    }
+
+    if (val.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+
+    if (isFocused && !this.hasLeftPassword() && !control.touched) {
+      return null;
+    }
+
+    return getPasswordComplexityWarning(val);
   }
 
   isFieldInvalid(fieldName: string): boolean {
@@ -733,6 +783,7 @@ export class ResetPasswordComponent implements OnInit {
   }
 
   onSubmit(): void {
+    this.hasLeftPassword.set(true);
     if (this.resetForm.invalid || !this.email() || (!this.firstLogin() && !this.token())) {
       this.resetForm.markAllAsTouched();
       return;
