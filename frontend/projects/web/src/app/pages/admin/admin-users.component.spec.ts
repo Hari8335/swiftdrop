@@ -41,6 +41,7 @@ describe('AdminUsersComponent', () => {
       pageSize: jest.fn(() => 20),
       loading: jest.fn(() => false),
       error: jest.fn(() => null),
+      roleCounts: jest.fn(() => ({ MERCHANT: 0, CUSTOMER: 0, DISPATCHER: 1, COURIER: 1 })),
       loadUsers: jest.fn(() =>
         of({
           content: mockUsers,
@@ -73,8 +74,12 @@ describe('AdminUsersComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('#open-create-user-modal-btn')).toBeTruthy();
     expect(compiled.querySelector('#user-role-filter')).toBeTruthy();
+    const roleOptions = Array.from(compiled.querySelectorAll('#user-role-filter option')).map(
+      (opt) => (opt as HTMLOptionElement).value
+    );
+    expect(roleOptions).toEqual(['', 'CUSTOMER', 'MERCHANT', 'DISPATCHER', 'COURIER']);
     expect(compiled.querySelector('#user-status-filter')).toBeTruthy();
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 20, undefined, undefined);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 15, undefined, undefined);
 
     const rows = compiled.querySelectorAll('tbody tr');
     expect(rows.length).toBe(2);
@@ -85,13 +90,13 @@ describe('AdminUsersComponent', () => {
   it('should trigger server-side reload when role filter changes', () => {
     component.onRoleFilterChange('COURIER');
     expect(component.userRoleFilter()).toBe('COURIER');
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 20, 'COURIER', undefined);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 15, 'COURIER', undefined);
   });
 
   it('should trigger server-side reload when status filter changes', () => {
     component.onStatusFilterChange('true');
     expect(component.userStatusFilter()).toBe('true');
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 20, undefined, true);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 15, undefined, true);
   });
 
   it('should toggle user account status via PATCH request', () => {
@@ -233,10 +238,10 @@ describe('AdminUsersComponent', () => {
     expect(compiled.querySelector('#page-info')?.textContent).toContain('Page 2 of 3');
 
     component.goToPage(2);
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(2, 20, undefined, undefined);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(2, 15, undefined, undefined);
 
     component.goToPage(0);
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 20, undefined, undefined);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 15, undefined, undefined);
   });
 
   it('should filter users reactively when search query is entered', () => {

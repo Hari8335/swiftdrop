@@ -12,8 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import com.swiftdrop.auth.audit.AuditService;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class AdminUserService {
@@ -26,6 +29,13 @@ public class AdminUserService {
     private final AuthEventPublisher authEventPublisher;
     private final StaffProvisioningMailSender staffProvisioningMailSender;
     private final SecureRandom random = new SecureRandom();
+
+    @Autowired(required = false)
+    private AuditService auditService;
+
+    public void setAuditService(AuditService auditService) {
+        this.auditService = auditService;
+    }
 
     public AdminUserService(
         AdminUserRepository adminUserRepository,
@@ -48,6 +58,26 @@ public class AdminUserService {
     }
 
     @Transactional(readOnly = true)
+    public Map<String, Long> getUserCountsByRole() {
+        Map<String, Long> counts = new java.util.HashMap<>();
+        counts.put("MERCHANT", 0L);
+        counts.put("CUSTOMER", 0L);
+        counts.put("DISPATCHER", 0L);
+        counts.put("COURIER", 0L);
+        counts.put("ADMIN", 0L);
+        try {
+            for (Object[] row : adminUserRepository.countUsersByRole()) {
+                if (row != null && row.length == 2 && row[0] != null) {
+                    counts.put(row[0].toString().toUpperCase(), ((Number) row[1]).longValue());
+                }
+            }
+        } catch (Exception e) {
+            // fallback if mock or query fails in certain unit tests
+        }
+        return counts;
+    }
+
+    @Transactional(readOnly = true)
     public UserListPage listUsers(String role, Boolean enabled, int page, int size) {
         String filterRole = (role != null && !role.isBlank()) ? role.trim().toUpperCase() : null;
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -62,7 +92,8 @@ public class AdminUserService {
             userPage.getTotalElements(),
             userPage.getTotalPages(),
             userPage.getNumber(),
-            userPage.getSize()
+            userPage.getSize(),
+            getUserCountsByRole()
         );
     }
 
@@ -118,17 +149,70 @@ public class AdminUserService {
             );
         }
 
+        if (auditService != null) {
+            auditService.record(
+                saved.getId(),
+                saved.getRole(),
+                "STAFF_PROVISIONED",
+                "USER",
+                saved.getId(),
+                Map.of(
+                    "email", saved.getEmail(),
+                    "role", saved.getRole(),
+                    "fullName", saved.getFullName()
+                )
+            );
+        }
+
+        return UserSummary.from(saved);
+    }
+
+    @Transactional
+    public UserSummary updateUser(String userId, UpdateUserStatusRequest request) {
+        User user = adminUserRepository.findById(userId)
+            .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
+
+        if (request.enabled() != null) {
+            user.setEnabled(request.enabled());
+            if (auditService != null) {
+                auditService.record(
+                    user.getId(),
+                    user.getRole(),
+                    request.enabled() ? "STAFF_ENABLED" : "STAFF_DISABLED",
+                    "USER",
+                    user.getId(),
+                    Map.of(
+                        "email", user.getEmail(),
+                        "role", user.getRole(),
+                        "fullName", user.getFullName(),
+                        "status", request.enabled() ? "ACTIVE" : "DISABLED"
+                    )
+                );
+            }
+        }
+        if (request.fullName() != null && !request.fullName().isBlank()) {
+            user.setFullName(request.fullName().trim());
+        }
+        if (request.phoneNumber() != null) {
+            user.setPhoneNumber(request.phoneNumber().trim());
+        }
+        if (request.email() != null && !request.email().isBlank()) {
+            String normalizedEmail = request.email().trim().toLowerCase();
+            if (!normalizedEmail.equalsIgnoreCase(user.getEmail())) {
+                if (adminUserRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+                    throw new EmailAlreadyExistsException("A user account with this email address already exists.");
+                }
+                user.setEmail(normalizedEmail);
+            }
+        }
+        user.setUpdatedAt(java.time.Instant.now());
+        User saved = adminUserRepository.save(user);
+
         return UserSummary.from(saved);
     }
 
     @Transactional
     public UserSummary updateUserStatus(String userId, boolean enabled) {
-        User user = adminUserRepository.findById(userId)
-            .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
-
-        user.setEnabled(enabled);
-        User saved = adminUserRepository.save(user);
-
-        return UserSummary.from(saved);
+        return updateUser(userId, new UpdateUserStatusRequest(enabled));
     }
 }

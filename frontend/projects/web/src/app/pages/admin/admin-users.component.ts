@@ -119,7 +119,8 @@ import { AdminUsersService } from './admin-users.service';
             class="rounded-full border border-[#e8e4df] bg-[#fbfaf8] px-3 py-2 text-sm outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
           >
             <option value="">All Roles</option>
-            <option value="ADMIN">ADMIN</option>
+            <option value="CUSTOMER">CUSTOMER</option>
+            <option value="MERCHANT">MERCHANT</option>
             <option value="DISPATCHER">DISPATCHER</option>
             <option value="COURIER">COURIER</option>
           </select>
@@ -138,21 +139,29 @@ import { AdminUsersService } from './admin-users.service';
           <button
             type="button"
             (click)="reloadUsers()"
-            class="rounded-full border border-[#e8e4df] px-3 py-2 text-xs font-bold text-[#77748a] transition hover:border-[#d7b4a7] hover:text-[#9b432f]"
+            class="inline-flex items-center gap-1.5 rounded-full border border-[#e8e4df] bg-[#fbfaf8] px-3.5 py-2 text-xs font-bold text-[#77748a] transition hover:border-[#d7b4a7] hover:text-[#9b432f]"
             title="Refresh User List"
           >
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-4L3 10"/><path d="M3 5v5h5"/><path d="M4 13a8 8 0 0 0 14.8 4L21 14"/><path d="M21 19v-5h-5"/></svg>
-            Refresh
+            <span>Refresh</span>
           </button>
         </div>
 
-        <div class="flex items-center gap-3">
-          <p class="text-xs font-medium text-[#77748a]">
-            @if (adminSearchService.query().trim()) {
+        <div class="flex flex-wrap items-center gap-2">
+          @if (adminSearchService.query().trim()) {
+            <span class="text-xs font-medium text-[#77748a]">
               Showing <strong class="text-[#211f32]">{{ filteredUsers().length }}</strong> of
-            }
-            Total Staff & Users: <strong class="text-[#211f32]">{{ adminUsersService.totalElements() }}</strong>
-          </p>
+            </span>
+          }
+          <div class="flex flex-wrap items-center gap-2 text-xs font-medium text-[#77748a]">
+            <span>Merchants: <strong class="font-bold text-[#211f32]">{{ roleCounts().MERCHANT ?? 0 }}</strong></span>
+            <span class="text-[#ccc8d6]">•</span>
+            <span>Dispatchers: <strong class="font-bold text-[#211f32]">{{ roleCounts().DISPATCHER ?? 0 }}</strong></span>
+            <span class="text-[#ccc8d6]">•</span>
+            <span>Couriers: <strong class="font-bold text-[#211f32]">{{ roleCounts().COURIER ?? 0 }}</strong></span>
+            <span class="text-[#ccc8d6]">•</span>
+            <span>Users: <strong class="font-bold text-[#211f32]">{{ roleCounts().CUSTOMER ?? 0 }}</strong></span>
+          </div>
           @if (adminSearchService.query().trim()) {
             <button
               type="button"
@@ -217,6 +226,12 @@ import { AdminUsersService } from './admin-users.service';
                     [class.bg-emerald-50]="user.role === 'COURIER'"
                     [class.text-emerald-700]="user.role === 'COURIER'"
                     [class.border-emerald-200]="user.role === 'COURIER'"
+                    [class.bg-amber-50]="user.role === 'MERCHANT'"
+                    [class.text-amber-700]="user.role === 'MERCHANT'"
+                    [class.border-amber-200]="user.role === 'MERCHANT'"
+                    [class.bg-slate-50]="user.role === 'CUSTOMER'"
+                    [class.text-slate-600]="user.role === 'CUSTOMER'"
+                    [class.border-slate-200]="user.role === 'CUSTOMER'"
                   >
                     {{ user.role }}
                   </span>
@@ -396,7 +411,7 @@ import { AdminUsersService } from './admin-users.service';
 
           <form (ngSubmit)="submitCreateStaffUser()" class="space-y-3.5">
             <div>
-              <label class="mb-1 block text-xs font-bold text-[#77748a]">Full Name</label>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">Full Name <span class="text-red-500 font-bold ml-0.5">*</span></label>
               <input
                 type="text"
                 id="staff-fullname-input"
@@ -409,20 +424,29 @@ import { AdminUsersService } from './admin-users.service';
             </div>
 
             <div>
-              <label class="mb-1 block text-xs font-bold text-[#77748a]">Email Address</label>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">Email Address <span class="text-red-500 font-bold ml-0.5">*</span></label>
               <input
                 type="email"
                 id="staff-email-input"
                 [(ngModel)]="newUserEmail"
+                (input)="onStaffEmailInput()"
                 name="email"
                 required
                 placeholder="e.g. courier.sunil@swiftdrop.lk"
+                [class.!border-[#b23b32]]="emailAlreadyExistsError()"
+                [class.!bg-[#fff5f5]]="emailAlreadyExistsError()"
                 class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none placeholder:text-[#aaa6b5] focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
               />
+              <p
+                *ngIf="emailAlreadyExistsError()"
+                class="mt-1 text-[11px] font-medium text-[#b23b32]"
+              >
+                An account with this email address already exists. Please choose a different email.
+              </p>
             </div>
 
             <div>
-              <label class="mb-1 block text-xs font-bold text-[#77748a]">Phone Number</label>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">Phone Number <span class="text-red-500 font-bold ml-0.5">*</span></label>
               <input
                 type="tel"
                 inputmode="numeric"
@@ -444,7 +468,7 @@ import { AdminUsersService } from './admin-users.service';
             </div>
 
             <div>
-              <label class="mb-1 block text-xs font-bold text-[#77748a]">Staff Role</label>
+              <label class="mb-1 block text-xs font-bold text-[#77748a]">Staff Role <span class="text-red-500 font-bold ml-0.5">*</span></label>
               <select
                 id="staff-role-select"
                 [(ngModel)]="newUserRole"
@@ -478,6 +502,7 @@ import { AdminUsersService } from './admin-users.service';
           </form>
         </div>
       </div>
+
     </div>
   `,
 })
@@ -493,6 +518,19 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
   public updatingUserId = signal<string | null>(null);
   public pendingConfirmUserId = signal<string | null>(null);
   public modalError = signal<string | null>(null);
+  public emailAlreadyExistsError = signal(false);
+
+  public roleCounts = computed(() => {
+    if (typeof this.adminUsersService.roleCounts === 'function') {
+      return this.adminUsersService.roleCounts() || {};
+    }
+    return {
+      MERCHANT: 0,
+      CUSTOMER: 0,
+      DISPATCHER: 0,
+      COURIER: 0,
+    };
+  });
 
   public filteredUsers = computed(() => {
     const users = this.adminUsersService.users();
@@ -536,12 +574,13 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     const statusVal = this.userStatusFilter();
     const enabled = statusVal !== '' ? statusVal === 'true' : undefined;
 
-    this.adminUsersService.loadUsers(page, 20, role, enabled).subscribe({
+    this.adminUsersService.loadUsers(page, 15, role, enabled).subscribe({
       error: () => {
         // error signal in service is automatically updated
       },
     });
   }
+
 
   public onRoleFilterChange(newRole: string): void {
     this.userRoleFilter.set(newRole);
@@ -622,14 +661,25 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     );
   }
 
+  public onStaffEmailInput(): void {
+    if (this.emailAlreadyExistsError()) {
+      this.emailAlreadyExistsError.set(false);
+      if (this.modalError()?.includes('already')) {
+        this.modalError.set(null);
+      }
+    }
+  }
+
   public openCreateUserModal(): void {
     this.modalError.set(null);
+    this.emailAlreadyExistsError.set(false);
     this.isCreateUserModalOpen.set(true);
   }
 
   public closeCreateUserModal(): void {
     this.isCreateUserModalOpen.set(false);
     this.modalError.set(null);
+    this.emailAlreadyExistsError.set(false);
   }
 
   public submitCreateStaffUser(): void {
@@ -639,6 +689,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
 
     this.isSubmitting.set(true);
     this.modalError.set(null);
+    this.emailAlreadyExistsError.set(false);
 
     const payload: CreateStaffUserRequest = {
       fullName: this.newUserFullName.trim(),
@@ -650,6 +701,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     this.adminUsersService.createStaffUser(payload).subscribe({
       next: (created) => {
         this.isSubmitting.set(false);
+        this.emailAlreadyExistsError.set(false);
         this.showToast(
           `Staff account for ${created.fullName} (${created.role}) provisioned! A 6-letter temporary password has been emailed to ${created.email}.`,
           'success'
@@ -672,6 +724,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
           'Failed to create staff account.';
 
         if (err?.status === 409) {
+          this.emailAlreadyExistsError.set(true);
           errorMsg = `Email '${payload.email}' already exists. Please choose a different email.`;
         } else if (err?.status === 400) {
           errorMsg = err?.error?.message || 'Invalid input: only COURIER and DISPATCHER staff roles are permitted.';

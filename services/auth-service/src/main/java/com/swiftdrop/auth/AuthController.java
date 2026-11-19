@@ -6,6 +6,7 @@ import com.swiftdrop.auth.dto.LoginRequest;
 import com.swiftdrop.auth.dto.RefreshTokenRequest;
 import com.swiftdrop.auth.dto.RegisterRequest;
 import com.swiftdrop.auth.dto.TokenRefreshResponse;
+import com.swiftdrop.auth.dto.UpdateProfileRequest;
 import com.swiftdrop.auth.dto.UserSummary;
 import com.swiftdrop.auth.event.AuthEventPublisher;
 import com.swiftdrop.auth.security.AccountLockedException;
@@ -38,6 +39,7 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -167,6 +169,7 @@ public class AuthController {
                 savedUser.getId(),
                 savedUser.getEmail(),
                 savedUser.getFullName(),
+                savedUser.getPhoneNumber(),
                 savedUser.getRole(),
                 null
         );
@@ -206,7 +209,18 @@ public class AuthController {
         if (!user.isEnabled()) {
             auditService.record(user.getId(), user.getRole(), "USER_LOGIN_DISABLED", "USER", user.getId(),
                     Map.of("email", normalizedEmail, "ipAddress", clientIp));
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled or pending merchant approval");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Your account has been disabled by admin");
+        }
+
+        // Validate portal role if requested
+        if (request.role() != null && !request.role().isBlank()) {
+            String requestedRole = request.role().trim().toUpperCase();
+            if (!requestedRole.equalsIgnoreCase(user.getRole())) {
+                auditService.record(user.getId(), user.getRole(), "USER_LOGIN_ROLE_MISMATCH", "USER", user.getId(),
+                        Map.of("email", normalizedEmail, "portalRole", requestedRole, "actualRole", user.getRole(), "ipAddress", clientIp));
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "This account is registered as " + user.getRole().toLowerCase());
+            }
         }
 
         // Login success
@@ -233,6 +247,7 @@ public class AuthController {
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
+                user.getPhoneNumber(),
                 user.getRole(),
                 user.getMerchantId()
         );
@@ -332,6 +347,47 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<UserSummary> getCurrentUser(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
+        User user = resolveAuthenticatedUser(authorizationHeader);
+        return ResponseEntity.ok(toUserSummary(user));
+    }
+
+    /**
+     * Updates current authenticated user profile (full name, phone number, email).
+     */
+    @PutMapping("/me")
+    @Transactional
+    public ResponseEntity<UserSummary> updateCurrentUser(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        User user = resolveAuthenticatedUser(authorizationHeader);
+
+        if (request.fullName() != null && !request.fullName().isBlank()) {
+            user.setFullName(request.fullName().trim());
+        }
+        if (request.phoneNumber() != null) {
+            user.setPhoneNumber(request.phoneNumber().trim());
+        }
+        if (request.email() != null && !request.email().isBlank()) {
+            String normalizedEmail = request.email().trim().toLowerCase();
+            if (!normalizedEmail.equalsIgnoreCase(user.getEmail())) {
+                if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Email address already registered: " + normalizedEmail);
+                }
+                user.setEmail(normalizedEmail);
+            }
+        }
+        user.setUpdatedAt(Instant.now());
+        User savedUser = userRepository.save(user);
+
+        auditService.record(savedUser.getId(), savedUser.getRole(), "USER_PROFILE_UPDATED", "USER", savedUser.getId(),
+                Map.of("fullName", savedUser.getFullName(),
+                        "email", savedUser.getEmail(),
+                        "phoneNumber", savedUser.getPhoneNumber() != null ? savedUser.getPhoneNumber() : ""));
+
+        return ResponseEntity.ok(toUserSummary(savedUser));
+    }
+
+    private User resolveAuthenticatedUser(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
         }
@@ -351,7 +407,7 @@ public class AuthController {
             if (!user.isEnabled()) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User account is disabled");
             }
-            return ResponseEntity.ok(toUserSummary(user));
+            return user;
         } catch (JwtException e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid access token", e);
         }
@@ -419,17 +475,19 @@ public class AuthController {
 
     private void validatePasswordPolicy(String password) {
         if (password == null || password.length() < 8 || password.length() > 128) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be between 8 and 128 characters");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 8 characters");
         }
-        boolean hasLetter = false;
+        boolean hasUpper = false;
         boolean hasDigit = false;
+        boolean hasSpecial = false;
         for (char c : password.toCharArray()) {
-            if (Character.isLetter(c)) hasLetter = true;
+            if (Character.isUpperCase(c)) hasUpper = true;
             if (Character.isDigit(c)) hasDigit = true;
+            if (!Character.isLetterOrDigit(c)) hasSpecial = true;
         }
-        if (!hasLetter || !hasDigit) {
+        if (!hasUpper || !hasDigit || !hasSpecial) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Password must contain at least one letter and one number");
+                    "Password must contain at least one uppercase letter, one number, and one special character");
         }
     }
 
@@ -450,6 +508,6 @@ public class AuthController {
     }
 
     private UserSummary toUserSummary(User user) {
-        return new UserSummary(user.getId(), user.getEmail(), user.getFullName(), user.getRole(), user.getMerchantId());
+        return new UserSummary(user.getId(), user.getEmail(), user.getFullName(), user.getPhoneNumber(), user.getRole(), user.getMerchantId());
     }
 }

@@ -55,7 +55,7 @@ describe('CustomerComponent', () => {
       imports: [CustomerComponent],
       providers: [
         CustomerService,
-        provideRouter([]),
+        provideRouter([{ path: 'customer', component: CustomerComponent }]),
         provideHttpClient(),
         provideHttpClientTesting(),
       ],

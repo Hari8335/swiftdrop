@@ -43,15 +43,15 @@
     "target": "http://127.0.0.1:8083",
     "secure": false
   },
-  "/api/v1/admin/merchants": {
-    "target": "http://127.0.0.1:8084",
-    "secure": false
-  },
   "/api/v1/merchants": {
     "target": "http://127.0.0.1:8084",
     "secure": false
   },
-  "/api/v1/merchant/": {
+  "/api/v1/merchant": {
+    "target": "http://127.0.0.1:8084",
+    "secure": false
+  },
+  "/api/v1/admin/merchants": {
     "target": "http://127.0.0.1:8084",
     "secure": false
   },

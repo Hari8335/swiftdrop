@@ -157,6 +157,19 @@ export class AuthService {
   }
 
   /**
+   * Updates the current authenticated user's profile details (name, phone, email).
+   */
+  updateProfile(data: { fullName?: string; phoneNumber?: string; email?: string }): Observable<User> {
+    return this.http
+      .put<User>(`${this.baseUrl}/me`, data, { withCredentials: true })
+      .pipe(
+        tap((updatedUser) => {
+          this._currentUser.set(updatedUser);
+        })
+      );
+  }
+
+  /**
    * Performs silent token rotation via httpOnly cookie.
    * Deduplicates concurrent callers into a single in-flight request.
    */

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { AuthRole } from '../../models/auth.models';
+import { AuthRole, LoginRequest } from '../../models/auth.models';
 
 @Component({
   selector: 'lib-login',
@@ -751,8 +751,26 @@ export class LoginComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    this.authService.login(this.loginForm.value).subscribe({
+    const credentials: LoginRequest = {
+      email: this.loginForm.value.email,
+      password: this.loginForm.value.password,
+      role: this.selectedRole(),
+    };
+
+    this.authService.login(credentials).subscribe({
       next: (response) => {
+        const actualRole = response.user?.role?.toUpperCase();
+        const expectedRole = this.selectedRole().toUpperCase();
+
+        if (actualRole && actualRole !== expectedRole) {
+          this.isLoading.set(false);
+          this.authService.logout().subscribe({ error: () => {} });
+          this.errorMessage.set(
+            `This account is registered as ${actualRole?.toLowerCase()}`
+          );
+          return;
+        }
+
         this.isLoading.set(false);
         if (response.mustChangePassword) {
           this.router.navigate(['/reset-password'], {
@@ -775,7 +793,12 @@ export class LoginComponent implements OnInit {
         } else if (err.status === 423) {
           this.errorMessage.set('Account is temporarily locked due to repeated failed login attempts.');
         } else if (err.status === 403) {
-          this.errorMessage.set('Account is disabled or pending approval.');
+          const msg = err.error?.message;
+          if (msg && msg.toLowerCase().includes('registered as')) {
+            this.errorMessage.set(msg);
+          } else {
+            this.errorMessage.set('Your account has been disabled by admin');
+          }
         } else if (err.status === 429) {
           this.errorMessage.set('Too many login attempts. Please wait a minute and try again.');
         } else {

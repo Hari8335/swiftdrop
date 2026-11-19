@@ -75,7 +75,7 @@ describe('AdminUsersService', () => {
     const req = httpMock.expectOne((r) => r.url === '/api/v1/admin/users');
     expect(req.request.method).toBe('GET');
     expect(req.request.params.get('page')).toBe('0');
-    expect(req.request.params.get('size')).toBe('20');
+    expect(req.request.params.get('size')).toBe('15');
     expect(req.request.params.has('role')).toBe(false);
     expect(req.request.params.has('enabled')).toBe(false);
 
@@ -120,7 +120,7 @@ describe('AdminUsersService', () => {
       },
     });
 
-    const req = httpMock.expectOne('/api/v1/admin/users?page=0&size=20');
+    const req = httpMock.expectOne('/api/v1/admin/users?page=0&size=15');
     req.flush(
       { message: 'Database connection failed' },
       { status: 500, statusText: 'Internal Server Error' }
@@ -198,7 +198,7 @@ describe('AdminUsersService', () => {
   it('should patch user status and update existing user in signal', () => {
     // Populate service signal first
     service.loadUsers().subscribe();
-    const req1 = httpMock.expectOne('/api/v1/admin/users?page=0&size=20');
+    const req1 = httpMock.expectOne('/api/v1/admin/users?page=0&size=15');
     req1.flush(mockListPage);
 
     expect(service.users()[0].enabled).toBe(true);
@@ -218,7 +218,7 @@ describe('AdminUsersService', () => {
 
   it('should clear state when clearState is called', () => {
     service.loadUsers().subscribe();
-    const req = httpMock.expectOne('/api/v1/admin/users?page=0&size=20');
+    const req = httpMock.expectOne('/api/v1/admin/users?page=0&size=15');
     req.flush(mockListPage);
     expect(service.users().length).toBe(2);
 

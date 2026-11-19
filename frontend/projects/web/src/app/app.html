@@ -131,7 +131,7 @@
         </div>
         <div class="flex items-center gap-3">
           <!-- Admin Notification Bell -->
-          <div class="relative">
+          <div class="relative mr-2 sm:mr-3">
             <button
               type="button"
               id="admin-notification-bell-btn"
@@ -148,7 +148,7 @@
               @if (pendingMerchantCount() > 0) {
                 <span
                   id="admin-notification-badge"
-                  class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold text-white shadow ring-2 ring-white"
+                  class="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#9b432f] px-1 text-[11px] font-bold text-white shadow ring-2 ring-white"
                 >
                   {{ pendingMerchantCount() > 99 ? '99+' : pendingMerchantCount() }}
                 </span>
@@ -169,7 +169,7 @@
                   <div class="flex items-center gap-2">
                     <span class="font-bold text-sm text-[#211f32]">Notifications</span>
                     @if (pendingMerchantCount() > 0) {
-                      <span class="rounded-full bg-[#ef4444] px-2 py-0.5 text-[10px] font-bold text-white">
+                      <span class="rounded-full bg-[#9b432f] px-2 py-0.5 text-[10px] font-bold text-white">
                         {{ pendingMerchantCount() }} pending
                       </span>
                     }

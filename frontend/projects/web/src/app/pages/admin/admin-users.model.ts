@@ -11,12 +11,22 @@ export interface UserSummary {
 
 export type StaffUser = UserSummary;
 
+export interface RoleCounts {
+  MERCHANT?: number;
+  CUSTOMER?: number;
+  DISPATCHER?: number;
+  COURIER?: number;
+  ADMIN?: number;
+  [key: string]: number | undefined;
+}
+
 export interface UserListPage {
   content: UserSummary[];
   totalElements: number;
   totalPages: number;
   page: number;
   size: number;
+  roleCounts?: RoleCounts;
 }
 
 export interface CreateStaffUserRequest {
@@ -29,9 +39,14 @@ export interface CreateStaffUserRequest {
 
 export type CreateStaffPayload = CreateStaffUserRequest;
 
-export interface UpdateUserStatusRequest {
-  enabled: boolean;
+export interface UpdateUserRequest {
+  enabled?: boolean;
+  fullName?: string;
+  phoneNumber?: string;
+  email?: string;
 }
+
+export type UpdateUserStatusRequest = UpdateUserRequest;
 
 export interface AdminUserFilterParams {
   role?: string;

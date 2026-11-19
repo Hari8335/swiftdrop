@@ -156,7 +156,7 @@ class AuthSecurityVerificationTest {
         }
 
         @Test
-        @DisplayName("Weak password violating policy (< 8 chars or missing digits) is rejected with 400")
+        @DisplayName("Weak password violating policy (< 8 chars, missing uppercase, digits, or special chars) is rejected with 400")
         void registration_weakPassword_rejected() throws Exception {
             RegisterRequest shortPass = new RegisterRequest("user@swiftdrop.lk", "Short1!", "User", null);
             authMockMvc.perform(post("/api/v1/auth/register")
@@ -168,6 +168,18 @@ class AuthSecurityVerificationTest {
             authMockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(noDigitPass)))
+                    .andExpect(status().isBadRequest());
+
+            RegisterRequest noUpperPass = new RegisterRequest("user@swiftdrop.lk", "password123!", "User", null);
+            authMockMvc.perform(post("/api/v1/auth/register")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(noUpperPass)))
+                    .andExpect(status().isBadRequest());
+
+            RegisterRequest noSpecialPass = new RegisterRequest("user@swiftdrop.lk", "Password123", "User", null);
+            authMockMvc.perform(post("/api/v1/auth/register")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(noSpecialPass)))
                     .andExpect(status().isBadRequest());
 
             verify(userRepository, never()).save(any());
@@ -259,6 +271,21 @@ class AuthSecurityVerificationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isLocked())
                     .andExpect(jsonPath("$.code").value("ACCOUNT_LOCKED"));
+        }
+
+        @Test
+        @DisplayName("Mismatched portal role returns 403 Forbidden")
+        void login_mismatchedRole_returns403() throws Exception {
+            User user = new User("usr-1", "customer@swiftdrop.lk", passwordEncoder.encode("Secret123!"),
+                    "Customer User", null, Roles.CUSTOMER, true, null);
+            when(userRepository.findByEmailIgnoreCase("customer@swiftdrop.lk")).thenReturn(Optional.of(user));
+
+            LoginRequest request = new LoginRequest("customer@swiftdrop.lk", "Secret123!", "MERCHANT");
+            authMockMvc.perform(post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(status().reason("This account is registered as customer"));
         }
     }
 
