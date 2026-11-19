@@ -75,6 +75,30 @@ export function trackingHandlers(db: MockParcelDb, baseUrl = '') {
 
     http.get(`${api}/parcels/:id/history`, ({ params }) => respond(db.parcelHistory(String(params['id'])))),
 
+    // Demo data: a parcel that has left CREATED has one current driver; others have none yet.
+    http.get(`${api}/parcels/:id/assignments`, ({ params }) => {
+      const id = String(params['id']);
+      const found = db.getParcel(id);
+      if (found.status !== 200 || !found.body || !('status' in found.body)) {
+        return respond(found);
+      }
+      const parcel = found.body as { status: string; createdAt?: string };
+      const assigned = parcel.status !== 'CREATED' && parcel.status !== 'CANCELLED';
+      return HttpResponse.json({
+        parcelId: id,
+        assignments: assigned
+          ? [
+              {
+                driver: { name: 'Saman Perera', vehicleType: 'Motorbike', zone: 'Colombo' },
+                assignedAt: parcel.createdAt ?? new Date().toISOString(),
+                status: 'CURRENT',
+                reassignedAt: null,
+              },
+            ]
+          : [],
+      });
+    }),
+
     http.get(`${api}/parcels/:id/receipt`, ({ params }) => {
       const found = db.getParcel(String(params['id']));
       if (found.status !== 200 || !found.body || !('trackingNumber' in found.body)) {

@@ -89,6 +89,27 @@ export interface ParcelDetail {
 }
 
 /** One row of the timeline component. */
+/** GET /api/v1/parcels/{id}/assignments (contracts/openapi/parcel-read.yaml). No courier ids or phones. */
+export interface DriverProfile {
+  name: string;
+  vehicleType: string | null;
+  zone: string | null;
+}
+
+export interface DriverAssignment {
+  /** null when the courier has no profile or the courier directory is unavailable. */
+  driver: DriverProfile | null;
+  assignedAt: string;
+  status: 'CURRENT' | 'PREVIOUS';
+  reassignedAt: string | null;
+}
+
+export interface DriverAssignmentHistoryResponse {
+  parcelId: string;
+  /** Oldest assignment first. */
+  assignments: DriverAssignment[];
+}
+
 export interface TimelineItem {
   status: ParcelStatus;
   occurredAt: string;
