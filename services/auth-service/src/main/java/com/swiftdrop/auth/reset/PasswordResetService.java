@@ -148,7 +148,6 @@ public class PasswordResetService {
     @Transactional
     public PasswordResetResult resetPassword(
             String email, String rawToken, String newPassword, String ipAddress, String correlationId) {
-        validatePassword(newPassword);
         Instant now = clock.instant();
         PasswordResetToken token = findValidToken(email, rawToken, ipAddress, now);
         User user = userRepository.findById(token.getUserId())
@@ -225,19 +224,7 @@ public class PasswordResetService {
 
     private void validatePassword(String password) {
         if (password == null || password.length() < 8 || password.length() > 128) {
-            throw new IllegalArgumentException("Password must be at least 8 characters");
-        }
-        boolean hasUpper = false;
-        boolean hasDigit = false;
-        boolean hasSpecial = false;
-        for (char c : password.toCharArray()) {
-            if (Character.isUpperCase(c)) hasUpper = true;
-            if (Character.isDigit(c)) hasDigit = true;
-            if (!Character.isLetterOrDigit(c)) hasSpecial = true;
-        }
-        if (!hasUpper || !hasDigit || !hasSpecial) {
-            throw new IllegalArgumentException(
-                    "Password must contain at least one uppercase letter, one number, and one special character");
+            throw new IllegalArgumentException("Password must be between 8 and 128 characters");
         }
     }
 

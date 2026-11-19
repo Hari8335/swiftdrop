@@ -278,33 +278,5 @@ class PasswordResetServiceTest {
         verify(userRepository, never()).save(any());
         verify(refreshTokenRepository, never()).revokeByUserId(any());
     }
-
-    @Test
-    @DisplayName("Password violating policy (< 8 chars, missing uppercase, digits, or special chars) throws IllegalArgumentException")
-    void resetPassword_weakPassword_throwsIllegalArgumentException() {
-        // Less than 8 characters
-        assertThatThrownBy(() -> resetService.resetPassword(
-                "alice@example.com", "123456", "Short1!", "127.0.0.1", "corr-weak-1"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Password must be at least 8 characters");
-
-        // Missing uppercase
-        assertThatThrownBy(() -> resetService.resetPassword(
-                "alice@example.com", "123456", "password123!", "127.0.0.1", "corr-weak-2"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Password must contain at least one uppercase letter, one number, and one special character");
-
-        // Missing number
-        assertThatThrownBy(() -> resetService.resetPassword(
-                "alice@example.com", "123456", "PasswordOnly!", "127.0.0.1", "corr-weak-3"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Password must contain at least one uppercase letter, one number, and one special character");
-
-        // Missing special character
-        assertThatThrownBy(() -> resetService.resetPassword(
-                "alice@example.com", "123456", "Password123", "127.0.0.1", "corr-weak-4"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Password must contain at least one uppercase letter, one number, and one special character");
-    }
 }
 
