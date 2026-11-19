@@ -15,6 +15,7 @@ export class LiveTimeline {
   private readonly _items = signal<TimelineItem[]>([]);
   private readonly _lastUpdatedAt = signal<string | null>(null);
   private readonly _lastUpdateLive = signal(false);
+  private readonly _revision = signal(0);
   private lastSequence = 0;
 
   readonly trackingNumber = this._trackingNumber.asReadonly();
@@ -24,6 +25,11 @@ export class LiveTimeline {
   /** True once a live event has changed the status (used for the "updated" highlight). */
   readonly lastUpdateLive = this._lastUpdateLive.asReadonly();
   readonly isEmpty = computed(() => this._items().length === 0);
+  /**
+   * Counts every accepted live event, including ones that keep the status (a courier
+   * reassignment), so views such as the driver assignment history know when to reload.
+   */
+  readonly revision = this._revision.asReadonly();
 
   /** Starts over for a parcel with the history from the API (oldest first). */
   reset(trackingNumber: string, status: ParcelStatus, items: TimelineItem[], lastUpdatedAt: string | null): void {
@@ -51,6 +57,7 @@ export class LiveTimeline {
       return false;
     }
     this.lastSequence = event.sequence;
+    this._revision.update((n) => n + 1);
     if (event.status === this._status()) {
       return false;
     }
