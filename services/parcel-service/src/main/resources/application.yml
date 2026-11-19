@@ -28,3 +28,8 @@ swiftdrop:
     internal:
       tokens:
         pricing-service: ${INTERNAL_PRICING_SERVICE_TOKEN:swiftdrop-internal-pricing-secret-2026}
+        courier-directory: ${INTERNAL_COURIER_DIRECTORY_TOKEN:swiftdrop-internal-courier-secret-2026}
+  couriers:
+    # operations-service internal courier directory (driver assignment history). When empty it is
+    # derived from swiftdrop.pricing.quote-url, which already points at operations-service in Docker.
+    directory-url: ${SWIFTDROP_COURIERS_DIRECTORY_URL:}

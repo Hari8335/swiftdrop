@@ -30,3 +30,4 @@ swiftdrop:
     internal:
       tokens:
         pricing-service: ${INTERNAL_PRICING_SERVICE_TOKEN:swiftdrop-internal-pricing-secret-2026}
+        courier-directory: ${INTERNAL_COURIER_DIRECTORY_TOKEN:swiftdrop-internal-courier-secret-2026}

@@ -15,12 +15,17 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Component
 public class RestParcelServiceClient implements ParcelServiceClient {
 
     private static final Logger log = LoggerFactory.getLogger(RestParcelServiceClient.class);
+    static final int PAGE_SIZE = 100;
+    static final int MAX_PAGES = 50;
 
     private final RestClient restClient;
 
@@ -65,6 +70,63 @@ public class RestParcelServiceClient implements ParcelServiceClient {
             log.error("Network failure connecting to parcel-service for courier {}: {}", courierId, rae.getMessage());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Parcel service is currently unreachable", rae);
         }
+    }
+
+    @Override
+    public List<ParcelResponse> getActiveParcelsForCourier(String courierId) {
+        return fetchAllPages(courierId, Map.of("active", "true", "sort", "assignedAt,asc"));
+    }
+
+    @Override
+    public List<ParcelResponse> getParcelsCompletedByCourierOn(String courierId, String date) {
+        return fetchAllPages(courierId, Map.of("completedOn", date, "sort", "completedAt,asc"));
+    }
+
+    /**
+     * Follows parcel-service pagination so no parcel is silently dropped when a courier has
+     * more than one page of work. Bounded by {@link #MAX_PAGES} as a safety stop.
+     */
+    private List<ParcelResponse> fetchAllPages(String courierId, Map<String, String> filters) {
+        List<ParcelResponse> all = new ArrayList<>();
+        for (int page = 0; page < MAX_PAGES; page++) {
+            final int currentPage = page;
+            ParcelPageResponse response;
+            try {
+                response = restClient.get()
+                    .uri(uriBuilder -> {
+                        uriBuilder.path("/internal/v1/parcels")
+                            .queryParam("courierId", courierId)
+                            .queryParam("page", currentPage)
+                            .queryParam("size", PAGE_SIZE);
+                        filters.forEach(uriBuilder::queryParam);
+                        return uriBuilder.build();
+                    })
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header(CorrelationIdFilter.CORRELATION_ID_HEADER, getCorrelationId())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (req, resp) -> {
+                        String errorMsg = extractErrorMessage(resp, "Failed to query parcels for courier: " + resp.getStatusText());
+                        throw new ResponseStatusException(resp.getStatusCode(), errorMsg);
+                    })
+                    .body(ParcelPageResponse.class);
+            } catch (ResourceAccessException rae) {
+                log.error("Network failure connecting to parcel-service for courier {}: {}", courierId, rae.getMessage());
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Parcel service is currently unreachable", rae);
+            }
+
+            if (response == null || response.content() == null || response.content().isEmpty()) {
+                break;
+            }
+            all.addAll(response.content());
+            int totalPages = response.totalPages() != null ? response.totalPages() : 1;
+            if (currentPage + 1 >= totalPages) {
+                break;
+            }
+            if (currentPage + 1 == MAX_PAGES) {
+                log.warn("Courier {} has more than {} parcels matching {}; list truncated", courierId, MAX_PAGES * PAGE_SIZE, filters);
+            }
+        }
+        return all;
     }
 
     @Override
