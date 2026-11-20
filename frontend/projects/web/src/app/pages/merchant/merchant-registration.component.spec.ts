@@ -104,8 +104,10 @@ describe('MerchantRegistrationComponent', () => {
   it('renders Customer, Merchant, and Sign In in top bar navigation', () => {
     const navLinks = fixture.nativeElement.querySelectorAll('.nav-links a');
     expect(navLinks.length).toBe(3);
-    expect(navLinks[0].textContent.trim()).toBe('Customer');
-    expect(navLinks[1].textContent.trim()).toBe('Merchant');
+    expect(navLinks[0].textContent.trim()).toBe('Join as Customer');
+    expect(navLinks[1].textContent.trim()).toBe('Join as Merchant');
+    expect(fixture.nativeElement.querySelectorAll('.said-chip').length).toBe(0);
+    expect(fixture.nativeElement.querySelector('.store-badge')).toBeNull();
     expect(navLinks[2].textContent.trim()).toBe('Sign In');
   });
 });

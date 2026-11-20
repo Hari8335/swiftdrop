@@ -27,13 +27,14 @@ describe('LandingComponent', () => {
     expect(compiled.querySelector('h1')?.textContent).toContain('The parcel delivery you can talk to');
   });
 
-  it('renders call-to-action buttons for registration, tracking, and login', () => {
+  it('renders call-to-action links for registration and login, without tracking links', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const registerLinks = compiled.querySelectorAll('a[routerLink="/register"]');
     expect(registerLinks.length).toBeGreaterThan(0);
 
     const trackLinks = compiled.querySelectorAll('a[routerLink="/track"]');
-    expect(trackLinks.length).toBeGreaterThan(0);
+    expect(trackLinks.length).toBe(0);
+    expect(compiled.textContent).not.toContain('Track Parcel');
 
     const loginLinks = compiled.querySelectorAll('a[routerLink="/login"]');
     expect(loginLinks.length).toBeGreaterThan(0);
@@ -43,8 +44,8 @@ describe('LandingComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const navLinks = compiled.querySelectorAll('.nav-links a');
     expect(navLinks.length).toBe(3);
-    expect(navLinks[0].textContent.trim()).toBe('Customer');
-    expect(navLinks[1].textContent.trim()).toBe('Merchant');
+    expect(navLinks[0].textContent.trim()).toBe('Join as Customer');
+    expect(navLinks[1].textContent.trim()).toBe('Join as Merchant');
     expect(navLinks[2].textContent.trim()).toBe('Sign In');
   });
 

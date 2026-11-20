@@ -21,8 +21,8 @@ import { ParcelBox3dComponent } from './parcel-box-3d.component';
         </div>
 
         <nav class="nav-links">
-          <a routerLink="/register" class="nav-link">Customer</a>
-          <a routerLink="/merchant-registration" class="nav-link">Merchant</a>
+          <a routerLink="/register" class="nav-link">Join as Customer</a>
+          <a routerLink="/merchant-registration" class="nav-link">Join as Merchant</a>
           <a routerLink="/login" class="nav-pill">Sign In</a>
         </nav>
       </header>
@@ -45,7 +45,6 @@ import { ParcelBox3dComponent } from './parcel-box-3d.component';
 
               <div class="hero-actions">
                 <a routerLink="/register" class="hero-btn-primary">Book Delivery</a>
-                <a routerLink="/track" class="hero-btn-secondary">Track Parcel</a>
               </div>
             </div>
 
@@ -113,7 +112,6 @@ import { ParcelBox3dComponent } from './parcel-box-3d.component';
               <a routerLink="/login">Sign In</a>
               <a routerLink="/register">Register</a>
               <a routerLink="/merchant-registration">Merchants</a>
-              <a routerLink="/track">Track</a>
             </div>
           </div>
         </footer>
@@ -251,25 +249,6 @@ import { ParcelBox3dComponent } from './parcel-box-3d.component';
       background: #faf6f0;
       transform: translateY(-2px);
       box-shadow: 0 14px 30px -5px rgba(0,0,0,0.25);
-    }
-    .hero-btn-secondary {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.85rem 1.85rem;
-      border-radius: 9999px;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.25);
-      color: #ffffff;
-      font-size: 0.95rem;
-      font-weight: 700;
-      text-decoration: none;
-      backdrop-filter: blur(8px);
-      transition: background-color 0.2s, transform 0.2s;
-    }
-    .hero-btn-secondary:hover {
-      background: rgba(255,255,255,0.22);
-      transform: translateY(-2px);
     }
     .hero-badge {
       display: inline-flex;

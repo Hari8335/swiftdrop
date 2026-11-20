@@ -25,8 +25,8 @@ import {
         </a>
 
         <nav class="nav-links">
-          <a routerLink="/register" class="nav-pill">Customer</a>
-          <a routerLink="/merchant-registration" class="nav-link">Merchant</a>
+          <a routerLink="/register" class="nav-pill">Join as Customer</a>
+          <a routerLink="/merchant-registration" class="nav-link">Join as Merchant</a>
           <a routerLink="/login" class="nav-link">Sign In</a>
         </nav>
       </header>
@@ -44,43 +44,6 @@ import {
             Sign up in seconds to schedule door-to-door deliveries, monitor parcels in real time, and enjoy automated doorstep collections.
           </p>
 
-          <ul class="said-chips" aria-label="Customer quick commands">
-            <li class="said-chip chip-1">
-              <svg class="chip-icon mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
-              </svg>
-              <span>“Send a care package to Galle today”</span>
-            </li>
-            <li class="said-chip chip-2">
-              <svg class="chip-icon parcel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-              </svg>
-              <span>“Track my delivery in real time”</span>
-            </li>
-            <li class="said-chip chip-3">
-              <svg class="chip-icon check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-              <span>“Doorstep pickup confirmed”</span>
-            </li>
-          </ul>
-
-          <div class="hero-store-row">
-            <div class="store-badge">
-              <svg class="apple-icon" viewBox="0 0 384 512" fill="currentColor">
-                <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
-              </svg>
-              <div class="store-text">
-                <span class="store-small">Island-wide logistics</span>
-                <span class="store-bold">SwiftDrop Instant Dispatch</span>
-              </div>
-            </div>
-          </div>
         </section>
 
         <!-- Right Column: Tactile Customer Signup White Card -->
@@ -318,54 +281,6 @@ import {
       color: rgba(255,255,255,0.9);
       margin: 0 0 2.25rem;
     }
-    .said-chips {
-      list-style: none;
-      padding: 0;
-      margin: 0 0 2.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-      width: 100%;
-      max-width: 32rem;
-    }
-    .said-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1.25rem;
-      border-radius: 9999px;
-      background: #fff;
-      color: var(--ink);
-      font-size: 0.95rem;
-      font-weight: 700;
-      box-shadow: 0 14px 30px -12px rgba(90,15,5,0.45);
-      animation: bob 7s ease-in-out infinite;
-      align-self: flex-start;
-    }
-    .chip-2 { animation-delay: -2.3s; }
-    .chip-3 { animation-delay: -4.6s; }
-    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-    .chip-icon {
-      width: 18px;
-      height: 18px;
-      color: var(--coral);
-      flex-shrink: 0;
-    }
-    .hero-store-row { margin-top: 0.5rem; }
-    .store-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.85rem;
-      padding: 0.65rem 1.25rem;
-      background: rgba(0,0,0,0.25);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 16px;
-      color: #fff;
-    }
-    .apple-icon { width: 22px; height: 26px; }
-    .store-text { display: flex; flex-direction: column; }
-    .store-small { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; }
-    .store-bold { font-size: 0.875rem; font-weight: 700; }
     .auth-card-wrap {
       display: flex;
       justify-content: center;
@@ -523,15 +438,11 @@ import {
       .hero-grid { grid-template-columns: 1fr; gap: 2.75rem; }
       .hero-copy { align-items: center; text-align: center; }
       .hero-headline { font-size: 2.5rem; }
-      .said-chips { align-items: center; }
-      .said-chip { align-self: center; }
-      .chip-2, .chip-3 { margin-left: 0; }
       .auth-card { padding: 2.25rem 1.75rem; }
     }
     @media (max-width: 480px) {
       .top-bar { flex-direction: column; gap: 1rem; }
       .hero-headline { font-size: 2.1rem; }
-      .said-chip { font-size: 0.825rem; padding: 0.65rem 1rem; }
       .auth-card { padding: 1.75rem 1.25rem; border-radius: 20px; }
     }
   `]
