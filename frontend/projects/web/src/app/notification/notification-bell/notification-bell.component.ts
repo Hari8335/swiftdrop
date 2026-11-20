@@ -9,6 +9,7 @@ import {
   ElementRef,
 } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
+import { Router } from '@angular/router';
 import { NotificationService } from '../notification.service';
 import { NotificationItem } from '../notification.model';
 
@@ -17,6 +18,7 @@ import { NotificationItem } from '../notification.model';
  *
  * Displays a bell icon with a real-time unread-count badge. Clicking the bell
  * opens an authenticated dropdown listing notifications from the backend API.
+ * Clicking a notification marks it as read and opens the related parcel's detail page.
  * Supports marking individual items as read, marking all as read, server-side
  * pagination (load more), loading indicators, error retry, and keyboard/click-outside
  * dismissals.
@@ -149,8 +151,10 @@ interface SidePanelPosition {
                 <li
                   [id]="'notification-item-' + item.id"
                   [class.bg-[#faf8f6]]="!item.read"
-                  class="flex items-start gap-3 px-4 py-3 hover:bg-[#faf6f0]/60 transition-colors cursor-pointer"
-                  (click)="onMarkRead(item)"
+                  class="flex items-start gap-3 px-4 py-3 hover:bg-[#faf6f0]/60 focus:outline-none focus-visible:bg-[#faf6f0] transition-colors cursor-pointer"
+                  (click)="openNotification(item)"
+                  (keydown.enter)="openNotification(item)"
+                  tabindex="0"
                   role="listitem"
                   [attr.aria-label]="item.title + (item.read ? '' : ' (unread)')"
                 >
@@ -215,6 +219,7 @@ interface SidePanelPosition {
 export class NotificationBellComponent implements OnInit {
   private readonly notificationService = inject(NotificationService);
   private readonly el = inject(ElementRef);
+  private readonly router = inject(Router);
 
   /**
    * Where the dropdown opens. 'below' (default) drops down and aligns to the bell's right edge,
@@ -285,6 +290,20 @@ export class NotificationBellComponent implements OnInit {
     if (!item.read) {
       this.notificationService.markAsRead(item.id).subscribe({ error: () => {} });
     }
+  }
+
+  /**
+   * Marks the notification as read and, when it refers to a parcel, closes the
+   * dropdown and opens that parcel's detail page.
+   */
+  openNotification(item: NotificationItem): void {
+    this.onMarkRead(item);
+    const parcelId = item.parcelId?.trim();
+    if (!parcelId) {
+      return;
+    }
+    this.isOpen.set(false);
+    this.router.navigate(['/customer/parcels', parcelId]).catch(() => {});
   }
 
   onMarkAllRead(): void {
