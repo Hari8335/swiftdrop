@@ -1,6 +1,7 @@
 package com.swiftdrop.operations.courier.profile;
 
 import com.swiftdrop.common.security.CurrentUser;
+import com.swiftdrop.operations.courier.execution.CourierRunSheet;
 import com.swiftdrop.operations.courier.execution.DeliveryProofEntity;
 import com.swiftdrop.operations.courier.execution.DeliveryProofRepository;
 import com.swiftdrop.operations.courier.execution.client.AddressDto;
@@ -81,9 +82,10 @@ public class CourierProfileOperations {
     }
 
     public CourierDeliveriesResponse getSummary(String courierId, LocalDate requestedDate) {
-        LocalDate date = requestedDate == null ? LocalDate.now(BUSINESS_ZONE) : requestedDate;
-        var response = parcels.getParcelsByCourierAndDate(courierId, date.toString());
-        List<ParcelResponse> items = response == null || response.content() == null ? List.of() : response.content();
+        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        LocalDate date = requestedDate == null ? today : requestedDate;
+        List<ParcelResponse> items = CourierRunSheet.load(parcels, courierId, date, today);
+        java.time.Instant now = java.time.Instant.now();
         int pending = 0;
         int completed = 0;
         int order = 1;
@@ -94,7 +96,8 @@ public class CourierProfileOperations {
             AddressDto dropoff = parcel.dropoffAddress();
             cards.add(new CourierDeliveryCard(parcel.id(), parcel.trackingNumber(), parcel.status(), parcel.recipientName(),
                 parcel.recipientPhone(), address(parcel.pickupAddress()), address(dropoff), mapsUrl(dropoff), parcel.weightKg(),
-                parcel.attemptCount() == null ? 0 : parcel.attemptCount(), order++, done ? parcel.updatedAt() : null));
+                parcel.attemptCount() == null ? 0 : parcel.attemptCount(), order++, CourierRunSheet.completedAt(parcel),
+                parcel.assignedAt(), CourierRunSheet.isOverdue(parcel, now)));
         }
         return new CourierDeliveriesResponse(date.toString(), items.size(), pending, completed, cards);
     }

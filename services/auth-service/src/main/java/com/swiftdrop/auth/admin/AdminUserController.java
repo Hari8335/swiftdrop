@@ -27,6 +27,11 @@ public class AdminUserController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/counts")
+    public ResponseEntity<java.util.Map<String, Long>> getUserCounts() {
+        return ResponseEntity.ok(adminUserService.getUserCountsByRole());
+    }
+
     @PostMapping
     public ResponseEntity<UserSummary> createStaffUser(
         @Valid @RequestBody CreateStaffUserRequest request
@@ -40,7 +45,12 @@ public class AdminUserController {
         @PathVariable String id,
         @Valid @RequestBody UpdateUserStatusRequest request
     ) {
-        UserSummary summary = adminUserService.updateUserStatus(id, request.enabled());
+        UserSummary summary;
+        if (request.fullName() == null && request.phoneNumber() == null && request.email() == null && request.enabled() != null) {
+            summary = adminUserService.updateUserStatus(id, request.enabled());
+        } else {
+            summary = adminUserService.updateUser(id, request);
+        }
         return ResponseEntity.ok(summary);
     }
 }

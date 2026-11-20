@@ -7,23 +7,19 @@
     "target": "http://127.0.0.1:8081",
     "secure": false
   },
+  "/api/v1/admin/audit": {
+    "target": "http://127.0.0.1:8081",
+    "secure": false
+  },
   "/api/v1/parcels": {
     "target": "http://127.0.0.1:8082",
     "secure": false
   },
   "/api/v1/tracking": {
-    "target": "http://localhost:8082",
-    "secure": false
-  },
-  "/tracking": {
     "target": "http://127.0.0.1:8082",
     "secure": false
   },
   "/api/v1/addresses": {
-    "target": "http://127.0.0.1:8082",
-    "secure": false
-  },
-  "/addresses": {
     "target": "http://127.0.0.1:8082",
     "secure": false
   },
@@ -35,27 +31,7 @@
     "target": "http://127.0.0.1:8083",
     "secure": false
   },
-  "/courier": {
-    "target": "http://127.0.0.1:8083",
-    "secure": false
-  },
   "/api/v1/admin/zones": {
-    "target": "http://localhost:8083",
-    "secure": false
-  },
-  "/admin/zones": {
-    "target": "http://127.0.0.1:8083",
-    "secure": false
-  },
-  "/api/v1/admin/zones": {
-    "target": "http://127.0.0.1:8083",
-    "secure": false
-  },
-  "/api/v1/admin/pricing-rules": {
-    "target": "http://localhost:8083",
-    "secure": false
-  },
-  "/admin/pricing-rules": {
     "target": "http://127.0.0.1:8083",
     "secure": false
   },
@@ -64,58 +40,26 @@
     "secure": false
   },
   "/api/v1/admin/reports": {
-    "target": "http://localhost:8083",
-    "secure": false
-  },
-  "/admin/reports": {
     "target": "http://127.0.0.1:8083",
-    "secure": false
-  },
-  "/api/v1/admin/reports": {
-    "target": "http://127.0.0.1:8083",
-    "secure": false
-  },
-  "/api/v1/admin/audit": {
-    "target": "http://127.0.0.1:8081",
-    "secure": false
-  },
-  "/api/v1/admin/merchants": {
-    "target": "http://localhost:8084",
-    "secure": false
-  },
-  "/admin/merchants": {
-    "target": "http://localhost:8084",
     "secure": false
   },
   "/api/v1/merchants": {
     "target": "http://127.0.0.1:8084",
     "secure": false
   },
-   "/api/v1/admin/merchants": {
+  "/api/v1/merchant": {
     "target": "http://127.0.0.1:8084",
     "secure": false
   },
-  "/merchant": {
-    "target": "http://127.0.0.1:8084",
-    "secure": false
-  },
-  "/admin/merchants": {
+  "/api/v1/admin/merchants": {
     "target": "http://127.0.0.1:8084",
     "secure": false
   },
   "/api/v1/assistant": {
-    "target": "http://localhost:8084",
-    "secure": false
-  },
-  "/assistant": {
     "target": "http://127.0.0.1:8084",
     "secure": false
   },
   "/api/v1/notifications": {
-    "target": "http://localhost:8084",
-    "secure": false
-  },
-  "/notifications": {
     "target": "http://127.0.0.1:8084",
     "secure": false
   }

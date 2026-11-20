@@ -58,6 +58,46 @@ class RestParcelServiceClientTest {
         mockServer.verify();
     }
 
+    private static String page(String trackingNumber, int pageIndex, int totalPages) {
+        return "{\"content\":[{\"id\":\"" + UUID.randomUUID() + "\",\"trackingNumber\":\"" + trackingNumber
+            + "\",\"status\":\"CREATED\",\"courierId\":\"" + COURIER_ID + "\"}],"
+            + "\"totalElements\":" + totalPages + ",\"totalPages\":" + totalPages + ",\"page\":" + pageIndex + ",\"size\":100}";
+    }
+
+    @Test
+    @DisplayName("getActiveParcelsForCourier follows every page instead of stopping at the first 100")
+    void getActiveParcels_followsAllPages() {
+        mockServer.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/internal/v1/parcels")))
+            .andExpect(queryParam("courierId", COURIER_ID))
+            .andExpect(queryParam("active", "true"))
+            .andExpect(queryParam("sort", "assignedAt,asc"))
+            .andExpect(queryParam("page", "0"))
+            .andRespond(withSuccess(page("SD-P0", 0, 2), MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/internal/v1/parcels")))
+            .andExpect(queryParam("page", "1"))
+            .andRespond(withSuccess(page("SD-P1", 1, 2), MediaType.APPLICATION_JSON));
+
+        var parcels = client.getActiveParcelsForCourier(COURIER_ID);
+
+        assertThat(parcels).extracting(ParcelResponse::trackingNumber).containsExactly("SD-P0", "SD-P1");
+        mockServer.verify();
+    }
+
+    @Test
+    @DisplayName("getParcelsCompletedByCourierOn queries parcels finished on the given day")
+    void getCompletedParcels_queriesCompletedOn() {
+        mockServer.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/internal/v1/parcels")))
+            .andExpect(queryParam("courierId", COURIER_ID))
+            .andExpect(queryParam("completedOn", "2026-11-18"))
+            .andExpect(queryParam("page", "0"))
+            .andRespond(withSuccess(page("SD-DONE", 0, 1), MediaType.APPLICATION_JSON));
+
+        var parcels = client.getParcelsCompletedByCourierOn(COURIER_ID, "2026-11-18");
+
+        assertThat(parcels).hasSize(1);
+        mockServer.verify();
+    }
+
     @Test
     @DisplayName("getParcel handles 404 by trying public endpoint fallback")
     void getParcel_fallsBackToPublicEndpointOn404() {

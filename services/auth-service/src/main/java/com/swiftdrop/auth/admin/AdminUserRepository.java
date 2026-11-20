@@ -18,6 +18,9 @@ public interface AdminUserRepository extends JpaRepository<User, String> {
            "(:enabled IS NULL OR u.enabled = :enabled)")
     Page<User> findUsers(@Param("role") String role, @Param("enabled") Boolean enabled, Pageable pageable);
 
+    @Query("SELECT u.role, COUNT(u) FROM User u GROUP BY u.role")
+    java.util.List<Object[]> countUsersByRole();
+
     Optional<User> findByEmailIgnoreCase(String email);
 
     boolean existsByEmailIgnoreCase(String email);

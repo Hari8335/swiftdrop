@@ -29,6 +29,16 @@ describe('LiveTimeline', () => {
     expect(timeline.items()).toHaveLength(2);
   });
 
+  it('revision counts every accepted event, including same-status ones such as a reassignment', () => {
+    expect(timeline.revision()).toBe(0);
+    timeline.apply(statusEvent(TN, 3, 'PICKED_UP'));
+    expect(timeline.revision()).toBe(1);
+    timeline.apply(statusEvent(TN, 3, 'PICKED_UP'));
+    expect(timeline.revision()).toBe(1);
+    timeline.apply(statusEvent(TN, 4, 'IN_TRANSIT'));
+    expect(timeline.revision()).toBe(2);
+  });
+
   it('adds a row and updates status and time for a new status', () => {
     timeline.apply(statusEvent(TN, 3, 'PICKED_UP'));
     expect(timeline.apply(statusEvent(TN, 4, 'IN_TRANSIT', '2026-11-04T10:00:00Z'))).toBe(true);

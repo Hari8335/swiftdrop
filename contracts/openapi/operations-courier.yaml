@@ -14,8 +14,12 @@ paths:
     get:
       summary: List today's assigned deliveries for the authenticated courier
       description: |
-        Returns the parcel delivery cards assigned to the authenticated courier for a given date (defaults to today).
-        Enforces ownership: extracts `courierId` from JWT claims and calls M1's `GET /internal/v1/parcels?courierId={id}&date={date}`.
+        Returns the authenticated courier's run sheet for a given Sri Lanka day (Asia/Colombo, defaults to today):
+        - For today or a later date: every parcel assigned to the courier that is not yet DELIVERED, FAILED or
+          CANCELLED, regardless of creation date, oldest assignment first.
+        - For any date: parcels the courier finished (DELIVERED, FAILED, CANCELLED) on that day.
+        Enforces ownership: extracts `courierId` from JWT claims and calls M1's
+        `GET /internal/v1/parcels?courierId={id}&active=true` and `?courierId={id}&completedOn={date}`, following all pages.
       operationId: getTodaysDeliveries
       security:
         - BearerAuth: []
@@ -23,7 +27,7 @@ paths:
         - name: date
           in: query
           required: false
-          description: Delivery date filter (ISO-8601 YYYY-MM-DD). Defaults to the current date.
+          description: Run sheet day (ISO-8601 YYYY-MM-DD, Asia/Colombo). Defaults to today. Returns 400 if malformed.
           schema:
             type: string
             format: date
@@ -284,6 +288,22 @@ components:
         sequenceOrder:
           type: integer
           example: 1
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the parcel reached DELIVERED, FAILED or CANCELLED. Null while open.
+          example: "2026-10-25T14:20:00Z"
+        assignedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the parcel was assigned to this courier.
+          example: "2026-10-23T09:00:00Z"
+        overdue:
+          type: boolean
+          description: True when the parcel is still open more than 2 days after assignment.
+          example: false
 
     CourierDeliveryDetail:
       type: object

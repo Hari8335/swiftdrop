@@ -4,6 +4,7 @@ import { catchError, finalize, Observable, tap, throwError } from 'rxjs';
 import {
   AdminUserFilterParams,
   CreateStaffUserRequest,
+  RoleCounts,
   UpdateUserStatusRequest,
   UserListPage,
   UserSummary,
@@ -21,9 +22,15 @@ export class AdminUsersService {
   private totalElementsSignal = signal<number>(0);
   private totalPagesSignal = signal<number>(0);
   private currentPageSignal = signal<number>(0);
-  private pageSizeSignal = signal<number>(20);
+  private pageSizeSignal = signal<number>(15);
   private loadingSignal = signal<boolean>(false);
   private errorSignal = signal<string | null>(null);
+  private roleCountsSignal = signal<RoleCounts>({
+    MERCHANT: 0,
+    CUSTOMER: 0,
+    DISPATCHER: 0,
+    COURIER: 0,
+  });
 
   // Public Readonly Signals
   public users = this.usersSignal.asReadonly();
@@ -33,15 +40,16 @@ export class AdminUsersService {
   public pageSize = this.pageSizeSignal.asReadonly();
   public loading = this.loadingSignal.asReadonly();
   public error = this.errorSignal.asReadonly();
+  public roleCounts = this.roleCountsSignal.asReadonly();
 
-  private lastFilterParams: AdminUserFilterParams = { page: 0, size: 20 };
+  private lastFilterParams: AdminUserFilterParams = { page: 0, size: 15 };
 
   /**
    * Loads paginated users with optional role and enabled filters.
    */
   public loadUsers(
     page: number = 0,
-    size: number = 20,
+    size: number = 15,
     role?: string,
     enabled?: boolean
   ): Observable<UserListPage> {
@@ -69,6 +77,13 @@ export class AdminUsersService {
         this.totalPagesSignal.set(response.totalPages ?? 0);
         this.currentPageSignal.set(response.page ?? page);
         this.pageSizeSignal.set(response.size ?? size);
+        const counts = response.roleCounts || {
+          MERCHANT: (response.content || []).filter((u) => u.role === 'MERCHANT').length,
+          CUSTOMER: (response.content || []).filter((u) => u.role === 'CUSTOMER').length,
+          DISPATCHER: (response.content || []).filter((u) => u.role === 'DISPATCHER').length,
+          COURIER: (response.content || []).filter((u) => u.role === 'COURIER').length,
+        };
+        this.roleCountsSignal.set(counts);
         this.loadingSignal.set(false);
       }),
       catchError((err) => {
@@ -105,21 +120,26 @@ export class AdminUsersService {
           this.usersSignal.update((users) => [created, ...users].slice(0, pageSize));
         }
         this.totalElementsSignal.update((total) => total + 1);
+        if (created.role) {
+          this.roleCountsSignal.update((c) => ({
+            ...c,
+            [created.role]: (c[created.role] ?? 0) + 1,
+          }));
+        }
       })
     );
   }
 
   /**
-   * Toggles active/enabled status for an existing user account.
+   * Updates user details or enabled status for an existing user account.
    */
-  public updateUserStatus(userId: string, enabled: boolean): Observable<UserSummary> {
-    const body: UpdateUserStatusRequest = { enabled };
-    return this.http.patch<UserSummary>(`${this.baseUrl}/${userId}`, body).pipe(
+  public updateUser(userId: string, payload: UpdateUserStatusRequest): Observable<UserSummary> {
+    return this.http.patch<UserSummary>(`${this.baseUrl}/${userId}`, payload).pipe(
       tap((updated) => {
         this.usersSignal.update((users) =>
           users.map((u) =>
             u.id === userId
-              ? { ...u, enabled: updated.enabled, updatedAt: updated.updatedAt }
+              ? { ...u, ...updated }
               : u
           )
         );
@@ -128,10 +148,17 @@ export class AdminUsersService {
   }
 
   /**
+   * Toggles active/enabled status for an existing user account.
+   */
+  public updateUserStatus(userId: string, enabled: boolean): Observable<UserSummary> {
+    return this.updateUser(userId, { enabled });
+  }
+
+  /**
    * Re-fetches the current page of users using stored filter parameters.
    */
   public refresh(): Observable<UserListPage> {
-    const { page = 0, size = 20, role, enabled } = this.lastFilterParams;
+    const { page = 0, size = 15, role, enabled } = this.lastFilterParams;
     return this.loadUsers(page, size, role, enabled);
   }
 

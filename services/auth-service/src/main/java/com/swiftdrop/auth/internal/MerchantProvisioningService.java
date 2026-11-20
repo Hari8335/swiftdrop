@@ -18,6 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.swiftdrop.auth.audit.AuditService;
+import java.util.Map;
 
 @Service
 public class MerchantProvisioningService {
@@ -26,6 +29,9 @@ public class MerchantProvisioningService {
     private final ObjectMapper mapper;
     private final SecureRandom random = new SecureRandom();
     private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+    @Autowired(required = false)
+    private AuditService auditService;
 
     public MerchantProvisioningService(JdbcTemplate jdbc, PasswordEncoder passwords, ObjectMapper mapper) {
         this.jdbc = jdbc; this.passwords = passwords; this.mapper = mapper;
@@ -88,6 +94,20 @@ public class MerchantProvisioningService {
         jdbc.update("insert into merchant_provisioning(operation_id,merchant_id,request_hash,user_id,client_id,actor_id) values (?,?,?,?,?,?)",
                 operation, merchant, fingerprint, user, client, request.actorId());
         event(operation, null, request.actorId(), "PROVISIONED");
+        if (auditService != null) {
+            auditService.record(
+                user,
+                "MERCHANT",
+                "MERCHANT_APPROVED",
+                "MERCHANT",
+                merchant,
+                Map.of(
+                    "email", email,
+                    "fullName", request.fullName().trim(),
+                    "clientId", client
+                )
+            );
+        }
         return result(operation, secret, temporaryPasswordForResult);
     }
 

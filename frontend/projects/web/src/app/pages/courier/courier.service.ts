@@ -295,6 +295,8 @@ export class CourierService {
       attemptCount: card.attemptCount,
       sequenceOrder: card.sequenceOrder,
       updatedAt: card.completedAt || new Date().toISOString(),
+      assignedAt: card.assignedAt ?? null,
+      overdue: card.overdue === true,
     };
   }
 

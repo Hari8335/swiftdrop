@@ -58,9 +58,12 @@ public class InternalParcelController {
             @RequestParam(required = false) String courierId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) ParcelStatus status,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate completedOn,
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        ParcelPageResponse response = parcelService.queryInternalParcels(unassigned, zone, courierId, date, status, pageable);
+        ParcelPageResponse response = parcelService.queryInternalParcels(
+                unassigned, zone, courierId, date, status, active, completedOn, pageable);
         return ResponseEntity.ok(response);
     }
 

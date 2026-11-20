@@ -583,6 +583,38 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
         <!-- TAB 2: WEBHOOK SETTINGS                                                  -->
         <!-- ========================================================================= -->
         <div *ngIf="activeTab() === 'settings'" class="space-y-6">
+          <!-- Account Profile Card -->
+          <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Account Profile</span>
+                <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight mt-0.5">Merchant Details</h2>
+              </div>
+              <button
+                type="button"
+                id="merchant-edit-profile-btn"
+                (click)="openEditProfileModal()"
+                class="px-4 py-1.5 bg-white border border-[#eee7e0] hover:border-[#a53a26] text-[#a53a26] text-xs font-bold rounded-full transition-colors cursor-pointer"
+              >
+                Edit Profile
+              </button>
+            </div>
+            <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <div>
+                <dt class="text-[#6f6d85] font-medium">Full name</dt>
+                <dd id="merchant-profile-name" class="font-bold text-[#1d1b2c] mt-0.5">{{ merchantName() }}</dd>
+              </div>
+              <div>
+                <dt class="text-[#6f6d85] font-medium">Phone number</dt>
+                <dd id="merchant-profile-phone" class="font-bold text-[#1d1b2c] mt-0.5">{{ merchantPhone() || 'Not provided' }}</dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-[#6f6d85] font-medium">Email</dt>
+                <dd id="merchant-profile-email" class="font-bold text-[#1d1b2c] mt-0.5 truncate">{{ merchantEmail() }}</dd>
+              </div>
+            </dl>
+          </div>
+
           <!-- Tab Header -->
           <div>
             <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
@@ -1232,6 +1264,86 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
           </div>
         </div>
       }
+
+      <!-- MODAL: EDIT PROFILE (MERCHANT) -->
+      <div
+        *ngIf="isEditProfileModalOpen()"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm animate-fade-in"
+      >
+        <div class="w-full max-w-md space-y-5 rounded-[1.5rem] border border-[#e9e3dd] bg-[#fbfaf8] p-7 shadow-2xl">
+          <div class="flex items-center justify-between border-b border-[#e9e3dd] pb-4">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#a53a26]">Merchant profile</p>
+              <h3 class="mt-1 text-xl font-black tracking-[-0.03em] text-[#1d1b2c]">Edit Profile</h3>
+              <p class="mt-1 text-xs text-[#6f6d85]">Update your business contact details.</p>
+            </div>
+            <button
+              type="button"
+              (click)="closeEditProfileModal()"
+              class="flex h-9 w-9 items-center justify-center rounded-full text-[#6f6d85] hover:bg-[#f2e4de] hover:text-[#a53a26]"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div *ngIf="editProfileError()" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">
+            {{ editProfileError() }}
+          </div>
+
+          <form (ngSubmit)="saveProfile()" class="space-y-3.5">
+            <div>
+              <label class="mb-1 block text-xs font-bold text-[#6f6d85]">Full Name / Merchant Name</label>
+              <input
+                type="text"
+                id="merchant-edit-fullname"
+                [(ngModel)]="editProfileFullName"
+                name="editFullName"
+                required
+                class="w-full rounded-xl border border-[#eee7e0] bg-white px-3 py-2.5 text-sm text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#f2e4de]"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-bold text-[#6f6d85]">Phone Number</label>
+              <input
+                type="tel"
+                id="merchant-edit-phone"
+                [(ngModel)]="editProfilePhone"
+                name="editPhone"
+                placeholder="0771234567"
+                class="w-full rounded-xl border border-[#eee7e0] bg-white px-3 py-2.5 text-sm text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#f2e4de]"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-bold text-[#6f6d85]">Email Address</label>
+              <input
+                type="email"
+                id="merchant-edit-email"
+                [(ngModel)]="editProfileEmail"
+                name="editEmail"
+                required
+                class="w-full rounded-xl border border-[#eee7e0] bg-white px-3 py-2.5 text-sm text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#f2e4de]"
+              />
+            </div>
+            <div class="flex items-center justify-end gap-2 border-t border-[#e9e3dd] pt-4">
+              <button
+                type="button"
+                (click)="closeEditProfileModal()"
+                class="rounded-full px-4 py-2 text-xs font-bold text-[#6f6d85] hover:bg-[#eee7e0]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                id="save-merchant-profile-btn"
+                [disabled]="!editProfileFullName.trim() || !editProfileEmail.trim() || isSavingProfile()"
+                class="rounded-full bg-[#a53a26] hover:bg-[#7e2615] px-5 py-2.5 text-xs font-bold text-white shadow-sm disabled:opacity-50"
+              >
+                {{ isSavingProfile() ? 'Saving...' : 'Save Changes' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -1285,6 +1397,49 @@ export class MerchantComponent implements OnInit, OnDestroy {
 
   readonly merchantName = computed(() => this.authService?.currentUser()?.fullName || 'Merchant Partner');
   readonly merchantEmail = computed(() => this.authService?.currentUser()?.email || 'merchant@swiftdrop.lk');
+  readonly merchantPhone = computed(() => this.authService?.currentUser()?.phoneNumber || '');
+
+  isEditProfileModalOpen = signal(false);
+  editProfileFullName = '';
+  editProfilePhone = '';
+  editProfileEmail = '';
+  editProfileError = signal<string | null>(null);
+  isSavingProfile = signal(false);
+
+  openEditProfileModal(): void {
+    this.editProfileFullName = this.merchantName();
+    this.editProfilePhone = this.merchantPhone();
+    this.editProfileEmail = this.merchantEmail();
+    this.editProfileError.set(null);
+    this.isEditProfileModalOpen.set(true);
+  }
+
+  closeEditProfileModal(): void {
+    this.isEditProfileModalOpen.set(false);
+    this.editProfileError.set(null);
+  }
+
+  saveProfile(): void {
+    if (!this.editProfileFullName.trim() || !this.editProfileEmail.trim()) return;
+    this.isSavingProfile.set(true);
+    this.editProfileError.set(null);
+
+    this.authService?.updateProfile({
+      fullName: this.editProfileFullName.trim(),
+      phoneNumber: this.editProfilePhone.trim() || undefined,
+      email: this.editProfileEmail.trim(),
+    }).subscribe({
+      next: () => {
+        this.isSavingProfile.set(false);
+        this.closeEditProfileModal();
+        this.notification.set('Profile updated successfully.');
+      },
+      error: (err) => {
+        this.isSavingProfile.set(false);
+        this.editProfileError.set(err?.error?.message || err?.message || 'Failed to update profile.');
+      },
+    });
+  }
   readonly merchantInitials = computed(() => {
     const name = this.merchantName();
     if (!name) return 'M';

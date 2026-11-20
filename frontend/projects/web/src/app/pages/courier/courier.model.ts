@@ -77,6 +77,10 @@ export interface CourierDeliveryCard {
   attemptCount: number;
   sequenceOrder: number;
   completedAt?: string | null;
+  /** When the parcel was assigned to this courier. */
+  assignedAt?: string | null;
+  /** True when the parcel is still open more than 2 days after assignment. */
+  overdue?: boolean;
 }
 
 export interface CourierDailySummary {
@@ -203,6 +207,8 @@ export interface CourierDelivery {
   sequenceOrder?: number;
   updatedAt?: string;
   createdAt?: string;
+  assignedAt?: string | null;
+  overdue?: boolean;
 }
 
 export interface StatusUpdateRequest {

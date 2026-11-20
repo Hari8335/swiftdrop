@@ -1,11 +1,47 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
+import { of } from 'rxjs';
 import { AdminComponent } from './admin.component';
+import { AdminAuditService, AuditRecord } from './admin/admin-audit.service';
 
 describe('AdminComponent', () => {
   let component: AdminComponent;
   let fixture: ComponentFixture<AdminComponent>;
+  let auditService: AdminAuditService;
+
+  const mockRecords: AuditRecord[] = [
+    {
+      id: 'rec-1',
+      occurredAt: '2026-11-18T08:00:00Z',
+      actorId: 'admin-1',
+      actorRole: 'ADMIN',
+      action: 'MERCHANT_APPROVED',
+      targetType: 'MERCHANT',
+      targetId: 'm-1',
+      details: { fullName: 'Ceylon Spices Co.', email: 'merchant@ceylon.lk' },
+    },
+    {
+      id: 'rec-2',
+      occurredAt: '2026-11-18T07:30:00Z',
+      actorId: 'admin-1',
+      actorRole: 'ADMIN',
+      action: 'STAFF_DISABLED',
+      targetType: 'USER',
+      targetId: 'u-2',
+      details: { fullName: 'Sunil Perera', email: 'sunil@swiftdrop.lk', role: 'COURIER' },
+    },
+    {
+      id: 'rec-3',
+      occurredAt: '2026-11-18T07:00:00Z',
+      actorId: 'admin-1',
+      actorRole: 'ADMIN',
+      action: 'STAFF_ENABLED',
+      targetType: 'USER',
+      targetId: 'u-3',
+      details: { fullName: 'Kamal Silva', email: 'kamal@swiftdrop.lk', role: 'DISPATCHER' },
+    },
+  ];
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -18,25 +54,113 @@ describe('AdminComponent', () => {
 
     fixture = TestBed.createComponent(AdminComponent);
     component = fixture.componentInstance;
+    auditService = TestBed.inject(AdminAuditService);
+
+    jest.spyOn(auditService, 'loadAuditLogs').mockReturnValue(
+      of({
+        content: mockRecords,
+        totalElements: 25,
+        totalPages: 3,
+        page: 0,
+        size: 10,
+      })
+    );
+
     fixture.detectChanges();
   });
 
-  it('creates and renders admin shell and navigation', () => {
+  it('creates and renders admin shell and navigation without Audit log tab', () => {
     expect(component).toBeTruthy();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('Welcome back, admin!');
     expect(element.textContent).toContain('Merchant approval');
-    expect(element.textContent).toContain('Audit log');
+    expect(element.textContent).toContain('Staff Management');
+
+    const nav = element.querySelector('nav[aria-label="Admin section navigation"]');
+    expect(nav?.textContent).not.toContain('Audit log');
+
     expect(element.querySelector('#admin-staff-management-link')).toBeTruthy();
     expect(element.querySelector('#admin-card-staff-link')).toBeTruthy();
     expect(element.querySelector('#admin-merchant-approval-link')).toBeTruthy();
     expect(element.querySelector('#admin-card-merchant-approval-link')).toBeTruthy();
+    expect(element.querySelector('#admin-reports-card-link')).toBeTruthy();
   });
 
-  it('does not contain the preview role dropdown or embedded dispatcher forms', () => {
+  it('renders recent administration activities with status badges and details', () => {
+    auditService.activities.set(mockRecords);
+    auditService.totalElements.set(25);
+    auditService.totalPages.set(3);
+    auditService.currentPage.set(0);
+    fixture.detectChanges();
+
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.textContent).not.toContain('Preview role');
-    expect(element.textContent).not.toContain('Add zone');
-    expect(element.textContent).not.toContain('Add pricing rule');
+    expect(element.textContent).toContain('Merchant Registration Approved');
+    expect(element.textContent).toContain('Ceylon Spices Co.');
+    expect(element.textContent).toContain('Staff Account Disabled');
+    expect(element.textContent).toContain('Sunil Perera');
+    expect(element.textContent).toContain('Staff Account Enabled');
+
+    const rows = element.querySelectorAll('tbody tr');
+    expect(rows.length).toBe(3);
+  });
+
+  it('supports pagination controls with previous and next navigation', () => {
+    auditService.activities.set(mockRecords);
+    auditService.totalElements.set(25);
+    auditService.totalPages.set(3);
+    auditService.currentPage.set(0);
+    fixture.detectChanges();
+
+    const prevBtn = fixture.nativeElement.querySelector('#admin-activity-prev-page') as HTMLButtonElement;
+    const nextBtn = fixture.nativeElement.querySelector('#admin-activity-next-page') as HTMLButtonElement;
+
+    expect(prevBtn.disabled).toBe(true);
+    expect(nextBtn.disabled).toBe(false);
+
+    const loadSpy = jest.spyOn(component, 'loadActivities');
+    component.goToPage(1);
+    expect(loadSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('formats various actions into human readable metadata', () => {
+    const merchantMeta = component.formatAction('MERCHANT_APPROVED');
+    expect(merchantMeta.title).toBe('Merchant Registration Approved');
+    expect(merchantMeta.area).toBe('MERCHANT');
+    expect(merchantMeta.status).toBe('APPROVED');
+
+    const disabledMeta = component.formatAction('STAFF_DISABLED');
+    expect(disabledMeta.title).toBe('Staff Account Disabled');
+    expect(disabledMeta.area).toBe('STAFF');
+    expect(disabledMeta.status).toBe('DISABLED');
+
+    const provisionedMeta = component.formatAction('STAFF_PROVISIONED');
+    expect(provisionedMeta.title).toBe('Staff Member Provisioned');
+    expect(provisionedMeta.area).toBe('STAFF');
+
+    const courierMeta = component.formatAction('STAFF_PROVISIONED', {
+      id: '1',
+      occurredAt: '2026-11-19T00:00:00Z',
+      actorId: 'usr-1',
+      actorRole: 'COURIER',
+      action: 'STAFF_PROVISIONED',
+      targetType: 'USER',
+      targetId: 'usr-1',
+      details: { role: 'COURIER' },
+    });
+    expect(courierMeta.title).toBe('Staff Member Provisioned');
+    expect(courierMeta.area).toBe('COURIER');
+
+    const dispatcherMeta = component.formatAction('STAFF_PROVISIONED', {
+      id: '2',
+      occurredAt: '2026-11-19T00:00:00Z',
+      actorId: 'usr-2',
+      actorRole: 'DISPATCHER',
+      action: 'STAFF_PROVISIONED',
+      targetType: 'USER',
+      targetId: 'usr-2',
+      details: { role: 'DISPATCHER' },
+    });
+    expect(dispatcherMeta.title).toBe('Staff Member Provisioned');
+    expect(dispatcherMeta.area).toBe('DISPATCHER');
   });
 });

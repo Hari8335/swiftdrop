@@ -73,5 +73,18 @@ describe('ForgotPasswordComponent', () => {
     expect(component.errorMessage()).toBe('Server error');
     expect(component.successMessage()).toBeNull();
   });
+
+  it('should display warning message when email is not registered (404)', () => {
+    authServiceMock.forgotPassword.mockReturnValue(
+      throwError(() => ({ status: 404, error: { message: 'This email is not registered yet' } }))
+    );
+
+    component.forgotForm.setValue({ email: 'unregistered@swiftdrop.lk' });
+    component.onSubmit();
+
+    expect(component.isLoading()).toBe(false);
+    expect(component.errorMessage()).toBe('This email is not registered yet');
+    expect(component.successMessage()).toBeNull();
+  });
 });
 

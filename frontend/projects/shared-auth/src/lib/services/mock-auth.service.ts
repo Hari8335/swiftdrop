@@ -117,6 +117,14 @@ export class MockAuthService {
   }
 
   forgotPassword(data: ForgotPasswordRequest): Observable<ForgotPasswordResponse> {
+    const email = data.email?.toLowerCase();
+    const exists = Object.values(MOCK_USERS).some((u) => u.email.toLowerCase() === email);
+    if (!exists && email !== 'user@example.com' && email !== 'user@swiftdrop.lk') {
+      return throwError(() => ({
+        status: 404,
+        error: { code: '404 NOT_FOUND', message: 'This email is not registered yet' },
+      })).pipe(delay(200));
+    }
     return of({
       message: 'If an account exists with this email, password reset instructions have been sent.',
     }).pipe(delay(200));
