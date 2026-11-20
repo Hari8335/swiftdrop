@@ -244,8 +244,10 @@ describe('LoginComponent', () => {
   it('should render top bar with Customer, Merchant, and Sign In navigation links', () => {
     const navLinks = fixture.nativeElement.querySelectorAll('.nav-links a');
     expect(navLinks.length).toBe(3);
-    expect(navLinks[0].textContent.trim()).toBe('Customer');
-    expect(navLinks[1].textContent.trim()).toBe('Merchant');
+    expect(navLinks[0].textContent.trim()).toBe('Join as Customer');
+    expect(navLinks[1].textContent.trim()).toBe('Join as Merchant');
+    expect(fixture.nativeElement.querySelectorAll('.said-chip').length).toBe(0);
+    expect(fixture.nativeElement.querySelector('.store-badge')).toBeNull();
     expect(navLinks[2].textContent.trim()).toBe('Sign In');
   });
 
@@ -284,5 +286,59 @@ describe('LoginComponent', () => {
     component.useSampleCredentials('COURIER');
     expect(component.loginForm.get('email')?.value).toBe('courier@swiftdrop.lk');
     expect(component.loginForm.get('password')?.value).toBe('Password123!');
+  });
+
+  describe('shared layout and per-role guidance', () => {
+    const el = () => fixture.nativeElement as HTMLElement;
+    const pick = (role: 'CUSTOMER' | 'MERCHANT' | 'ADMIN' | 'DISPATCHER' | 'COURIER') => {
+      component.selectRole(role);
+      fixture.detectChanges();
+    };
+
+    it('renders inside the shared auth layout with Sign In highlighted', () => {
+      const shell = el().querySelector('lib-auth-shell');
+      expect(shell).toBeTruthy();
+      expect(shell?.querySelector('.nav-pill')?.textContent?.trim()).toBe('Sign In');
+      expect(shell?.querySelector('.auth-card form')).toBeTruthy();
+    });
+
+    it('explains how each role gets its account', () => {
+      expect(el().querySelector('.hero-headline')?.textContent).toContain('Welcome back');
+
+      pick('MERCHANT');
+      expect(el().querySelector('.hero-lede')?.textContent).toContain('temporary password from your approval email');
+
+      for (const role of ['COURIER', 'DISPATCHER'] as const) {
+        pick(role);
+        expect(el().querySelector('.hero-lede')?.textContent).toContain('created by your SwiftDrop administrator');
+      }
+
+      pick('ADMIN');
+      expect(el().querySelector('.hero-badge')?.textContent).toContain('Admin sign-in');
+    });
+
+    it('offers Google sign-in only on the Customer tab, because Google creates customer accounts', () => {
+      expect(el().querySelector('.google-btn')).toBeTruthy();
+      for (const role of ['MERCHANT', 'ADMIN', 'DISPATCHER', 'COURIER'] as const) {
+        pick(role);
+        expect(el().querySelector('.google-btn')).toBeNull();
+      }
+    });
+
+    it('tells staff that their accounts come from an administrator instead of offering sign-up', () => {
+      pick('COURIER');
+      const footer = el().querySelector('.auth-footer')?.textContent ?? '';
+      expect(footer).toContain('Courier accounts are created by your SwiftDrop administrator');
+      expect(el().querySelector('.auth-footer a[href="/register"]')).toBeNull();
+
+      pick('MERCHANT');
+      expect(el().querySelector('.auth-footer a[href="/merchant-registration"]')).toBeTruthy();
+    });
+
+    it('shows the sample-credentials shortcut only in development builds', () => {
+      // Jest runs in dev mode; production builds compile with isDevMode() === false.
+      expect(component.showSampleCredentials).toBe(true);
+      expect(el().querySelector('.sample-link')).toBeTruthy();
+    });
   });
 });
