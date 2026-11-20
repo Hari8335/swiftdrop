@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ParcelBox3dComponent } from './parcel-box-3d.component';
 
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ParcelBox3dComponent],
   template: `
     <div class="yum-page">
       <!-- Top Brand Bar -->
@@ -29,16 +30,29 @@ import { RouterLink } from '@angular/router';
       <main class="landing-content">
         <!-- Hero Section -->
         <section class="hero-section">
-          <div class="hero-badge">
-            <span class="badge-dot"></span> Next-Generation Parcel Delivery
+          <div class="hero-grid">
+            <div class="hero-text-col">
+              <div class="hero-badge">
+                <span class="badge-dot"></span> Next-Generation Parcel Delivery
+              </div>
+
+              <h1 class="hero-headline">The parcel delivery you can talk to</h1>
+
+              <p class="hero-lede">
+                Say “two packages to Colombo by 2 PM”, and dispatch is scheduled.
+                SwiftDrop calculates dynamic rates, coordinates couriers live, and tracks every stop across Sri Lanka.
+              </p>
+
+              <div class="hero-actions">
+                <a routerLink="/register" class="hero-btn-primary">Book Delivery</a>
+                <a routerLink="/track" class="hero-btn-secondary">Track Parcel</a>
+              </div>
+            </div>
+
+            <div class="hero-3d-col">
+              <app-parcel-box-3d></app-parcel-box-3d>
+            </div>
           </div>
-
-          <h1 class="hero-headline">The parcel delivery you can talk to</h1>
-
-          <p class="hero-lede">
-            Say “two packages to Colombo by 2 PM”, and dispatch is scheduled.
-            SwiftDrop calculates dynamic rates, coordinates couriers live, and tracks every stop across Sri Lanka.
-          </p>
         </section>
 
         <!-- Feature Bento Grid (Tactile YumLog Cards) -->
@@ -187,11 +201,75 @@ import { RouterLink } from '@angular/router';
       margin: 0 auto;
     }
     .hero-section {
-      text-align: center;
+      padding: 1.5rem 0 3.5rem;
+    }
+    .hero-grid {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 3rem;
+      width: 100%;
+    }
+    .hero-text-col {
+      flex: 1 1 54%;
+      min-width: 0;
+      text-align: left;
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
+    }
+    .hero-3d-col {
+      flex: 0 0 460px;
+      max-width: 500px;
+      width: 100%;
+      display: flex;
       align-items: center;
-      padding: 1.5rem 0 3rem;
+      justify-content: center;
+    }
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 2rem;
+      flex-wrap: wrap;
+    }
+    .hero-btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.85rem 1.85rem;
+      border-radius: 9999px;
+      background: #ffffff;
+      color: var(--terracotta);
+      font-size: 0.95rem;
+      font-weight: 800;
+      text-decoration: none;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2);
+      transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+    }
+    .hero-btn-primary:hover {
+      background: #faf6f0;
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px -5px rgba(0,0,0,0.25);
+    }
+    .hero-btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.85rem 1.85rem;
+      border-radius: 9999px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-decoration: none;
+      backdrop-filter: blur(8px);
+      transition: background-color 0.2s, transform 0.2s;
+    }
+    .hero-btn-secondary:hover {
+      background: rgba(255,255,255,0.22);
+      transform: translateY(-2px);
     }
     .hero-badge {
       display: inline-flex;
@@ -329,8 +407,35 @@ import { RouterLink } from '@angular/router';
       font-weight: 600;
     }
     .footer-links a:hover { color: #fff; }
+    @media (max-width: 1024px) {
+      .hero-grid {
+        gap: 2rem;
+      }
+      .hero-3d-col {
+        flex: 0 0 380px;
+        max-width: 400px;
+      }
+    }
     @media (max-width: 768px) {
       .top-bar { flex-direction: column; gap: 1rem; margin-bottom: 2rem; }
+      .hero-grid {
+        flex-direction: column;
+        text-align: center;
+        gap: 2rem;
+      }
+      .hero-text-col {
+        align-items: center;
+        text-align: center;
+      }
+      .hero-3d-col {
+        flex: 0 0 auto;
+        max-width: 270px;
+        width: 100%;
+        margin-top: 1rem;
+      }
+      .hero-actions {
+        justify-content: center;
+      }
       .hero-headline { font-size: 2.5rem; }
       .footer-inner { flex-direction: column; text-align: center; }
     }

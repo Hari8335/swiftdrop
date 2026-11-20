@@ -22,6 +22,7 @@ import { TrackingApiService } from './tracking-api.service';
 import { StreamState, TrackingStreamService } from './tracking-stream.service';
 import { TrackingTimelineComponent } from './tracking-timeline.component';
 import { ParcelDetail } from './tracking.model';
+import { NotificationBellComponent } from '../../notification/notification-bell/notification-bell.component';
 
 /**
  * Signed-in parcel detail with a live timeline (CU-04, CU-05; docs/tracking-design.md 3.5).
@@ -43,6 +44,7 @@ import { ParcelDetail } from './tracking.model';
     TrackingTimelineComponent,
     ReceiptButtonComponent,
     ParcelRatingComponent,
+    NotificationBellComponent,
     DriverAssignmentHistoryComponent,
   ],
   template: `
@@ -93,7 +95,7 @@ import { ParcelDetail } from './tracking.model';
             </svg>
           </a>
 
-          <!-- 3. Chat Sparkle Icon (AI Assistant) -->
+          <!-- 3. Conversational AI Chat Icon (AI Assistant) -->
           <a
             routerLink="/customer/assistant"
             id="nav-assistant-link"
@@ -102,17 +104,15 @@ import { ParcelDetail } from './tracking.model';
             aria-label="AI Assistant"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-              <path d="M5 3v4"/>
-              <path d="M19 17v4"/>
-              <path d="M3 5h4"/>
-              <path d="M17 19h4"/>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              <path d="M12 7l.8 1.6 1.7.8-1.7.8-.8 1.6-.8-1.6-1.7-.8 1.7-.8z"/>
             </svg>
           </a>
         </nav>
 
-        <!-- Bottom Actions (Sign Out / Home) -->
+        <!-- Bottom Actions (Notifications & Sign Out) -->
         <div class="hidden md:flex flex-col items-center gap-4 mt-auto pt-4 border-t border-[#f0ebe5]/60">
+          <app-notification-bell placement="right"></app-notification-bell>
           <button
             (click)="signOut()"
             class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-colors cursor-pointer"
@@ -131,13 +131,13 @@ import { ParcelDetail } from './tracking.model';
       <main class="flex-1 flex flex-col min-w-0 bg-[#ffffff] min-h-screen">
         <!-- Top Navigation Header (Breadcrumb removed) -->
         <header
-          class="w-full flex items-center justify-between py-4 px-4 sm:px-8 md:px-12 border-b border-[#f0ebe5] bg-white sticky top-0 z-10"
+          class="w-full min-h-[72px] flex items-center justify-between px-4 sm:px-8 md:px-12 border-b border-[#f0ebe5] bg-white sticky top-0 z-10"
         >
           <!-- Back Button -->
           <button
             type="button"
             (click)="goBack()"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#eee7e0] bg-[#faf8f6] hover:bg-[#f3ece4] text-[#1d1b2c] text-xs font-bold transition-all shadow-xs cursor-pointer group"
+            class="h-10 inline-flex items-center gap-2 px-4 rounded-full border border-[#eee7e0] bg-[#faf8f6] hover:bg-[#f3ece4] text-[#1d1b2c] text-xs font-bold transition-all shadow-xs cursor-pointer group"
             title="Back to Deliveries"
           >
             <svg
@@ -154,7 +154,7 @@ import { ParcelDetail } from './tracking.model';
 
           <!-- User Profile Badge -->
           <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#faf8f6] border border-[#eee7e0]">
+            <div class="h-10 inline-flex items-center gap-2.5 px-3 rounded-full bg-[#faf8f6] border border-[#eee7e0]">
               <div
                 class="w-7 h-7 rounded-full bg-[#a53a26] text-white flex items-center justify-center text-xs font-black shadow-xs"
               >
