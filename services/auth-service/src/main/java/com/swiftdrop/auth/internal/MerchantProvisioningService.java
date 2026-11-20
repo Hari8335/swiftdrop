@@ -18,6 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.swiftdrop.auth.audit.AuditService;
+import java.util.Map;
 
 @Service
 public class MerchantProvisioningService {
@@ -25,6 +28,10 @@ public class MerchantProvisioningService {
     private final PasswordEncoder passwords;
     private final ObjectMapper mapper;
     private final SecureRandom random = new SecureRandom();
+    private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+    @Autowired(required = false)
+    private AuditService auditService;
 
     public MerchantProvisioningService(JdbcTemplate jdbc, PasswordEncoder passwords, ObjectMapper mapper) {
         this.jdbc = jdbc; this.passwords = passwords; this.mapper = mapper;
@@ -58,7 +65,7 @@ public class MerchantProvisioningService {
             }
             if (request.expectedUserId() != null) throw conflict("Expected merchant user was not found");
             user = "usr-" + UUID.randomUUID();
-            String temporaryPassword = String.format("%06d", random.nextInt(1_000_000));
+            String temporaryPassword = generateTemporaryPassword();
             jdbc.update("insert into users(id,email,password_hash,full_name,phone_number,role,enabled,merchant_id,must_change_password,created_at,updated_at) values (?,?,?,?,?,'MERCHANT',true,?,true,current_timestamp,current_timestamp)",
                     user, email, passwords.encode(temporaryPassword), request.fullName().trim(), request.phoneNumber().trim(), merchant);
             temporaryPasswordForResult = temporaryPassword;
@@ -87,6 +94,20 @@ public class MerchantProvisioningService {
         jdbc.update("insert into merchant_provisioning(operation_id,merchant_id,request_hash,user_id,client_id,actor_id) values (?,?,?,?,?,?)",
                 operation, merchant, fingerprint, user, client, request.actorId());
         event(operation, null, request.actorId(), "PROVISIONED");
+        if (auditService != null) {
+            auditService.record(
+                user,
+                "MERCHANT",
+                "MERCHANT_APPROVED",
+                "MERCHANT",
+                merchant,
+                Map.of(
+                    "email", email,
+                    "fullName", request.fullName().trim(),
+                    "clientId", client
+                )
+            );
+        }
         return result(operation, secret, temporaryPasswordForResult);
     }
 
@@ -146,6 +167,13 @@ public class MerchantProvisioningService {
     private String newSecret() {
         byte[] bytes = new byte[32]; random.nextBytes(bytes);
         return "sd_sec_" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+    private String generateTemporaryPassword() {
+        StringBuilder sb = new StringBuilder(6);
+        for (int i = 0; i < 6; i++) {
+            sb.append(LETTERS.charAt(random.nextInt(LETTERS.length())));
+        }
+        return sb.toString();
     }
     private void event(UUID operation, UUID replacement, String actor, String action) {
         jdbc.update("insert into merchant_provisioning_events(operation_id,replacement_id,actor_id,action) values (?,?,?,?)", operation, replacement, actor, action);

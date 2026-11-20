@@ -41,6 +41,7 @@ describe('AdminUsersComponent', () => {
       pageSize: jest.fn(() => 20),
       loading: jest.fn(() => false),
       error: jest.fn(() => null),
+      roleCounts: jest.fn(() => ({ MERCHANT: 0, CUSTOMER: 0, DISPATCHER: 1, COURIER: 1 })),
       loadUsers: jest.fn(() =>
         of({
           content: mockUsers,
@@ -73,8 +74,12 @@ describe('AdminUsersComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('#open-create-user-modal-btn')).toBeTruthy();
     expect(compiled.querySelector('#user-role-filter')).toBeTruthy();
+    const roleOptions = Array.from(compiled.querySelectorAll('#user-role-filter option')).map(
+      (opt) => (opt as HTMLOptionElement).value
+    );
+    expect(roleOptions).toEqual(['', 'CUSTOMER', 'MERCHANT', 'DISPATCHER', 'COURIER']);
     expect(compiled.querySelector('#user-status-filter')).toBeTruthy();
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 20, undefined, undefined);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 15, undefined, undefined);
 
     const rows = compiled.querySelectorAll('tbody tr');
     expect(rows.length).toBe(2);
@@ -85,13 +90,13 @@ describe('AdminUsersComponent', () => {
   it('should trigger server-side reload when role filter changes', () => {
     component.onRoleFilterChange('COURIER');
     expect(component.userRoleFilter()).toBe('COURIER');
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 20, 'COURIER', undefined);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 15, 'COURIER', undefined);
   });
 
   it('should trigger server-side reload when status filter changes', () => {
     component.onStatusFilterChange('true');
     expect(component.userStatusFilter()).toBe('true');
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 20, undefined, true);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 15, undefined, true);
   });
 
   it('should toggle user account status via PATCH request', () => {
@@ -122,8 +127,7 @@ describe('AdminUsersComponent', () => {
   it('should validate form fields according to OpenAPI contract constraints', () => {
     component.newUserFullName = '';
     component.newUserEmail = 'invalid-email';
-    component.newUserPhone = '123'; // invalid: must be 10-14 digits
-    component.newUserPassword = 'short'; // invalid: min 8 chars
+    component.newUserPhone = '123'; // invalid: must be exactly 10 digits
     component.newUserRole = 'COURIER';
 
     expect(component.isPhoneValid()).toBe(false);
@@ -131,8 +135,7 @@ describe('AdminUsersComponent', () => {
 
     component.newUserFullName = 'Saman Kumara';
     component.newUserEmail = 'courier.saman@swiftdrop.lk';
-    component.newUserPhone = '+94771234567'; // valid
-    component.newUserPassword = 'SecurePassword#2026'; // valid
+    component.newUserPhone = '0771234567'; // valid 10 digits
 
     expect(component.isPhoneValid()).toBe(true);
     expect(component.isFormValid()).toBe(true);
@@ -142,15 +145,14 @@ describe('AdminUsersComponent', () => {
     component.openCreateUserModal();
     component.newUserFullName = 'Saman Kumara';
     component.newUserEmail = 'courier.saman@swiftdrop.lk';
-    component.newUserPhone = '+94771234567';
-    component.newUserPassword = 'SecurePassword#2026';
+    component.newUserPhone = '0771234567';
     component.newUserRole = 'COURIER';
 
     const createdResponse: UserSummary = {
       id: 'usr-new-1',
       email: 'courier.saman@swiftdrop.lk',
       fullName: 'Saman Kumara',
-      phoneNumber: '+94771234567',
+      phoneNumber: '0771234567',
       role: 'COURIER',
       enabled: true,
       createdAt: '2026-10-28T12:00:00Z',
@@ -162,13 +164,12 @@ describe('AdminUsersComponent', () => {
     expect(adminUsersServiceMock.createStaffUser).toHaveBeenCalledWith({
       fullName: 'Saman Kumara',
       email: 'courier.saman@swiftdrop.lk',
-      phoneNumber: '+94771234567',
-      password: 'SecurePassword#2026',
+      phoneNumber: '0771234567',
       role: 'COURIER',
     });
-    expect(component.toastMessage()).toContain('created successfully');
+    expect(component.toastMessage()).toContain('provisioned');
     expect(component.isCreateUserModalOpen()).toBe(false);
-    expect(component.newUserPassword).toBe(''); // sensitive field cleared
+    expect(component.newUserPhone).toBe('');
     expect(adminUsersServiceMock.loadUsers).toHaveBeenCalled();
   });
 
@@ -176,8 +177,7 @@ describe('AdminUsersComponent', () => {
     component.openCreateUserModal();
     component.newUserFullName = 'Saman Kumara';
     component.newUserEmail = 'courier.duplicate@swiftdrop.lk';
-    component.newUserPhone = '+94771234567';
-    component.newUserPassword = 'SecurePassword#2026';
+    component.newUserPhone = '0771234567';
     component.newUserRole = 'COURIER';
 
     adminUsersServiceMock.createStaffUser.mockReturnValue(
@@ -238,9 +238,95 @@ describe('AdminUsersComponent', () => {
     expect(compiled.querySelector('#page-info')?.textContent).toContain('Page 2 of 3');
 
     component.goToPage(2);
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(2, 20, undefined, undefined);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(2, 15, undefined, undefined);
 
     component.goToPage(0);
-    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 20, undefined, undefined);
+    expect(adminUsersServiceMock.loadUsers).toHaveBeenCalledWith(0, 15, undefined, undefined);
+  });
+
+  it('should filter users reactively when search query is entered', () => {
+    component.adminSearchService.setQuery('Kamal');
+    fixture.detectChanges();
+
+    expect(component.filteredUsers().length).toBe(1);
+    expect(component.filteredUsers()[0].fullName).toBe('Kamal Gunaratne');
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const rows = compiled.querySelectorAll('tbody tr');
+    expect(rows.length).toBe(1);
+    expect(compiled.textContent).toContain('Kamal Gunaratne');
+    expect(compiled.textContent).not.toContain('Anura Silva');
+
+    // Clear search
+    component.adminSearchService.clear();
+    fixture.detectChanges();
+    expect(component.filteredUsers().length).toBe(2);
+  });
+
+  it('should show empty search state when no users match search query', () => {
+    component.adminSearchService.setQuery('NonExistentName');
+    fixture.detectChanges();
+
+    expect(component.filteredUsers().length).toBe(0);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#admin-users-search-empty')).toBeTruthy();
+    expect(compiled.textContent).toContain('No matching staff accounts found');
+  });
+
+  it('should require two-step inline confirmation before disabling account', () => {
+    const userToToggle = mockUsers[0]; // enabled: true
+    const updatedUser: UserSummary = { ...userToToggle, enabled: false };
+    adminUsersServiceMock.updateUserStatus.mockReturnValue(of(updatedUser));
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const initialBtn = compiled.querySelector('#toggle-user-usr-1-btn') as HTMLButtonElement;
+    expect(initialBtn.textContent?.trim()).toBe('Disable Account');
+
+    // Click Disable Account -> enters confirmation state
+    initialBtn.click();
+    fixture.detectChanges();
+
+    expect(component.pendingConfirmUserId()).toBe('usr-1');
+    expect(adminUsersServiceMock.updateUserStatus).not.toHaveBeenCalled();
+
+    const confirmBtn = compiled.querySelector('#confirm-toggle-user-usr-1-btn') as HTMLButtonElement;
+    const cancelBtn = compiled.querySelector('#cancel-toggle-user-usr-1-btn') as HTMLButtonElement;
+    expect(confirmBtn).toBeTruthy();
+    expect(confirmBtn.textContent?.trim()).toBe('Confirm Disable');
+    expect(cancelBtn).toBeTruthy();
+
+    // Click Confirm Disable -> executes update
+    confirmBtn.click();
+    fixture.detectChanges();
+
+    expect(adminUsersServiceMock.updateUserStatus).toHaveBeenCalledWith('usr-1', false);
+    expect(component.pendingConfirmUserId()).toBeNull();
+  });
+
+  it('should require two-step inline confirmation before enabling account and allow cancel', () => {
+    const userToToggle = mockUsers[1]; // enabled: false
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const initialBtn = compiled.querySelector('#toggle-user-usr-2-btn') as HTMLButtonElement;
+    expect(initialBtn.textContent?.trim()).toBe('Enable Account');
+
+    // Click Enable Account -> enters confirmation state
+    initialBtn.click();
+    fixture.detectChanges();
+
+    expect(component.pendingConfirmUserId()).toBe('usr-2');
+    const confirmBtn = compiled.querySelector('#confirm-toggle-user-usr-2-btn') as HTMLButtonElement;
+    const cancelBtn = compiled.querySelector('#cancel-toggle-user-usr-2-btn') as HTMLButtonElement;
+    expect(confirmBtn.textContent?.trim()).toBe('Confirm Enable');
+
+    // Click Cancel -> reverts back without calling service
+    cancelBtn.click();
+    fixture.detectChanges();
+
+    expect(component.pendingConfirmUserId()).toBeNull();
+    expect(adminUsersServiceMock.updateUserStatus).not.toHaveBeenCalled();
+    expect(compiled.querySelector('#toggle-user-usr-2-btn')).toBeTruthy();
   });
 });

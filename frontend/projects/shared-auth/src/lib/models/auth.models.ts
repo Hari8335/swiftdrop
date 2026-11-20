@@ -4,6 +4,7 @@ export interface User {
   id: string;
   email: string;
   fullName: string;
+  phoneNumber?: string | null;
   role: 'CUSTOMER' | 'MERCHANT' | 'COURIER' | 'DISPATCHER' | 'ADMIN' | string;
   merchantId?: string | null;
 }
@@ -11,6 +12,7 @@ export interface User {
 export interface LoginRequest {
   email: string;
   password: string;
+  role?: string;
 }
 
 export interface RegisterRequest {

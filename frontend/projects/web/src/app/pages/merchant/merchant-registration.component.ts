@@ -103,7 +103,7 @@ import { MerchantRegistrationResponse } from './merchant-registration.model';
                   <p class="approval-info">Our merchant team reviews and activates partnership accounts within 24 hours to enable discounted volume rates and priority courier scheduling.</p>
                   <p class="approval-info">Your merchant portal access is separate from your sign-in password. After approval, use <a routerLink="/forgot-password" class="auth-link">Forgot password</a> with your registered email to set your sign-in password before opening the merchant portal.</p>
                   <div class="mt-6">
-                    <ui-button routerLink="/login" [fullWidth]="true">Sign In</ui-button>
+                    <ui-button routerLink="/login" [fullWidth]="true">Waiting for Approval</ui-button>
                   </div>
                 </div>
               } @else {
@@ -140,10 +140,12 @@ import { MerchantRegistrationResponse } from './merchant-registration.model';
                       inputId="phoneNumber"
                       label="Phone number"
                       type="tel"
+                      inputmode="numeric"
+                      [maxlength]="10"
                       formControlName="phoneNumber"
-                      placeholder="+94771234567"
+                      placeholder="0771234567"
                       autocomplete="tel"
-                      [messages]="{ required: 'Use 10–14 digits, optionally starting with +.', pattern: 'Use 10–14 digits, optionally starting with +.' }"
+                      [messages]="{ required: 'Phone number is required.', pattern: 'Phone number must be exactly 10 digits (e.g. 0771234567).' }"
                     />
 
                     <ui-input
@@ -153,7 +155,13 @@ import { MerchantRegistrationResponse } from './merchant-registration.model';
                       formControlName="email"
                       placeholder="merchant@example.com"
                       autocomplete="email"
-                      [messages]="{ required: 'Enter a valid email address.', email: 'Enter a valid email address.' }"
+                      (input)="onEmailInput()"
+                      [messages]="{
+                        required: 'Enter a valid business email address.',
+                        email: 'Enter a valid email address (e.g. merchant@example.com).',
+                        pattern: 'Enter a valid email address (e.g. merchant@example.com).',
+                        alreadyExists: 'This email is already registered. Please use a different email or sign in.'
+                      }"
                     />
 
                     <ui-input
@@ -575,14 +583,26 @@ export class MerchantRegistrationComponent {
   readonly form = this.formBuilder.nonNullable.group({
     businessName: ['', [Validators.required, Validators.maxLength(200)]],
     contactName: ['', [Validators.required, Validators.maxLength(200)]],
-    email: ['', [Validators.required, Validators.email]],
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,14}$/)]],
+    email: ['', [Validators.required, Validators.email, Validators.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)]],
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^[0-9]{10}$/)]],
     businessRegistrationNumber: [''],
   });
 
   invalid(field: keyof typeof this.form.controls): boolean {
     const control = this.form.controls[field];
     return control.invalid && (control.dirty || control.touched);
+  }
+
+  onEmailInput(): void {
+    const emailControl = this.form.controls.email;
+    if (emailControl.hasError('alreadyExists')) {
+      const errors = { ...emailControl.errors };
+      delete errors['alreadyExists'];
+      emailControl.setErrors(Object.keys(errors).length > 0 ? errors : null);
+      if (this.errorMessage()?.includes('already registered') || this.errorMessage()?.includes('already exists')) {
+        this.errorMessage.set(null);
+      }
+    }
   }
 
   submit(): void {
@@ -602,10 +622,14 @@ export class MerchantRegistrationComponent {
         this.registration.set(result);
         this.isSubmitting.set(false);
       },
-      error: (error: { status?: number }) => {
-        this.errorMessage.set(error.status === 409
-          ? 'This email is already registered.'
-          : 'Registration could not be submitted. Please try again.');
+      error: (error: { status?: number; error?: { message?: string } }) => {
+        if (error.status === 409) {
+          this.form.controls.email.setErrors({ alreadyExists: true });
+          this.form.controls.email.markAsTouched();
+          this.errorMessage.set('This email is already registered. Please use a different email or sign in.');
+        } else {
+          this.errorMessage.set(error.error?.message || 'Registration could not be submitted. Please try again.');
+        }
         this.isSubmitting.set(false);
       },
     });

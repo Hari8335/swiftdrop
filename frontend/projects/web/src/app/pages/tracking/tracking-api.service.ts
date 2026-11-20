@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ParcelDetail, ParcelHistoryResponse, PublicTrackingResponse } from './tracking.model';
+import { DriverAssignmentHistoryResponse, ParcelDetail, ParcelHistoryResponse, PublicTrackingResponse } from './tracking.model';
 
 /** REST reads for the tracking pages. The bearer token is added by the shared-auth interceptor. */
 @Injectable({ providedIn: 'root' })
@@ -21,5 +21,10 @@ export class TrackingApiService {
   /** Status history of a parcel (same access rule as the detail). */
   history(id: string): Observable<ParcelHistoryResponse> {
     return this.http.get<ParcelHistoryResponse>(`/api/v1/parcels/${encodeURIComponent(id)}/history`);
+  }
+
+  /** Every courier assigned to the parcel, oldest first (same access rule as the detail). */
+  assignments(id: string): Observable<DriverAssignmentHistoryResponse> {
+    return this.http.get<DriverAssignmentHistoryResponse>(`/api/v1/parcels/${encodeURIComponent(id)}/assignments`);
   }
 }

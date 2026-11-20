@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -22,6 +23,31 @@ public class PasswordResetExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
             new ErrorResponse(
                 "INVALID_RESET_TOKEN",
+                ex.getMessage(),
+                getCorrelationId(),
+                Instant.now()
+            )
+        );
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
+        String message = ex.getReason() != null ? ex.getReason() : ex.getMessage();
+        return ResponseEntity.status(ex.getStatusCode()).body(
+            new ErrorResponse(
+                ex.getStatusCode().toString(),
+                message,
+                getCorrelationId(),
+                Instant.now()
+            )
+        );
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+            new ErrorResponse(
+                "BAD_REQUEST",
                 ex.getMessage(),
                 getCorrelationId(),
                 Instant.now()

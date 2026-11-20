@@ -16,6 +16,7 @@ import { LiveIndicatorComponent } from './live-indicator.component';
 import { PageState, failure, followParcel } from './live-stream';
 import { ParcelRatingComponent } from './parcel-rating.component';
 import { ReceiptButtonComponent } from './receipt-button.component';
+import { DriverAssignmentHistoryComponent } from './driver-assignment-history.component';
 import { LiveTimeline } from './live-timeline';
 import { TrackingApiService } from './tracking-api.service';
 import { StreamState, TrackingStreamService } from './tracking-stream.service';
@@ -44,6 +45,7 @@ import { NotificationBellComponent } from '../../notification/notification-bell/
     ReceiptButtonComponent,
     ParcelRatingComponent,
     NotificationBellComponent,
+    DriverAssignmentHistoryComponent,
   ],
   template: `
     <!-- Full-Screen Edge-to-Edge Layout matching Customer Portal -->
@@ -289,7 +291,7 @@ import { NotificationBellComponent } from '../../notification/notification-bell/
 
                   <!-- Right Column (5 cols): Timeline Beside the Details -->
                   <div class="lg:col-span-5 space-y-6">
-                    <div class="rounded-3xl border border-[#eee7e0] bg-[#faf8f6] p-6 sm:p-7 space-y-5 shadow-xs lg:sticky lg:top-24">
+                    <div class="rounded-3xl border border-[#eee7e0] bg-[#faf8f6] p-6 sm:p-7 space-y-5 shadow-xs">
                       <div class="flex items-center justify-between pb-3.5 border-b border-[#eee7e0]">
                         <div>
                           <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight">Timeline</h2>
@@ -305,6 +307,14 @@ import { NotificationBellComponent } from '../../notification/notification-bell/
                         </div>
                       }
                     </div>
+
+                    <!-- Driver Assignment History (below the timeline) -->
+                    <app-driver-assignment-history
+                      class="block"
+                      [parcelId]="p.id"
+                      [revision]="timeline.revision()"
+                      [poll]="timeline.status() === 'CREATED'"
+                    />
                   </div>
                 </div>
               }

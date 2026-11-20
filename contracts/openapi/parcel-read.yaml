@@ -176,6 +176,44 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/parcels/{id}/assignments:
+    get:
+      tags: [Customer]
+      summary: Driver assignment history
+      description: |
+        Every courier (driver) assigned to the parcel, oldest assignment first.
+        Built from the assignment rows of M1's `status_history` (one row per
+        assignment or reassignment). The latest assignment is `CURRENT` while
+        that courier is still on the parcel; earlier ones are `PREVIOUS`, with
+        `reassignedAt` set to the time the next courier took over.
+
+        Driver details come from operations-service's courier directory
+        (`GET /internal/v1/couriers`). Only the name, vehicle type and zone are
+        returned; courier ids and phone numbers are never exposed. When a
+        courier has no profile, or the directory is unavailable, `driver` is
+        `null` and the assignment is still listed.
+
+        Access follows the same rule as `GET /api/v1/parcels/{id}/history`:
+        owner customer, assigned courier, DISPATCHER or ADMIN.
+      operationId: getDriverAssignmentHistory
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: Assignment history (empty when no courier was ever assigned)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverAssignmentHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/parcels/{id}/receipt:
     get:
       tags: [Customer]
@@ -537,6 +575,65 @@ components:
           nullable: true
           description: Failure or cancellation reason from the event, if any.
           example: null
+
+    # -----------------------------------------------------------------------
+    # Driver assignment history
+    # -----------------------------------------------------------------------
+    DriverAssignmentHistoryResponse:
+      type: object
+      required: [parcelId, assignments]
+      properties:
+        parcelId:
+          type: string
+          format: uuid
+          example: "7e9b3a24-c189-4b68-b7c1-fa9e6a0d2f11"
+        assignments:
+          type: array
+          description: Oldest assignment first.
+          items:
+            $ref: '#/components/schemas/DriverAssignment'
+
+    DriverAssignment:
+      type: object
+      required: [driver, assignedAt, status, reassignedAt]
+      properties:
+        driver:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/DriverProfile'
+          nullable: true
+          description: "`null` when the courier has no profile or the courier directory is unavailable."
+        assignedAt:
+          type: string
+          format: date-time
+          example: "2026-11-19T08:15:00Z"
+        status:
+          type: string
+          enum: [CURRENT, PREVIOUS]
+          description: "`CURRENT` for the courier assigned now, `PREVIOUS` for couriers that were replaced."
+        reassignedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the next courier replaced this one; `null` for the current assignment.
+          example: null
+
+    DriverProfile:
+      type: object
+      description: Public courier details. Phone numbers are deliberately not included.
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: "Saman Perera"
+        vehicleType:
+          type: string
+          nullable: true
+          example: "Motorbike"
+        zone:
+          type: string
+          nullable: true
+          example: "Colombo"
 
     # -----------------------------------------------------------------------
     # Rating (+) - proposed shape, see open question Q6

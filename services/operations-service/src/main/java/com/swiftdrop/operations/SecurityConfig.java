@@ -66,6 +66,9 @@ public class SecurityConfig {
             .addFilterBefore(internalPricingServiceFilter, AuthorizationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                // Internal courier directory: guarded by its own X-Internal-Service-Token check in
+                // InternalCourierDirectoryController (no user JWT); the gateway blocks /internal/.
+                .requestMatchers("/internal/v1/couriers").permitAll()
                 .anyRequest().authenticated()
             );
 

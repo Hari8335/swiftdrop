@@ -6,6 +6,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -56,8 +58,14 @@ class ParcelControllerIntegrationTest {
     @Autowired
     private ParcelService parcelService;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @MockBean
     private PricingQuoteClient pricingQuoteClient;
+
+    @MockBean
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @BeforeEach
     void setUp() {
@@ -103,6 +111,86 @@ class ParcelControllerIntegrationTest {
         assertThat(history.get(0).getFromStatus()).isEqualTo(ParcelStatus.CREATED);
         assertThat(history.get(0).getToStatus()).isEqualTo(ParcelStatus.CREATED);
         assertThat(history.get(0).getChangedBy()).isEqualTo("usr-cust-1");
+    }
+
+    @Test
+    @DisplayName("Customer parcel creation supports the maximum Auth identity length")
+    void shouldPersistAndRetrieve64CharacterCustomerId() throws Exception {
+        String customerId = "customer-" + "x".repeat(55);
+        assertThat(customerId).hasSize(64);
+
+        CreateCustomerParcelRequest request = new CreateCustomerParcelRequest(
+                new AddressDto("12 Flower Rd", null, "Colombo", "Colombo", "00700"),
+                new AddressDto("45 High Level Rd", null, "Nugegoda", "Colombo", "10250"),
+                new BigDecimal("2.50"),
+                ParcelSize.MEDIUM,
+                "Recipient",
+                "+94770000000",
+                "Fragile"
+        );
+
+        var result = mockMvc.perform(post("/api/v1/parcels")
+                        .with(user(customerId).roles("CUSTOMER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.customerId", is(customerId)))
+                .andReturn();
+
+        ParcelResponse response = objectMapper.readValue(result.getResponse().getContentAsString(), ParcelResponse.class);
+        assertThat(parcelRepository.findById(response.id()).orElseThrow().getCustomerId()).isEqualTo(customerId);
+
+        mockMvc.perform(get("/api/v1/parcels/" + response.id())
+                        .with(user(customerId).roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerId", is(customerId)));
+
+        mockMvc.perform(get("/api/v1/parcels")
+                        .with(user(customerId).roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(1)))
+                .andExpect(jsonPath("$.content[0].customerId", is(customerId)));
+    }
+
+    @Test
+    @DisplayName("V6 widens only the external identity columns")
+    void migrationUses64CharacterExternalIdentityColumns() {
+        assertThat(columnLength("addresses", "customer_id")).isEqualTo(64);
+        assertThat(columnLength("parcels", "customer_id")).isEqualTo(64);
+        assertThat(columnLength("parcels", "merchant_id")).isEqualTo(64);
+        assertThat(columnLength("parcels", "courier_id")).isEqualTo(64);
+        assertThat(columnLength("parcel_rating", "customer_id")).isEqualTo(64);
+        assertThat(columnLength("merchant_parcel_idempotency", "merchant_id")).isEqualTo(64);
+        assertThat(columnLength("parcels", "id")).isEqualTo(36);
+        assertThat(columnLength("parcels", "tracking_number")).isEqualTo(32);
+    }
+
+    @Test
+    @DisplayName("Merchant and courier identities support 64 characters")
+    void shouldPersist64CharacterMerchantAndCourierIds() {
+        String merchantId = "merchant-" + "m".repeat(55);
+        String courierId = "courier-" + "c".repeat(56);
+        assertThat(merchantId).hasSize(64);
+        assertThat(courierId).hasSize(64);
+
+        Parcel parcel = saveParcel("SD-20261102-EXTID1", "usr-cust-1", ParcelStatus.CREATED,
+                "2026-11-02T10:00:00");
+        parcel.setMerchantId(merchantId);
+        parcel.setCourierId(courierId);
+        parcelRepository.saveAndFlush(parcel);
+
+        Parcel reloaded = parcelRepository.findById(parcel.getId()).orElseThrow();
+        assertThat(reloaded.getMerchantId()).isEqualTo(merchantId);
+        assertThat(reloaded.getCourierId()).isEqualTo(courierId);
+    }
+
+    private int columnLength(String table, String column) {
+        return jdbcTemplate.queryForObject(
+                "SELECT character_maximum_length FROM information_schema.columns "
+                        + "WHERE table_name = ? AND column_name = ?",
+                Integer.class,
+                table,
+                column);
     }
 
     @Test
@@ -245,6 +333,45 @@ class ParcelControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("Cancel rules: rejected with 409 while CREATED once a courier is assigned; completedAt set on cancel")
+    void cancelIsRejectedOnceCourierAssigned() throws Exception {
+        Parcel parcel = new Parcel();
+        parcel.setTrackingNumber("SD-20261027-CNCL03");
+        parcel.setStatus(ParcelStatus.CREATED);
+        parcel.setCustomerId("usr-cust-1");
+        parcel.setCourierId("usr-courier-42");
+        parcel.setPickupAddress(new AddressSnapshot("A", null, "Colombo", "Colombo", "00100"));
+        parcel.setDropoffAddress(new AddressSnapshot("B", null, "Colombo", "Colombo", "00200"));
+        parcel.setWeightKg(new BigDecimal("1.00"));
+        parcel.setSize(ParcelSize.SMALL);
+        parcel.setFee(new BigDecimal("500.00"));
+        parcel.setRecipientName("Recipient");
+        parcel.setRecipientPhone("+94770000000");
+        Parcel assigned = parcelRepository.save(parcel);
+
+        mockMvc.perform(post("/api/v1/parcels/" + assigned.getId() + "/cancel")
+                        .with(user("usr-cust-1").roles("CUSTOMER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CancelParcelRequest("Changed mind"))))
+                .andExpect(status().isConflict());
+
+        Parcel unchanged = parcelRepository.findById(assigned.getId()).orElseThrow();
+        assertThat(unchanged.getStatus()).isEqualTo(ParcelStatus.CREATED);
+        assertThat(unchanged.getCompletedAt()).isNull();
+
+        // An unassigned parcel can still be cancelled, and records when it was completed.
+        unchanged.setCourierId(null);
+        parcelRepository.save(unchanged);
+        mockMvc.perform(post("/api/v1/parcels/" + assigned.getId() + "/cancel")
+                        .with(user("usr-cust-1").roles("CUSTOMER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CancelParcelRequest("Changed mind"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("CANCELLED")));
+        assertThat(parcelRepository.findById(assigned.getId()).orElseThrow().getCompletedAt()).isNotNull();
+    }
+
+    @Test
     @DisplayName("Customer requests fee quote: returns real calculated quote and breakdown")
     void shouldReturnFeeQuoteSuccessfully() throws Exception {
         when(pricingQuoteClient.fetchQuoteDetails("Colombo", "Kandy", new BigDecimal("2.5"), ParcelSize.MEDIUM))
@@ -274,6 +401,25 @@ class ParcelControllerIntegrationTest {
                 .andExpect(jsonPath("$.breakdown.sizeCharge", is(250.00)))
                 .andExpect(jsonPath("$.pickupZone", is("Western")))
                 .andExpect(jsonPath("$.dropoffZone", is("Central")));
+    }
+
+    @Test
+    @DisplayName("Quote for an unserved drop-off district returns 422 with the real reason, not 'Parcel not found'")
+    void quoteForUnservedDistrictExplainsWhy() throws Exception {
+        when(pricingQuoteClient.fetchQuoteDetails(any(), any(), any(), any()))
+                .thenThrow(PricingQuoteClient.translate(
+                        "UNKNOWN_DISTRICT", "Unknown district: Mullaitivu", "Colombo", "Mullaitivu"));
+
+        mockMvc.perform(get("/api/v1/parcels/quote")
+                        .with(user("usr-cust-1").roles("CUSTOMER"))
+                        .param("pickupDistrict", "Colombo")
+                        .param("dropoffDistrict", "Mullaitivu")
+                        .param("weightKg", "2.5")
+                        .param("size", "MEDIUM"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code", is("DROPOFF_DISTRICT_NOT_SERVED")))
+                .andExpect(jsonPath("$.message",
+                        is("SwiftDrop doesn't deliver to Mullaitivu yet. Please choose a different drop-off district.")));
     }
 
     @Test

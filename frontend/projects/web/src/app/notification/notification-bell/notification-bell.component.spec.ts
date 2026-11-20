@@ -5,6 +5,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { NotificationBellComponent } from './notification-bell.component';
 import { NotificationService } from '../notification.service';
 import { NotificationDto, NotificationPageResponse } from '../notification.model';
+import { Router, provideRouter } from '@angular/router';
 
 describe('NotificationBellComponent', () => {
   let fixture: ComponentFixture<NotificationBellComponent>;
@@ -46,6 +47,7 @@ describe('NotificationBellComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter([]),
         NotificationService,
       ],
     }).compileComponents();
@@ -190,6 +192,66 @@ describe('NotificationBellComponent', () => {
     expect(service.unreadCount()).toBe(0);
     const badge = fixture.debugElement.query(By.css('#notification-unread-badge'));
     expect(badge).toBeNull();
+  });
+
+  describe('opening a notification', () => {
+    let navigateSpy: jest.SpyInstance;
+
+    function openDropdownWith(page: NotificationPageResponse): void {
+      fixture.detectChanges();
+      http.expectOne((r) => r.url === '/api/v1/notifications' && r.params.get('size') === '1')
+        .flush({ items: [], totalElements: page.totalElements, unreadCount: page.unreadCount });
+      fixture.debugElement.query(By.css('#notification-bell-btn')).nativeElement.click();
+      fixture.detectChanges();
+      http.expectOne((r) => r.url === '/api/v1/notifications' && r.params.get('page') === '0').flush(page);
+      fixture.detectChanges();
+    }
+
+    beforeEach(() => {
+      navigateSpy = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    });
+
+    it('opens the parcel detail page and closes the dropdown', () => {
+      openDropdownWith(mockPage);
+
+      fixture.debugElement.query(By.css('#notification-item-notif-1')).nativeElement.click();
+      http.expectOne('/api/v1/notifications/notif-1/read').flush({ ...mockItem1, read: true });
+      fixture.detectChanges();
+
+      expect(navigateSpy).toHaveBeenCalledWith(['/customer/parcels', 'pcl-1']);
+      expect(fixture.debugElement.query(By.css('#notification-item-notif-1'))).toBeNull();
+    });
+
+    it('opens the parcel of an already-read notification without marking it again', () => {
+      openDropdownWith(mockPage);
+
+      fixture.debugElement.query(By.css('#notification-item-notif-2')).nativeElement.click();
+
+      http.expectNone('/api/v1/notifications/notif-2/read');
+      expect(navigateSpy).toHaveBeenCalledWith(['/customer/parcels', 'pcl-2']);
+    });
+
+    it('opens the parcel when Enter is pressed on a notification', () => {
+      openDropdownWith(mockPage);
+
+      const itemEl = fixture.debugElement.query(By.css('#notification-item-notif-2'));
+      expect(itemEl.nativeElement.getAttribute('tabindex')).toBe('0');
+      itemEl.triggerEventHandler('keydown.enter', new KeyboardEvent('keydown', { key: 'Enter' }));
+
+      expect(navigateSpy).toHaveBeenCalledWith(['/customer/parcels', 'pcl-2']);
+    });
+
+    it('only marks as read and stays open when the notification has no parcel', () => {
+      const noParcel: NotificationDto = { ...mockItem1, id: 'notif-3', parcelId: null };
+      openDropdownWith({ items: [noParcel], totalElements: 1, unreadCount: 1 });
+
+      fixture.debugElement.query(By.css('#notification-item-notif-3')).nativeElement.click();
+      http.expectOne('/api/v1/notifications/notif-3/read').flush({ ...noParcel, read: true });
+      fixture.detectChanges();
+
+      expect(navigateSpy).not.toHaveBeenCalled();
+      expect(fixture.debugElement.query(By.css('#notification-item-notif-3'))).toBeTruthy();
+    });
   });
 
   it('marks all as read when button is clicked', fakeAsync(() => {

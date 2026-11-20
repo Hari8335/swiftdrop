@@ -385,3 +385,44 @@ What M2 added on the history page:
 - "No parcels match these filters" when filters give nothing; the list is labelled newest first.
 - Frontend specs, the mock list filtering like the endpoint, and consumer tests in
   `CustomerHistoryIntegrationTest` for Colombo dates, search, combined filters, order and the `400` cases.
+
+## 13. Driver Assignment History
+
+The parcel detail page shows a **Driver Assignment History** card under the timeline: every courier
+(driver) assigned to the parcel, oldest first.
+
+**Data source.** No new table. `ParcelService.assignCourier` (M1) already writes one
+`CREATED -> CREATED` row to `status_history` per assignment, with the reason
+`Assigned to courier {id}` or `Reassigned to courier {id} from {previous}` (the same prefixes the V7
+`assigned_at` backfill uses). `DriverAssignments` reads those rows through
+`ParcelQueryService.findStatusHistory`:
+
+- each row is one assignment, starting at the row's time;
+- an assignment ends (`reassignedAt`) when the next one starts;
+- the last one is `CURRENT` if the parcel still has that courier, otherwise everything is `PREVIOUS`.
+
+**Endpoint.** `GET /api/v1/parcels/{id}/assignments` (`contracts/openapi/parcel-read.yaml`), same access
+rule as the history (owner customer, assigned courier, DISPATCHER, ADMIN). The response never contains
+courier ids or phone numbers.
+
+**Driver details.** operations-service (`courier.profile`) has a new internal endpoint
+`GET /internal/v1/couriers?ids=a,b` (at most 50 ids) returning `courierId`, `name`, `vehicleType` and
+`zone` from `courier_profiles`; the phone column is deliberately left out. It needs the
+`X-Internal-Service-Token` header (`swiftdrop.security.internal.tokens.courier-directory`, env
+`INTERNAL_COURIER_DIRECTORY_TOKEN`, same default on both services); the gateway blocks `/internal/` from
+outside. parcel-service's `CourierDirectoryClient` calls it with a 2 s timeout. Its URL is
+`swiftdrop.couriers.directory-url` (env `SWIFTDROP_COURIERS_DIRECTORY_URL`); when unset it uses the host
+of `swiftdrop.pricing.quote-url`, which already points at operations-service in Docker, so no compose
+change is needed. If the directory fails or a courier has no profile, the assignment is still listed with
+`driver: null` and the page shows "Courier" / "Profile not available".
+
+**Live updates.** Assignment events are published on `parcel.assigned.v1`, not on the status stream the page
+follows, and `assignCourier` only accepts parcels in `CREATED`. So while the parcel is `CREATED` the card
+refreshes every 30 s (found by the browser check: a reassignment made while the page was open did not
+appear). After that it reloads, without a spinner, whenever a live status event arrives
+(`LiveTimeline.revision` counts every accepted event).
+
+**Tests.** `DriverAssignmentsTest`, `CourierDirectoryClientTest`, `DriverAssignmentIntegrationTest`
+(reassignment, never assigned, no profile, 401/403/404, no ids or phones in the body),
+`InternalCourierDirectoryControllerTest` in operations-service (token, unknown ids, no phone, 50-id
+limit), and frontend specs for the card and `revision`.

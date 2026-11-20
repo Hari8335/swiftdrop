@@ -21,6 +21,7 @@ describe('ResetPasswordComponent', () => {
       verifyResetCode: jest.fn(),
       resetPassword: jest.fn(),
       changeInitialPassword: jest.fn(),
+      forgotPassword: jest.fn(),
       setSession: jest.fn(),
       userRole: jest.fn().mockReturnValue('CUSTOMER'),
     };
@@ -88,6 +89,36 @@ describe('ResetPasswordComponent', () => {
       newPwd?.setValue('ValidP@ssword123');
       confirmPwd?.setValue('ValidP@ssword123');
       expect(component.resetForm.valid).toBe(true);
+    });
+
+    it('should show minimum 8 characters error while typing and suitable warning on next step', () => {
+      const newPwd = component.resetForm.get('newPassword');
+
+      // User typing password (< 8 chars)
+      component.onPasswordFocus();
+      newPwd?.setValue('abc');
+      newPwd?.markAsDirty();
+      expect(component.getPasswordErrorMessage()).toBe('Password must be at least 8 characters');
+
+      // User types 8 chars without uppercase/number/special, still focused (typing)
+      newPwd?.setValue('abcdefgh');
+      expect(component.getPasswordErrorMessage()).toBeNull();
+
+      // User moves to next step (blurs or focuses confirm password)
+      component.onPasswordBlur();
+      expect(component.getPasswordErrorMessage()).toBe(
+        'Password must contain at least one uppercase letter, one number, and one special character'
+      );
+
+      // User types uppercase and number, missing special char
+      newPwd?.setValue('Abcdefgh1');
+      expect(component.getPasswordErrorMessage()).toBe(
+        'Password must contain at least one special character'
+      );
+
+      // User satisfies all rules
+      newPwd?.setValue('Abcdefgh1!');
+      expect(component.getPasswordErrorMessage()).toBeNull();
     });
 
     it('should flag password mismatch when passwords differ', () => {
@@ -177,6 +208,16 @@ describe('ResetPasswordComponent', () => {
       expect(component.isLoading()).toBe(false);
       expect(component.isSuccess()).toBe(false);
       expect(component.errorMessage()).toBe('Code is expired');
+    });
+
+    it('should call forgotPassword on resendCode and update status', () => {
+      authServiceMock.forgotPassword.mockReturnValue(of({ message: 'Code resent.' }));
+
+      component.resendCode();
+
+      expect(authServiceMock.forgotPassword).toHaveBeenCalledWith({ email: 'user@example.com' });
+      expect(component.isResending()).toBe(false);
+      expect(component.resendSuccessMessage()).toBe('Code resent.');
     });
   });
 

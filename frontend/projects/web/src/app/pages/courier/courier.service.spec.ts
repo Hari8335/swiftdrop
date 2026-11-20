@@ -108,6 +108,23 @@ describe('CourierService', () => {
     expect(service.deliveries()[1].googleMapsUrl).toBeNull();
   });
 
+  it('maps the overdue flag and assignment time from delivery cards', () => {
+    service.getDeliveries().subscribe();
+
+    httpMock.expectOne('/api/v1/courier/deliveries').flush({
+      ...mockDeliveriesResponse,
+      deliveries: [
+        { ...mockDeliveriesResponse.deliveries[0], assignedAt: '2026-11-14T09:00:00Z', overdue: true },
+        { ...mockDeliveriesResponse.deliveries[1] },
+      ],
+    });
+
+    expect(service.deliveries()[0].overdue).toBe(true);
+    expect(service.deliveries()[0].assignedAt).toBe('2026-11-14T09:00:00Z');
+    expect(service.deliveries()[1].overdue).toBe(false);
+    expect(service.deliveries()[1].assignedAt).toBeNull();
+  });
+
   it('should pass status filter query param when provided', () => {
     service.getDeliveries('2026-10-28', 'OUT_FOR_DELIVERY').subscribe();
 

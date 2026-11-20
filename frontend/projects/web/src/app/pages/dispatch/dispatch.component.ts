@@ -9,6 +9,7 @@ import {
   CourierWorkloadItem,
   DispatchParcelSummary,
   RequeueResponse,
+  Zone,
 } from './dispatch.model';
 import { DispatchService } from './dispatch.service';
 
@@ -536,9 +537,9 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                   class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] text-[#1d1b2c] cursor-pointer"
                 >
                   <option value="">All Delivery Zones</option>
-                  <option value="ZONE-COLOMBO-NORTH">Colombo North</option>
-                  <option value="ZONE-COLOMBO-SOUTH">Colombo South</option>
-                  <option value="ZONE-KANDY">Kandy Central</option>
+                  <option *ngFor="let z of availableZones()" [value]="z.name">
+                    {{ z.name }}{{ z.districts && z.districts.length > 0 ? ' (' + z.districts.join(', ') + ')' : '' }}
+                  </option>
                 </select>
 
                 <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold text-[#6f6d85] cursor-pointer hover:bg-[#f3eee9] transition-colors">
@@ -660,6 +661,11 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
                     <!-- Pickup & Dropoff Routing -->
                     <div class="mt-4 space-y-2.5 text-xs text-[#6f6d85]">
+                      <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#faf8f6] border border-[#f0ebe5] text-[11px] font-bold text-[#1d1b2c]">
+                        <span>Route:</span>
+                        <span class="text-[#a53a26]">{{ parcel.pickupZone }} → {{ parcel.dropoffZone }}</span>
+                      </div>
+
                       <div class="flex items-start gap-2">
                         <span class="text-emerald-600 font-bold mt-0.5">🟢 PICKUP:</span>
                         <div>
@@ -704,11 +710,20 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
               <ng-template #emptyQueueTemplate>
                 <div class="bg-white rounded-2xl border border-[#f0ebe5] p-12 text-center space-y-3">
-                  <div class="text-4xl">🎉</div>
-                  <h3 class="text-base font-bold text-[#1d1b2c]">All Parcels Assigned!</h3>
-                  <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
-                    There are currently no parcels in the unassigned queue awaiting courier assignment.
-                  </p>
+                  <div *ngIf="searchQuery() || selectedZone()">
+                    <div class="text-4xl">🔍</div>
+                    <h3 class="text-base font-bold text-[#1d1b2c]">No matching parcels found</h3>
+                    <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
+                      No unassigned parcels matched your current search query or zone filter. Try clearing your filters.
+                    </p>
+                  </div>
+                  <div *ngIf="!searchQuery() && !selectedZone()">
+                    <div class="text-4xl">🎉</div>
+                    <h3 class="text-base font-bold text-[#1d1b2c]">No Unassigned Parcels / All caught up!</h3>
+                    <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
+                      All parcels have been dispatched. There are currently no parcels in the unassigned queue awaiting courier assignment.
+                    </p>
+                  </div>
                 </div>
               </ng-template>
             </div>
@@ -761,9 +776,9 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                   class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] text-[#1d1b2c] cursor-pointer"
                 >
                   <option value="">All Delivery Zones</option>
-                  <option value="ZONE-COLOMBO-NORTH">Colombo North</option>
-                  <option value="ZONE-COLOMBO-SOUTH">Colombo South</option>
-                  <option value="ZONE-KANDY">Kandy Central</option>
+                  <option *ngFor="let z of availableZones()" [value]="z.name">
+                    {{ z.name }}{{ z.districts && z.districts.length > 0 ? ' (' + z.districts.join(', ') + ')' : '' }}
+                  </option>
                 </select>
 
                 <label class="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold text-[#1d1b2c] cursor-pointer hover:bg-[#f3eee9] transition-colors">
@@ -967,9 +982,9 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                   class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-[#1d1b2c] cursor-pointer"
                 >
                   <option value="">All Delivery Zones</option>
-                  <option value="ZONE-COLOMBO-NORTH">Colombo North</option>
-                  <option value="ZONE-COLOMBO-SOUTH">Colombo South</option>
-                  <option value="ZONE-KANDY">Kandy Central</option>
+                  <option *ngFor="let z of availableZones()" [value]="z.name">
+                    {{ z.name }}{{ z.districts && z.districts.length > 0 ? ' (' + z.districts.join(', ') + ')' : '' }}
+                  </option>
                 </select>
 
                 <button
@@ -1410,6 +1425,7 @@ export class DispatchComponent implements OnInit, OnDestroy {
   public availableOnly = signal(false);
   public failedSearchQuery = signal('');
   public failedSelectedZone = signal('');
+  public availableZones = signal<Zone[]>([]);
 
   // Modals & Submitting state
   public selectedParcelForAssign = signal<DispatchParcelSummary | null>(null);
@@ -1462,10 +1478,123 @@ export class DispatchComponent implements OnInit, OnDestroy {
   }
 
   public ngOnInit(): void {
+    this.loadAvailableZones();
     this.retryLoadQueue();
     this.retryLoadWorkload();
     this.retryLoadFailed();
     this.startLiveQueuePolling();
+  }
+
+  public loadAvailableZones(): void {
+    if (typeof this.dispatchService?.listZones === 'function') {
+      this.dispatchService.listZones().subscribe({
+        next: (zones) => {
+          if (zones && zones.length > 0) {
+            this.availableZones.set(zones);
+          } else {
+            this.availableZones.set(this.defaultZones());
+          }
+        },
+        error: () => {
+          this.availableZones.set(this.defaultZones());
+        },
+      });
+    } else {
+      this.availableZones.set(this.defaultZones());
+    }
+  }
+
+  public defaultZones(): Zone[] {
+    return [
+      {
+        id: 'z-western',
+        name: 'E2E western',
+        districts: ['Colombo'],
+        served: true,
+        baseFeeLkr: 350,
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'z-central',
+        name: 'E2E central',
+        districts: ['Kandy'],
+        served: true,
+        baseFeeLkr: 450,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
+  }
+
+  public resolveBackendDistrict(zone: string): string | undefined {
+    if (!zone || !zone.trim()) return undefined;
+    if (zone.startsWith('ZONE-')) return zone;
+
+    const zLower = zone.trim().toLowerCase();
+    const zoneObj = this.availableZones().find(
+      (z) =>
+        z.name.toLowerCase() === zLower ||
+        zLower.includes(z.name.toLowerCase()) ||
+        z.name.toLowerCase().includes(zLower)
+    );
+    if (zoneObj && zoneObj.districts && zoneObj.districts.length > 0) {
+      return zoneObj.districts[0];
+    }
+
+    if (zLower.includes('colombo') || zLower.includes('western')) return 'Colombo';
+    if (zLower.includes('kandy') || zLower.includes('central')) return 'Kandy';
+
+    return zone;
+  }
+
+  public matchesZone(targetZone: string | undefined | null, filterZone: string): boolean {
+    if (!filterZone || !filterZone.trim()) return true;
+    if (!targetZone || !targetZone.trim()) return false;
+
+    const filterNorm = filterZone.trim().toLowerCase();
+    const targetNorm = targetZone.trim().toLowerCase();
+
+    if (filterNorm === targetNorm) return true;
+
+    if (filterZone.startsWith('ZONE-') || targetZone.startsWith('ZONE-')) {
+      return filterNorm === targetNorm;
+    }
+
+    const zoneObj = this.availableZones().find(
+      (z) =>
+        z.name.toLowerCase() === filterNorm ||
+        filterNorm.includes(z.name.toLowerCase()) ||
+        z.name.toLowerCase().includes(filterNorm)
+    );
+    if (zoneObj) {
+      if (zoneObj.name.toLowerCase() === targetNorm) return true;
+      if (
+        zoneObj.districts?.some(
+          (d) => d.toLowerCase() === targetNorm || targetNorm.includes(d.toLowerCase())
+        )
+      ) {
+        return true;
+      }
+    }
+
+    const isFilterColombo = filterNorm.includes('colombo') || filterNorm.includes('western');
+    const isTargetColombo = targetNorm.includes('colombo') || targetNorm.includes('western');
+    if (isFilterColombo && isTargetColombo) return true;
+
+    const isFilterKandy = filterNorm.includes('kandy') || filterNorm.includes('central');
+    const isTargetKandy = targetNorm.includes('kandy') || targetNorm.includes('central');
+    if (isFilterKandy && isTargetKandy) return true;
+
+    return false;
+  }
+
+  public matchesParcelZone(p: DispatchParcelSummary, filterZone: string): boolean {
+    if (!filterZone || !filterZone.trim()) return true;
+    if (filterZone.startsWith('ZONE-')) {
+      return this.matchesZone(p.dropoffZone, filterZone) || this.matchesZone(p.pickupZone, filterZone);
+    }
+    return this.matchesZone(p.dropoffZone || p.pickupZone, filterZone);
   }
 
   public ngOnDestroy(): void {
@@ -1505,19 +1634,22 @@ export class DispatchComponent implements OnInit, OnDestroy {
   }
 
   public retryLoadQueue(): void {
-    this.dispatchService.loadUnassignedParcels(this.selectedZone()).subscribe({
+    const backendZone = this.resolveBackendDistrict(this.selectedZone());
+    this.dispatchService.loadUnassignedParcels(backendZone).subscribe({
       error: () => {},
     });
   }
 
   public retryLoadWorkload(): void {
-    this.dispatchService.loadCourierWorkload(this.workloadZone(), this.availableOnly()).subscribe({
+    const backendZone = this.resolveBackendDistrict(this.workloadZone());
+    this.dispatchService.loadCourierWorkload(backendZone, this.availableOnly()).subscribe({
       error: () => {},
     });
   }
 
   public retryLoadFailed(): void {
-    this.dispatchService.loadFailedParcels(this.failedSelectedZone()).subscribe({
+    const backendZone = this.resolveBackendDistrict(this.failedSelectedZone());
+    this.dispatchService.loadFailedParcels(backendZone).subscribe({
       error: () => {},
     });
   }
@@ -1546,9 +1678,7 @@ export class DispatchComponent implements OnInit, OnDestroy {
     let list = this.dispatchService.unassignedParcels();
     const zone = this.selectedZone();
     if (zone) {
-      list = list.filter(
-        (p) => p.pickupZone === zone || p.dropoffZone === zone
-      );
+      list = list.filter((p) => this.matchesParcelZone(p, zone));
     }
     const q = this.searchQuery().trim().toLowerCase();
     if (q) {
@@ -1567,7 +1697,7 @@ export class DispatchComponent implements OnInit, OnDestroy {
     let list = this.dispatchService.couriers();
     const zone = this.workloadZone();
     if (zone) {
-      list = list.filter((c) => c.zone === zone);
+      list = list.filter((c) => this.matchesZone(c.zone, zone));
     }
     if (this.availableOnly()) {
       list = list.filter((c) => c.available);
@@ -1579,9 +1709,7 @@ export class DispatchComponent implements OnInit, OnDestroy {
     let list = this.dispatchService.failedParcels();
     const zone = this.failedSelectedZone();
     if (zone) {
-      list = list.filter(
-        (p) => p.pickupZone === zone || p.dropoffZone === zone
-      );
+      list = list.filter((p) => this.matchesParcelZone(p, zone));
     }
     const q = this.failedSearchQuery().trim().toLowerCase();
     if (q) {

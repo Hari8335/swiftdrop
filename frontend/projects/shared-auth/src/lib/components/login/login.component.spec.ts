@@ -32,6 +32,7 @@ describe('LoginComponent', () => {
     authServiceMock = {
       login: jest.fn(),
       loginWithGoogle: jest.fn(),
+      logout: jest.fn().mockReturnValue(of(void 0)),
     };
 
     await TestBed.configureTestingModule({
@@ -102,10 +103,35 @@ describe('LoginComponent', () => {
     expect(authServiceMock.login).toHaveBeenCalledWith({
       email: 'test@swiftdrop.lk',
       password: 'Password123!',
+      role: 'CUSTOMER',
     });
     expect(router.navigate).toHaveBeenCalledWith(['/customer']);
     expect(component.errorMessage()).toBeNull();
     expect(component.isLoading()).toBe(false);
+  });
+
+  it('should reject login and show error message when account role does not match selected portal tab', () => {
+    // User tries to log in with CUSTOMER credentials on MERCHANT portal tab
+    authServiceMock.login.mockReturnValue(of({
+      ...mockAuthResponse,
+      user: { ...mockAuthResponse.user, role: 'CUSTOMER' },
+    }));
+    component.selectRole('MERCHANT');
+    component.loginForm.setValue({
+      email: 'customer@swiftdrop.lk',
+      password: 'Password123!',
+    });
+
+    component.onSubmit();
+
+    expect(authServiceMock.login).toHaveBeenCalledWith({
+      email: 'customer@swiftdrop.lk',
+      password: 'Password123!',
+      role: 'MERCHANT',
+    });
+    expect(authServiceMock.logout).toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(component.errorMessage()).toBe('This account is registered as customer');
   });
 
   it('should route first-time merchant login to password setup', () => {
@@ -181,7 +207,7 @@ describe('LoginComponent', () => {
 
     component.onSubmit();
 
-    expect(component.errorMessage()).toContain('disabled or pending approval');
+    expect(component.errorMessage()).toContain('Your account has been disabled by admin');
     expect(component.isLoading()).toBe(false);
   });
 

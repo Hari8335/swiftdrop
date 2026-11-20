@@ -322,15 +322,94 @@ class CourierExecutionServiceTest {
     @DisplayName("Today's deliveries defaults to Asia/Colombo date when date parameter is omitted")
     void getTodaysDeliveriesShouldDefaultToAsiaColomboDate() {
         String expectedDate = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Colombo")).toString();
-        ParcelPageResponse pageResponse = new ParcelPageResponse(List.of(), 0, 0, 0, 20);
-        when(parcelServiceClient.getParcelsByCourierAndDate(eq(COURIER_A), eq(expectedDate)))
-            .thenReturn(pageResponse);
+        when(parcelServiceClient.getActiveParcelsForCourier(COURIER_A)).thenReturn(List.of());
+        when(parcelServiceClient.getParcelsCompletedByCourierOn(COURIER_A, expectedDate)).thenReturn(List.of());
 
         CourierDeliveriesResponse response = courierExecutionService.getTodaysDeliveries(COURIER_A, null, null);
 
         assertThat(response).isNotNull();
         assertThat(response.date()).isEqualTo(expectedDate);
-        verify(parcelServiceClient).getParcelsByCourierAndDate(COURIER_A, expectedDate);
+        verify(parcelServiceClient).getParcelsCompletedByCourierOn(COURIER_A, expectedDate);
+    }
+
+    private ParcelResponse runSheetParcel(UUID id, String tracking, String courierId, String status,
+                                          Instant createdAt, Instant assignedAt, Instant completedAt) {
+        return new ParcelResponse(id, tracking, status, "cust-1", null, courierId, null, null, 1.0, "SMALL", 500.0, 0,
+            null, "Recipient", "+94770000000", null, null, 1L, createdAt, Instant.now(), assignedAt, completedAt);
+    }
+
+    @Test
+    @DisplayName("Run sheet: today shows all open assigned parcels regardless of creation date, then parcels finished today")
+    void todaysRunSheetIncludesOldOpenParcels() {
+        String today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Colombo")).toString();
+        Instant now = Instant.now();
+        ParcelResponse oldCustomerParcel = runSheetParcel(UUID.randomUUID(), "SD-OLD", COURIER_A, "CREATED",
+            now.minus(java.time.Duration.ofDays(4)), now.minus(java.time.Duration.ofHours(3)), null);
+        ParcelResponse inTransit = runSheetParcel(UUID.randomUUID(), "SD-NEW", COURIER_A, "OUT_FOR_DELIVERY",
+            now, now.minus(java.time.Duration.ofHours(1)), null);
+        ParcelResponse deliveredToday = runSheetParcel(UUID.randomUUID(), "SD-DONE", COURIER_A, "DELIVERED",
+            now.minus(java.time.Duration.ofDays(2)), now.minus(java.time.Duration.ofHours(5)), now.minus(java.time.Duration.ofMinutes(10)));
+
+        when(parcelServiceClient.getActiveParcelsForCourier(COURIER_A)).thenReturn(List.of(oldCustomerParcel, inTransit));
+        when(parcelServiceClient.getParcelsCompletedByCourierOn(COURIER_A, today)).thenReturn(List.of(deliveredToday));
+
+        CourierDeliveriesResponse response = courierExecutionService.getTodaysDeliveries(COURIER_A, today, null);
+
+        assertThat(response.deliveries()).extracting(CourierDeliveryCard::trackingNumber)
+            .containsExactly("SD-OLD", "SD-NEW", "SD-DONE");
+        assertThat(response.pendingCount()).isEqualTo(2);
+        assertThat(response.completedCount()).isEqualTo(1);
+        assertThat(response.deliveries().get(2).completedAt()).isEqualTo(deliveredToday.completedAt());
+        assertThat(response.deliveries().get(0).assignedAt()).isEqualTo(oldCustomerParcel.assignedAt());
+    }
+
+    @Test
+    @DisplayName("Run sheet: a past date shows only parcels finished that day, not current open work")
+    void pastDateShowsOnlyCompletedParcels() {
+        when(parcelServiceClient.getParcelsCompletedByCourierOn(COURIER_A, "2026-01-05")).thenReturn(List.of());
+
+        CourierDeliveriesResponse response = courierExecutionService.getTodaysDeliveries(COURIER_A, "2026-01-05", null);
+
+        assertThat(response.deliveries()).isEmpty();
+        verify(parcelServiceClient, never()).getActiveParcelsForCourier(any());
+    }
+
+    @Test
+    @DisplayName("Run sheet: open parcels assigned more than 2 days ago are flagged overdue")
+    void openParcelsAssignedOverTwoDaysAgoAreOverdue() {
+        Instant now = Instant.now();
+        ParcelResponse stale = runSheetParcel(UUID.randomUUID(), "SD-STALE", COURIER_A, "CREATED",
+            now.minus(java.time.Duration.ofDays(5)), now.minus(java.time.Duration.ofDays(3)), null);
+        ParcelResponse fresh = runSheetParcel(UUID.randomUUID(), "SD-FRESH", COURIER_A, "PICKED_UP",
+            now, now.minus(java.time.Duration.ofHours(30)), null);
+        when(parcelServiceClient.getActiveParcelsForCourier(COURIER_A)).thenReturn(List.of(stale, fresh));
+        when(parcelServiceClient.getParcelsCompletedByCourierOn(eq(COURIER_A), any())).thenReturn(List.of());
+
+        CourierDeliveriesResponse response = courierExecutionService.getTodaysDeliveries(COURIER_A, null, null);
+
+        assertThat(response.deliveries()).extracting(CourierDeliveryCard::overdue).containsExactly(true, false);
+    }
+
+    @Test
+    @DisplayName("Run sheet: a parcel reassigned to another courier is not shown to the previous courier")
+    void reassignedParcelDisappearsFromPreviousCourier() {
+        Instant now = Instant.now();
+        ParcelResponse reassigned = runSheetParcel(UUID.randomUUID(), "SD-MOVED", COURIER_B, "CREATED", now, now, null);
+        ParcelResponse mine = runSheetParcel(UUID.randomUUID(), "SD-MINE", COURIER_A, "CREATED", now, now, null);
+        when(parcelServiceClient.getActiveParcelsForCourier(COURIER_A)).thenReturn(List.of(reassigned, mine));
+        when(parcelServiceClient.getParcelsCompletedByCourierOn(eq(COURIER_A), any())).thenReturn(List.of());
+
+        CourierDeliveriesResponse response = courierExecutionService.getTodaysDeliveries(COURIER_A, null, null);
+
+        assertThat(response.deliveries()).extracting(CourierDeliveryCard::trackingNumber).containsExactly("SD-MINE");
+    }
+
+    @Test
+    @DisplayName("Run sheet: an invalid date is rejected with 400")
+    void invalidDateIsRejected() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+            () -> courierExecutionService.getTodaysDeliveries(COURIER_A, "18-11-2026", null));
+        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
