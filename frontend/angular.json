@@ -25,10 +25,26 @@
                 "input": "projects/web/public"
               }
             ],
-            "styles": ["projects/web/src/styles.css"]
+            "styles": ["projects/web/src/styles.css"],
+            "optimization": {
+              "scripts": true,
+              "styles": {
+                "minify": true,
+                "inlineCritical": true
+              },
+              "fonts": false
+            }
           },
           "configurations": {
             "production": {
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": true
+                },
+                "fonts": false
+              },
               "budgets": [
                 {
                   "type": "initial",
