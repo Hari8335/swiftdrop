@@ -119,12 +119,12 @@ import { MerchantRegistrationResponse } from './merchant-registration.model';
     .card-header p { font-size: 0.9rem; color: var(--ink-3); line-height: 1.45; margin: 0; }
     :host {
       display: block;
-      --disp: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, sans-serif;
+      --disp: 'Bricolage Grotesque', ui-rounded, system-ui, -apple-system, sans-serif;
       --terracotta: #a53a26;
       --coral: #f2533a;
       --ink: #1d1b2c;
       --ink-3: #6f6d85;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     .card-pill {
       display: inline-block;
