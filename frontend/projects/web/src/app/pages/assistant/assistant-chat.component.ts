@@ -11,11 +11,12 @@ import {
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { catchError, finalize, of } from 'rxjs';
 import { AuthService } from 'shared-auth';
-import { NotificationBellComponent } from '../../notification/notification-bell/notification-bell.component';
+import { CustomerSidebarComponent } from '../customer/customer-sidebar.component';
+import { CustomerTopbarComponent } from '../customer/customer-topbar.component';
 
 interface ChatMessage {
   id: string;
@@ -46,129 +47,28 @@ const SUGGESTIONS = [
 @Component({
   selector: 'app-assistant-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, RouterLink, NotificationBellComponent],
+  imports: [CommonModule, FormsModule, DatePipe, CustomerSidebarComponent, CustomerTopbarComponent],
   template: `
     <div class="min-h-screen bg-[#faf8f6] flex flex-col md:flex-row antialiased font-sans text-[#1d1b2c]">
-      <!-- Slim Left Sidebar Navigation Rail (Docked & Sticky) -->
-      <aside
-        class="w-full md:w-20 flex-shrink-0 flex md:flex-col items-center justify-between md:justify-start py-4 md:py-7 px-4 md:px-0 border-b md:border-b-0 md:border-r border-[#f0ebe5] bg-[#faf8f6] md:sticky md:top-0 md:h-screen md:space-y-7 z-20"
-      >
-        <!-- Brand Logo Icon -->
-        <a
-          routerLink="/customer"
-          class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 group cursor-pointer hover:scale-105 transition-transform"
-          title="SwiftDrop Home"
-        >
-          <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-        </a>
-
-        <!-- Navigation Icons Stack -->
-        <nav class="flex md:flex-col items-center gap-3 sm:gap-4" aria-label="Customer Navigation">
-          <!-- 1. Grid Icon (My Deliveries) -->
-          <a
-            routerLink="/customer"
-            class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer no-underline"
-            title="My Deliveries"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/>
-              <path d="M12 22V12"/>
-              <polyline points="3.29 7 12 12 20.71 7"/>
-              <path d="m7.5 4.27 9 5.15"/>
-            </svg>
-          </a>
-
-          <!-- 2. Plus Button (Book New Delivery) -->
-          <a
-            routerLink="/customer"
-            class="w-11 h-11 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-xs shadow-[#a53a26]/25 hover:shadow-sm hover:scale-[1.03] transition-all cursor-pointer no-underline"
-            title="Book New Delivery"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-          </a>
-
-          <!-- 3. Conversational AI Chat Icon (AI Assistant) - ACTIVE HERE -->
-          <a
-            routerLink="/customer/assistant"
-            id="nav-assistant-link"
-            class="rail-icon-btn rail-active relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] bg-white border border-[#eee7e0] shadow-xs transition-all cursor-pointer no-underline"
-            title="AI Assistant"
-            aria-label="AI Assistant"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              <path d="M12 7l.8 1.6 1.7.8-1.7.8-.8 1.6-.8-1.6-1.7-.8 1.7-.8z"/>
-            </svg>
-          </a>
-        </nav>
-
-        <!-- Sidebar Footer Utilities -->
-        <div class="hidden md:flex flex-col items-center gap-4 mt-auto pt-4 border-t border-[#f0ebe5]/60">
-          <app-notification-bell placement="right"></app-notification-bell>
-          <button
-            type="button"
-            (click)="logout()"
-            class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-colors cursor-pointer"
-            title="Sign Out"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
-        </div>
-      </aside>
+      <app-customer-sidebar
+        #sidebar
+        active="assistant"
+        (newDelivery)="newDelivery()"
+        (signOut)="logout()"
+      ></app-customer-sidebar>
 
       <!-- Main Content Column -->
       <main class="flex-1 flex flex-col min-w-0 bg-[#ffffff] min-h-screen">
-        <!-- Top Navigation Header -->
-        <header
-          class="w-full min-h-[72px] flex items-center justify-between px-4 sm:px-8 md:px-12 border-b border-[#f0ebe5] bg-white sticky top-0 z-10"
+        <app-customer-topbar
+          [name]="customerName()"
+          [email]="customerEmail()"
+          (settings)="openSettings()"
+          (logout)="sidebar.openLogoutConfirm()"
         >
-          <!-- Back Button -->
-          <button
-            type="button"
-            (click)="goBack()"
-            class="h-10 inline-flex items-center gap-2 px-4 rounded-full border border-[#eee7e0] bg-[#faf8f6] hover:bg-[#f3ece4] text-[#1d1b2c] text-xs font-bold transition-all shadow-xs cursor-pointer group"
-            title="Back to Deliveries"
-          >
-            <svg
-              class="w-4 h-4 text-[#a53a26] group-hover:-translate-x-0.5 transition-transform"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2.5"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Back to Deliveries</span>
-          </button>
-
-          <!-- User Profile Badge -->
-          <div class="flex items-center gap-3">
-            <div class="h-10 inline-flex items-center gap-2.5 px-3 rounded-full bg-[#faf8f6] border border-[#eee7e0]">
-              <div
-                class="w-7 h-7 rounded-full bg-[#a53a26] text-white flex items-center justify-center text-xs font-black shadow-xs"
-              >
-                {{ customerInitials() }}
-              </div>
-              <span class="text-xs font-bold text-[#1d1b2c] hidden sm:inline">
-                {{ customerName() }}
-              </span>
-            </div>
-          </div>
-        </header>
+        </app-customer-topbar>
 
         <!-- Page Content Body -->
-        <div class="flex-1 p-4 sm:p-6 md:p-8 max-w-5xl w-full mx-auto flex flex-col h-[calc(100vh-5rem)]">
+        <div class="flex-1 p-4 sm:p-6 md:p-8 max-w-5xl w-full mx-auto flex flex-col h-[calc(100vh-72px)]">
           <!-- Page Header Card -->
           <div class="bg-[#faf8f6] rounded-3xl border border-[#eee7e0] p-4 sm:p-5 mb-4 flex items-center gap-4 flex-shrink-0 shadow-xs">
             <div class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-xs flex-shrink-0">
@@ -353,12 +253,6 @@ const SUGGESTIONS = [
         display: block;
         font-family: var(--disp);
       }
-      .rail-icon-btn.rail-active {
-        color: var(--terracotta);
-        background: #ffffff;
-        border: 1px solid #eee7e0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      }
     `,
   ],
 })
@@ -421,15 +315,18 @@ export class AssistantChatComponent implements OnInit, AfterViewChecked {
     return user?.fullName || user?.email?.split('@')[0] || 'Customer';
   });
 
-  protected customerInitials = computed(() => {
-    const name = this.customerName();
-    if (!name) return 'CU';
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
+  protected customerEmail = computed(() => {
+    const user: any = typeof (this.auth as any)?.currentUser === 'function' ? (this.auth as any).currentUser() : null;
+    return user?.email ?? '';
   });
+
+  protected newDelivery(): void {
+    this.router?.navigate(['/customer'], { queryParams: { tab: 'wizard' } });
+  }
+
+  protected openSettings(): void {
+    this.router?.navigate(['/customer'], { queryParams: { tab: 'settings' } });
+  }
 
   protected useSuggestion(text: string): void {
     this.inputText = text;

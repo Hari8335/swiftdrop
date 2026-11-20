@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from 'shared-auth';
-import { NotificationBellComponent } from '../notification/notification-bell/notification-bell.component';
+import { CustomerSidebarComponent, CustomerSidebarItem } from './customer/customer-sidebar.component';
+import { CustomerTopbarComponent } from './customer/customer-topbar.component';
 import {
   AddressDto,
   CreateCustomerParcelRequest,
@@ -19,112 +20,32 @@ import {
 import { CustomerService } from './customer/customer.service';
 
 type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
+type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
 
 @Component({
   selector: 'app-customer',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NotificationBellComponent],
+  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent],
   template: `
     <!-- Full-Screen Customer Dashboard Layout -->
     <div class="w-full min-h-screen flex flex-col md:flex-row bg-white">
-      <!-- Slim Left Sidebar Navigation Rail (Docked & Sticky) -->
-      <aside
-        class="w-full md:w-20 flex-shrink-0 flex md:flex-col items-center justify-between md:justify-start py-4 md:py-7 px-4 md:px-0 border-b md:border-b-0 md:border-r border-[#f0ebe5] bg-[#faf8f6] md:sticky md:top-0 md:h-screen md:space-y-7 z-20"
-      >
-        <!-- Brand Logo Icon -->
-          <a
-            routerLink="/customer"
-            id="customer-home-link"
-            (click)="activeTab.set('deliveries')"
-            class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 group cursor-pointer hover:scale-105 transition-transform"
-            title="SwiftDrop Home"
-          >
-            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-              <line x1="12" y1="22.08" x2="12" y2="12"/>
-            </svg>
-          </a>
-
-          <!-- Navigation Icons Stack -->
-          <nav class="flex md:flex-col items-center gap-3 sm:gap-4" aria-label="Customer Navigation">
-            <!-- 1. Grid Icon (My Deliveries) -->
-            <button
-              type="button"
-              id="tab-deliveries-btn"
-              (click)="activeTab.set('deliveries')"
-              [class.rail-active]="activeTab() === 'deliveries'"
-              [class.bg-white]="activeTab() === 'deliveries'"
-              [class.border]="activeTab() === 'deliveries'"
-              [class.border-[#eee7e0]]="activeTab() === 'deliveries'"
-              [class.shadow-xs]="activeTab() === 'deliveries'"
-              [class.text-[#a53a26]]="activeTab() === 'deliveries'"
-              class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer"
-              title="My Deliveries"
-            >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/>
-                <path d="M12 22V12"/>
-                <polyline points="3.29 7 12 12 20.71 7"/>
-                <path d="m7.5 4.27 9 5.15"/>
-              </svg>
-            </button>
-
-            <!-- 2. Plus Button (New Delivery Wizard) -->
-            <button
-              type="button"
-              id="tab-wizard-btn"
-              (click)="startNewDelivery()"
-              [class.ring-2]="activeTab() === 'wizard'"
-              [class.ring-[#a53a26]/30]="activeTab() === 'wizard'"
-              class="w-11 h-11 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-xs shadow-[#a53a26]/25 hover:shadow-sm hover:scale-[1.03] transition-all cursor-pointer"
-              title="Book New Delivery"
-            >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-
-            <!-- 3. Conversational AI Chat Icon (AI Assistant) -->
-            <a
-              routerLink="/customer/assistant"
-              id="nav-assistant-link"
-              class="rail-icon-btn relative w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-all cursor-pointer no-underline"
-              title="AI Assistant"
-              aria-label="AI Assistant"
-            >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                <path d="M12 7l.8 1.6 1.7.8-1.7.8-.8 1.6-.8-1.6-1.7-.8 1.7-.8z"/>
-              </svg>
-            </a>
-          </nav>
-
-          <!-- Sidebar Footer Utilities -->
-          <div class="hidden md:flex flex-col items-center gap-4 mt-auto pt-4 border-t border-[#f0ebe5]/60">
-            <app-notification-bell placement="right"></app-notification-bell>
-            <button
-              type="button"
-              (click)="signOut()"
-              class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0] transition-colors cursor-pointer"
-              title="Sign Out"
-            >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
-            </button>
-          </div>
-        </aside>
+      <app-customer-sidebar
+        [active]="sidebarActive()"
+        (deliveries)="activeTab.set('deliveries')"
+        (newDelivery)="startNewDelivery()"
+        (signOut)="signOut()"
+      ></app-customer-sidebar>
 
       <!-- Main Content Area (Edge-to-Edge Full Screen) -->
-      <main class="flex-1 min-h-screen p-6 sm:p-8 lg:p-10 space-y-7 min-w-0 bg-white">
-          <!-- Top Header: Search Bar & User Profile -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#f4efe9]">
+      <main class="flex-1 min-h-screen min-w-0 bg-white flex flex-col">
+        <app-customer-topbar
+          [name]="customerName()"
+          [email]="customerEmail()"
+          (settings)="openSettings()"
+          (logout)="requestSignOut()"
+        >
             <!-- Search Input -->
-            <div class="relative flex-1 max-w-lg">
+            <div class="relative w-full max-w-lg">
               <svg
                 class="w-4 h-4 text-[#a09eaf] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
                 viewBox="0 0 24 24"
@@ -142,83 +63,9 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
                 class="w-full pl-11 pr-4 py-2.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
               />
             </div>
+        </app-customer-topbar>
 
-            <!-- User Profile & Sign Out -->
-            <div class="flex items-center gap-3 self-end sm:self-auto">
-              <div class="md:hidden">
-                <app-notification-bell></app-notification-bell>
-              </div>
-
-              <div id="profile-menu" class="relative">
-                <button
-                  type="button"
-                  id="profile-menu-btn"
-                  (click)="toggleProfileMenu()"
-                  aria-haspopup="menu"
-                  [attr.aria-expanded]="profileMenuOpen()"
-                  class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] hover:border-[#a53a26]/40 transition-colors cursor-pointer"
-                >
-                  <span
-                    class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm"
-                  >
-                    {{ customerInitials() }}
-                  </span>
-                  <span class="text-xs font-bold text-[#1d1b2c]">{{ customerName() }}</span>
-                  <svg
-                    class="w-3.5 h-3.5 text-[#6f6d85] transition-transform"
-                    [class.rotate-180]="profileMenuOpen()"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                  >
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </button>
-
-                @if (profileMenuOpen()) {
-                <div
-                  role="menu"
-                  id="profile-menu-panel"
-                  class="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-[#e8e2dc] shadow-lg shadow-[#1d1b2c]/5 py-2 z-30"
-                >
-                  <div class="px-4 py-2 border-b border-[#f0ebe5]">
-                    <p class="text-xs font-bold text-[#1d1b2c] truncate">{{ customerName() }}</p>
-                    <p class="text-[11px] text-[#6f6d85] truncate">{{ customerEmail() }}</p>
-                  </div>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    id="profile-menu-settings"
-                    (click)="openSettings()"
-                    class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer"
-                  >
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="3"></circle>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                    <span>Settings</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    id="profile-menu-logout"
-                    (click)="logOutFromMenu()"
-                    class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-[#a53a26] hover:bg-[#faf8f6] transition-colors cursor-pointer"
-                  >
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                      <polyline points="16 17 21 12 16 7"></polyline>
-                      <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                    <span>Log out</span>
-                  </button>
-                </div>
-                }
-              </div>
-            </div>
-          </div>
-
+        <div class="flex-1 p-6 sm:p-8 lg:p-10 space-y-7">
           <!-- Toast Notification -->
           @if (notification()) {
           <div
@@ -1447,174 +1294,208 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
           }
 
           @if (activeTab() === 'settings') {
-          <div id="settings-panel" class="space-y-6 max-w-3xl">
-            <div>
-              <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight">Settings</h2>
-              <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Your account details and preferences.</p>
-            </div>
-
-            <section class="rounded-3xl border border-[#eee7e0] bg-[#faf8f6] p-6 space-y-4">
-              <div class="flex items-center justify-between">
-                <h3 class="text-sm font-black text-[#1d1b2c]">Account</h3>
+          <div id="settings-panel" class="grid grid-cols-1 md:grid-cols-[15rem_1fr] gap-6 lg:gap-10 items-start">
+            <!-- Settings menu -->
+            <aside class="rounded-3xl bg-[#faf8f6] border border-[#f0ebe5] p-4 md:p-5 md:sticky md:top-24">
+              <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight px-2 pt-1 pb-4">Settings</h2>
+              <nav class="flex md:flex-col gap-1 overflow-x-auto" aria-label="Settings sections">
+                @for (item of settingsSections; track item.id) {
                 <button
                   type="button"
-                  id="customer-edit-profile-btn"
-                  (click)="openEditProfileModal()"
-                  class="px-4 py-1.5 bg-white border border-[#eee7e0] hover:border-[#a53a26] text-[#a53a26] text-xs font-bold rounded-full transition-colors cursor-pointer"
+                  [id]="'settings-nav-' + item.id"
+                  (click)="selectSettingsSection(item.id)"
+                  [attr.aria-current]="settingsSection() === item.id ? 'page' : null"
+                  [class.bg-[#a53a26]]="settingsSection() === item.id"
+                  [class.text-white]="settingsSection() === item.id"
+                  [class.shadow-md]="settingsSection() === item.id"
+                  [class.text-[#1d1b2c]]="settingsSection() !== item.id"
+                  [class.hover:bg-white]="settingsSection() !== item.id"
+                  class="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer text-left"
                 >
-                  Edit Profile
+                  <span
+                    class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                    [class.bg-white/20]="settingsSection() === item.id"
+                    [class.bg-white]="settingsSection() !== item.id"
+                    [class.text-[#a53a26]]="settingsSection() !== item.id"
+                  >
+                    @switch (item.id) {
+                      @case ('profile') {
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                      }
+                      @case ('addresses') {
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                      }
+                      @case ('security') {
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                      }
+                      @case ('session') {
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                      }
+                    }
+                  </span>
+                  <span>{{ item.label }}</span>
                 </button>
-              </div>
-              <div class="flex items-center gap-4">
-                <span class="w-12 h-12 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-sm uppercase">
-                  {{ customerInitials() }}
-                </span>
-                <dl class="grid grid-cols-1 sm:grid-cols-4 gap-4 flex-1 min-w-0 text-xs">
-                  <div>
-                    <dt class="text-[#6f6d85] font-medium">Full name</dt>
-                    <dd id="settings-name" class="font-bold text-[#1d1b2c] mt-0.5">{{ customerName() }}</dd>
-                  </div>
-                  <div>
-                    <dt class="text-[#6f6d85] font-medium">Phone number</dt>
-                    <dd id="settings-phone" class="font-bold text-[#1d1b2c] mt-0.5">{{ customerPhone() || 'Not provided' }}</dd>
-                  </div>
-                  <div class="min-w-0">
-                    <dt class="text-[#6f6d85] font-medium">Email</dt>
-                    <dd id="settings-email" class="font-bold text-[#1d1b2c] mt-0.5 truncate">{{ customerEmail() }}</dd>
-                  </div>
-                  <div>
-                    <dt class="text-[#6f6d85] font-medium">Account type</dt>
-                    <dd class="font-bold text-[#1d1b2c] mt-0.5">Customer</dd>
-                  </div>
-                </dl>
-              </div>
-            </section>
+                }
+              </nav>
+            </aside>
 
-            <section class="rounded-3xl border border-[#eee7e0] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 class="text-sm font-black text-[#1d1b2c]">Saved addresses</h3>
+            <!-- Selected section -->
+            <section class="min-w-0 max-w-3xl">
+              @switch (settingsSection()) {
+                @case ('profile') {
+                <h2 class="text-2xl font-black text-[#1d1b2c] tracking-tight">Personal information</h2>
+                <div class="h-px bg-[#f0ebe5] my-6"></div>
+
+                <form id="settings-profile-form" (ngSubmit)="saveProfile()" class="space-y-8">
+                  <div>
+                    <h3 class="text-sm font-black text-[#1d1b2c]">Profile</h3>
+                    <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Used by couriers and merchants to identify you on deliveries.</p>
+
+                    <div class="flex items-center gap-4 mt-5">
+                      <span class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm">
+                        {{ customerInitials() }}
+                      </span>
+                      <div class="min-w-0">
+                        <p id="settings-name" class="text-sm font-bold text-[#1d1b2c] truncate">{{ customerName() }}</p>
+                        <p class="text-xs text-[#6f6d85] font-medium">Customer account</p>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5 mt-6">
+                      <div class="sm:col-span-2 sm:max-w-[calc(50%-0.75rem)]">
+                        <label for="edit-profile-fullname" class="mb-1.5 block text-xs font-bold text-[#1d1b2c]">Full name</label>
+                        <input
+                          type="text"
+                          id="edit-profile-fullname"
+                          [(ngModel)]="editProfileFullName"
+                          name="editFullName"
+                          required
+                          class="w-full rounded-xl border border-[#eee7e0] bg-[#faf8f6] px-3.5 py-2.5 text-sm text-[#1d1b2c] outline-none focus:bg-white focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/15 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 class="text-sm font-black text-[#1d1b2c]">Contact details</h3>
+                    <p class="text-xs text-[#6f6d85] font-medium mt-0.5">We use these to send delivery updates and receipts.</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5 mt-5">
+                      <div>
+                        <label for="edit-profile-email" class="mb-1.5 block text-xs font-bold text-[#1d1b2c]">Email address</label>
+                        <input
+                          type="email"
+                          id="edit-profile-email"
+                          [(ngModel)]="editProfileEmail"
+                          name="editEmail"
+                          required
+                          class="w-full rounded-xl border border-[#eee7e0] bg-[#faf8f6] px-3.5 py-2.5 text-sm text-[#1d1b2c] outline-none focus:bg-white focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/15 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label for="edit-profile-phone" class="mb-1.5 block text-xs font-bold text-[#1d1b2c]">Phone number</label>
+                        <input
+                          type="tel"
+                          id="edit-profile-phone"
+                          [(ngModel)]="editProfilePhone"
+                          name="editPhone"
+                          placeholder="0771234567"
+                          class="w-full rounded-xl border border-[#eee7e0] bg-[#faf8f6] px-3.5 py-2.5 text-sm text-[#1d1b2c] outline-none focus:bg-white focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/15 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  @if (editProfileError()) {
+                  <div class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">
+                    {{ editProfileError() }}
+                  </div>
+                  }
+                  @if (profileSaved()) {
+                  <div id="settings-profile-saved" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700">
+                    Your profile has been updated.
+                  </div>
+                  }
+
+                  <div class="flex items-center justify-end gap-3 border-t border-[#f0ebe5] pt-6">
+                    <button
+                      type="button"
+                      id="cancel-profile-btn"
+                      (click)="resetProfileForm()"
+                      class="px-5 py-2.5 bg-white border border-[#eee7e0] hover:bg-[#faf8f6] text-[#1d1b2c] text-xs font-bold rounded-full transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      id="save-profile-btn"
+                      [disabled]="!editProfileFullName.trim() || !editProfileEmail.trim() || isSavingProfile()"
+                      class="px-5 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {{ isSavingProfile() ? 'Saving...' : 'Save' }}
+                    </button>
+                  </div>
+                </form>
+                }
+
+                @case ('addresses') {
+                <h2 class="text-2xl font-black text-[#1d1b2c] tracking-tight">Saved addresses</h2>
+                <div class="h-px bg-[#f0ebe5] my-6"></div>
+                <h3 class="text-sm font-black text-[#1d1b2c]">Address book</h3>
                 <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Add or remove the pickup and drop-off addresses you use often.</p>
-              </div>
-              <button
-                type="button"
-                id="settings-addresses-btn"
-                (click)="activeTab.set('addresses')"
-                class="px-5 py-2.5 bg-[#1d1b2c] hover:bg-black text-white text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap"
-              >
-                Manage address book
-              </button>
-            </section>
+                <p class="text-sm font-bold text-[#1d1b2c] mt-5">
+                  {{ addresses().length }} saved {{ addresses().length === 1 ? 'address' : 'addresses' }}
+                </p>
+                <div class="flex justify-end border-t border-[#f0ebe5] pt-6 mt-8">
+                  <button
+                    type="button"
+                    id="settings-addresses-btn"
+                    (click)="activeTab.set('addresses')"
+                    class="px-5 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    Manage address book
+                  </button>
+                </div>
+                }
 
-            <section class="rounded-3xl border border-[#eee7e0] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
+                @case ('security') {
+                <h2 class="text-2xl font-black text-[#1d1b2c] tracking-tight">Security</h2>
+                <div class="h-px bg-[#f0ebe5] my-6"></div>
                 <h3 class="text-sm font-black text-[#1d1b2c]">Password</h3>
                 <p class="text-xs text-[#6f6d85] font-medium mt-0.5">We will email you a secure link to set a new password.</p>
-              </div>
-              <a
-                routerLink="/forgot-password"
-                id="settings-password-link"
-                class="px-5 py-2.5 bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#1d1b2c] text-xs font-bold rounded-full transition-all no-underline whitespace-nowrap text-center"
-              >
-                Change password
-              </a>
-            </section>
+                <div class="flex justify-end border-t border-[#f0ebe5] pt-6 mt-8">
+                  <a
+                    routerLink="/forgot-password"
+                    id="settings-password-link"
+                    class="px-5 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-all no-underline whitespace-nowrap text-center"
+                  >
+                    Change password
+                  </a>
+                </div>
+                }
 
-            <section class="rounded-3xl border border-[#eee7e0] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 class="text-sm font-black text-[#1d1b2c]">Sign out</h3>
+                @case ('session') {
+                <h2 class="text-2xl font-black text-[#1d1b2c] tracking-tight">Sign out</h2>
+                <div class="h-px bg-[#f0ebe5] my-6"></div>
+                <h3 class="text-sm font-black text-[#1d1b2c]">This device</h3>
                 <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Log out of SwiftDrop on this device.</p>
-              </div>
-              <button
-                type="button"
-                id="settings-logout-btn"
-                (click)="signOut()"
-                class="px-5 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap"
-              >
-                Log out
-              </button>
+                <div class="flex justify-end border-t border-[#f0ebe5] pt-6 mt-8">
+                  <button
+                    type="button"
+                    id="settings-logout-btn"
+                    (click)="requestSignOut()"
+                    class="px-5 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    Log out
+                  </button>
+                </div>
+                }
+              }
             </section>
           </div>
           }
 
-          <!-- MODAL: EDIT PROFILE (CUSTOMER) -->
-          <div
-            *ngIf="isEditProfileModalOpen()"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm animate-fade-in"
-          >
-            <div class="w-full max-w-md space-y-5 rounded-[1.5rem] border border-[#e9e3dd] bg-[#fbfaf8] p-7 shadow-2xl">
-              <div class="flex items-center justify-between border-b border-[#e9e3dd] pb-4">
-                <div>
-                  <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#a53a26]">Account settings</p>
-                  <h3 class="mt-1 text-xl font-black tracking-[-0.03em] text-[#1d1b2c]">Edit Profile</h3>
-                  <p class="mt-1 text-xs text-[#6f6d85]">Update your personal information.</p>
-                </div>
-                <button
-                  type="button"
-                  (click)="closeEditProfileModal()"
-                  class="flex h-9 w-9 items-center justify-center rounded-full text-[#6f6d85] hover:bg-[#f2e4de] hover:text-[#a53a26]"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div *ngIf="editProfileError()" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">
-                {{ editProfileError() }}
-              </div>
-
-              <form (ngSubmit)="saveProfile()" class="space-y-3.5">
-                <div>
-                  <label class="mb-1 block text-xs font-bold text-[#6f6d85]">Full Name</label>
-                  <input
-                    type="text"
-                    id="edit-profile-fullname"
-                    [(ngModel)]="editProfileFullName"
-                    name="editFullName"
-                    required
-                    class="w-full rounded-xl border border-[#eee7e0] bg-white px-3 py-2.5 text-sm text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#f2e4de]"
-                  />
-                </div>
-                <div>
-                  <label class="mb-1 block text-xs font-bold text-[#6f6d85]">Phone Number</label>
-                  <input
-                    type="tel"
-                    id="edit-profile-phone"
-                    [(ngModel)]="editProfilePhone"
-                    name="editPhone"
-                    placeholder="0771234567"
-                    class="w-full rounded-xl border border-[#eee7e0] bg-white px-3 py-2.5 text-sm text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#f2e4de]"
-                  />
-                </div>
-                <div>
-                  <label class="mb-1 block text-xs font-bold text-[#6f6d85]">Email Address</label>
-                  <input
-                    type="email"
-                    id="edit-profile-email"
-                    [(ngModel)]="editProfileEmail"
-                    name="editEmail"
-                    required
-                    class="w-full rounded-xl border border-[#eee7e0] bg-white px-3 py-2.5 text-sm text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#f2e4de]"
-                  />
-                </div>
-                <div class="flex items-center justify-end gap-2 border-t border-[#e9e3dd] pt-4">
-                  <button
-                    type="button"
-                    (click)="closeEditProfileModal()"
-                    class="rounded-full px-4 py-2 text-xs font-bold text-[#6f6d85] hover:bg-[#eee7e0]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    id="save-profile-btn"
-                    [disabled]="!editProfileFullName.trim() || !editProfileEmail.trim() || isSavingProfile()"
-                    class="rounded-full bg-[#a53a26] hover:bg-[#7e2615] px-5 py-2.5 text-xs font-bold text-white shadow-sm disabled:opacity-50"
-                  >
-                    {{ isSavingProfile() ? 'Saving...' : 'Save Changes' }}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+        </div>
         </main>
     </div>
   `,
@@ -1632,12 +1513,6 @@ type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
         display: block;
         font-family: var(--disp);
         background-color: #ffffff;
-      }
-      .rail-icon-btn.rail-active {
-        color: var(--terracotta);
-        background: #ffffff;
-        border: 1px solid #eee7e0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       }
       .filter-pill {
         background: #f1f5f9;
@@ -1694,6 +1569,7 @@ export class CustomerComponent implements OnInit {
   private customerService = inject(CustomerService);
   private authService = inject(AuthService, { optional: true });
   private router = inject(Router, { optional: true });
+  private route = inject(ActivatedRoute, { optional: true });
 
   readonly districts = SRI_LANKA_DISTRICTS;
   readonly sizeTiers: { size: ParcelSize; label: string; desc: string; surcharge: string }[] = [
@@ -1748,31 +1624,40 @@ export class CustomerComponent implements OnInit {
 
   customerPhone = computed(() => this.authService?.currentUser()?.phoneNumber ?? '');
 
-  // Edit Profile Modal State
-  isEditProfileModalOpen = signal(false);
+  // Settings
+  readonly settingsSections: { id: SettingsSection; label: string }[] = [
+    { id: 'profile', label: 'Personal information' },
+    { id: 'addresses', label: 'Saved addresses' },
+    { id: 'security', label: 'Security' },
+    { id: 'session', label: 'Sign out' },
+  ];
+  settingsSection = signal<SettingsSection>('profile');
   editProfileFullName = '';
   editProfilePhone = '';
   editProfileEmail = '';
   editProfileError = signal<string | null>(null);
   isSavingProfile = signal(false);
+  profileSaved = signal(false);
 
-  openEditProfileModal(): void {
+  selectSettingsSection(section: SettingsSection): void {
+    this.settingsSection.set(section);
+    if (section === 'profile') this.resetProfileForm();
+  }
+
+  /** Fills the profile form with the saved details, discarding unsaved edits. */
+  resetProfileForm(): void {
     this.editProfileFullName = this.customerName();
     this.editProfilePhone = this.customerPhone();
     this.editProfileEmail = this.customerEmail();
     this.editProfileError.set(null);
-    this.isEditProfileModalOpen.set(true);
-  }
-
-  closeEditProfileModal(): void {
-    this.isEditProfileModalOpen.set(false);
-    this.editProfileError.set(null);
+    this.profileSaved.set(false);
   }
 
   saveProfile(): void {
     if (!this.editProfileFullName.trim() || !this.editProfileEmail.trim()) return;
     this.isSavingProfile.set(true);
     this.editProfileError.set(null);
+    this.profileSaved.set(false);
 
     this.authService?.updateProfile({
       fullName: this.editProfileFullName.trim(),
@@ -1781,7 +1666,7 @@ export class CustomerComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.isSavingProfile.set(false);
-        this.closeEditProfileModal();
+        this.profileSaved.set(true);
       },
       error: (err) => {
         this.isSavingProfile.set(false);
@@ -1790,33 +1675,25 @@ export class CustomerComponent implements OnInit {
     });
   }
 
-  profileMenuOpen = signal(false);
-
-  toggleProfileMenu(): void {
-    this.profileMenuOpen.update((open) => !open);
-  }
-
   openSettings(): void {
-    this.profileMenuOpen.set(false);
+    this.selectSettingsSection('profile');
     this.activeTab.set('settings');
   }
 
-  logOutFromMenu(): void {
-    this.profileMenuOpen.set(false);
-    this.signOut();
-  }
+  @ViewChild(CustomerSidebarComponent) private sidebar?: CustomerSidebarComponent;
 
-  @HostListener('document:click', ['$event'])
-  closeProfileMenuOnOutsideClick(event: MouseEvent): void {
-    const target = event.target as Element | null;
-    if (this.profileMenuOpen() && !target?.closest('#profile-menu')) {
-      this.profileMenuOpen.set(false);
-    }
+  sidebarActive = computed<CustomerSidebarItem>(() => {
+    const tab = this.activeTab();
+    return tab === 'deliveries' || tab === 'wizard' ? tab : null;
+  });
+
+  /** Opens the shared logout confirmation; sign-out happens only once confirmed. */
+  requestSignOut(): void {
+    this.sidebar?.openLogoutConfirm();
   }
 
   @HostListener('document:keydown.escape')
   closeOnEscape(): void {
-    this.profileMenuOpen.set(false);
     this.showAddressModal.set(false);
     this.closeCancelModal();
   }
@@ -1892,6 +1769,12 @@ export class CustomerComponent implements OnInit {
   isCancelling = signal<boolean>(false);
 
   ngOnInit(): void {
+    const tab = this.route?.snapshot.queryParamMap.get('tab');
+    if (tab === 'settings') {
+      this.openSettings();
+    } else if (tab === 'wizard') {
+      this.startNewDelivery();
+    }
     this.loadParcels();
     this.loadAddresses();
   }

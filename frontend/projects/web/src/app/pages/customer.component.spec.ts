@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { CustomerComponent } from './customer.component';
 import { CustomerAddress, CustomerParcel, QuoteResponse } from './customer/customer.model';
@@ -474,11 +474,24 @@ describe('CustomerComponent', () => {
       expect(component.activeTab()).toBe('settings');
       expect(el().querySelector('#profile-menu-panel')).toBeNull();
       expect(el().querySelector('#settings-panel')).not.toBeNull();
+      expect(el().querySelector('#settings-profile-form')).not.toBeNull();
+    });
+
+    it('Security section links to the password reset page', () => {
+      component.activeTab.set('settings');
+      fixture.detectChanges();
+
+      el().querySelector<HTMLButtonElement>('#settings-nav-security')!.click();
+      fixture.detectChanges();
+
+      expect(el().querySelector('#settings-profile-form')).toBeNull();
       expect(el().querySelector('#settings-password-link')!.getAttribute('href')).toBe('/forgot-password');
     });
 
     it('Manage address book in settings switches to the address book', () => {
       component.activeTab.set('settings');
+      fixture.detectChanges();
+      el().querySelector<HTMLButtonElement>('#settings-nav-addresses')!.click();
       fixture.detectChanges();
 
       el().querySelector<HTMLButtonElement>('#settings-addresses-btn')!.click();
@@ -486,7 +499,18 @@ describe('CustomerComponent', () => {
       expect(component.activeTab()).toBe('addresses');
     });
 
-    it('Log out closes the menu and signs out', () => {
+    it('Cancel discards unsaved profile edits', () => {
+      component.openSettings();
+      const savedName = component.editProfileFullName;
+      fixture.detectChanges();
+
+      component.editProfileFullName = 'Someone Else';
+      el().querySelector<HTMLButtonElement>('#cancel-profile-btn')!.click();
+
+      expect(component.editProfileFullName).toBe(savedName);
+    });
+
+    it('Log out closes the menu and asks for confirmation before signing out', () => {
       fixture.detectChanges();
       const signOut = jest.spyOn(component, 'signOut');
       openMenu();
@@ -494,19 +518,56 @@ describe('CustomerComponent', () => {
       el().querySelector<HTMLButtonElement>('#profile-menu-logout')!.click();
       fixture.detectChanges();
 
+      expect(el().querySelector('#profile-menu-panel')).toBeNull();
+      expect(signOut).not.toHaveBeenCalled();
+      expect(el().querySelector('#logout-confirm-modal')).not.toBeNull();
+
+      el().querySelector<HTMLButtonElement>('#logout-confirm-btn')!.click();
+      fixture.detectChanges();
+
       expect(signOut).toHaveBeenCalled();
-      expect(component.profileMenuOpen()).toBe(false);
+      expect(el().querySelector('#logout-confirm-modal')).toBeNull();
+    });
+
+    it('cancelling the logout confirmation keeps the customer signed in', () => {
+      fixture.detectChanges();
+      const signOut = jest.spyOn(component, 'signOut');
+
+      el().querySelector<HTMLButtonElement>('#sidebar-logout-btn')!.click();
+      fixture.detectChanges();
+      el().querySelector<HTMLButtonElement>('#logout-cancel-btn')!.click();
+      fixture.detectChanges();
+
+      expect(signOut).not.toHaveBeenCalled();
+      expect(el().querySelector('#logout-confirm-modal')).toBeNull();
     });
 
     it('closes on an outside click and on Escape', () => {
       fixture.detectChanges();
       openMenu();
       document.body.click();
-      expect(component.profileMenuOpen()).toBe(false);
+      fixture.detectChanges();
+      expect(el().querySelector('#profile-menu-panel')).toBeNull();
 
       openMenu();
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-      expect(component.profileMenuOpen()).toBe(false);
+      fixture.detectChanges();
+      expect(el().querySelector('#profile-menu-panel')).toBeNull();
+    });
+
+    it('opens the new delivery wizard when navigated with ?tab=wizard', async () => {
+      await TestBed.inject(Router).navigateByUrl('/customer?tab=wizard');
+      const wizardFixture = TestBed.createComponent(CustomerComponent);
+      wizardFixture.componentInstance.ngOnInit();
+      expect(wizardFixture.componentInstance.activeTab()).toBe('wizard');
+    });
+
+    it('opens the settings tab when navigated with ?tab=settings', async () => {
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl('/customer?tab=settings');
+      const settingsFixture = TestBed.createComponent(CustomerComponent);
+      settingsFixture.componentInstance.ngOnInit();
+      expect(settingsFixture.componentInstance.activeTab()).toBe('settings');
     });
   });
 });
