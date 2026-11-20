@@ -145,4 +145,17 @@ describe('RegisterComponent', () => {
     expect(merchantLink).toBeTruthy();
     expect(merchantLink.textContent.trim()).toContain('Register business');
   });
+
+  it('explains the customer sign-up steps beside the form, with no approval step', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('lib-auth-shell .nav-pill')?.textContent?.trim()).toBe('Join as Customer');
+    const steps = Array.from(el.querySelectorAll('.hero-steps li')).map((li) => li.lastElementChild?.textContent?.trim());
+    expect(steps).toEqual([
+      'Enter your name, email and a password',
+      'You are signed in straight away',
+      'Book a parcel and see the price before you confirm',
+      'Follow every status update until delivery',
+    ]);
+    expect(el.querySelector('.hero-lede')?.textContent).not.toContain('doorstep collections');
+  });
 });

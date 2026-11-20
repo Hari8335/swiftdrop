@@ -14,7 +14,7 @@ import {
   standalone: true,
   imports: [AuthShellComponent, CommonModule, ReactiveFormsModule, RouterModule],
   template: `
-    <lib-auth-shell active="customer" badge="Customer sign-up" headline="Create your customer account" lede="Book parcels anywhere in Sri Lanka, see the price before you confirm, and follow every status update until delivery.">
+    <lib-auth-shell active="customer" badge="Customer sign-up" headline="Create your customer account" lede="Book parcels anywhere in Sri Lanka, see the price before you confirm, and follow every status update until delivery." [steps]="signupSteps" stepsLabel="How customer sign-up works">
             <div class="card-header">
               <span class="card-pill">Customer Signup</span>
               <h2>Join SwiftDrop</h2>
@@ -121,12 +121,12 @@ import {
   styles: [`
     :host {
       display: block;
-      --disp: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, sans-serif;
+      --disp: 'Bricolage Grotesque', ui-rounded, system-ui, -apple-system, sans-serif;
       --terracotta: #a53a26;
       --coral: #f2533a;
       --ink: #1d1b2c;
       --ink-3: #6f6d85;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     .submit-btn:hover:not(:disabled) {
       background: #000;
@@ -273,6 +273,14 @@ import {
   `]
 })
 export class RegisterComponent {
+  /** What happens after signing up: customers are signed in straight away, no approval needed. */
+  readonly signupSteps: readonly string[] = [
+    'Enter your name, email and a password',
+    'You are signed in straight away',
+    'Book a parcel and see the price before you confirm',
+    'Follow every status update until delivery',
+  ];
+
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);

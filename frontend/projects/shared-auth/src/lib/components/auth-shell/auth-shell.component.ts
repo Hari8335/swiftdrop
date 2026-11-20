@@ -59,14 +59,14 @@ export type AuthShellActive = 'customer' | 'merchant' | 'signin';
   styles: [`
     :host {
       display: block;
-      --disp: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, sans-serif;
+      --disp: 'Bricolage Grotesque', ui-rounded, system-ui, -apple-system, sans-serif;
       --terracotta: #a53a26;
       --ink: #1d1b2c;
       --ink-3: #6f6d85;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     .auth-page {
-      position: relative; min-height: 100vh; box-sizing: border-box; padding: 2.5rem 2rem 4rem; overflow: hidden; color: #fff;
+      position: relative; min-height: 100vh; box-sizing: border-box; padding: 2.5rem 2rem 4rem; overflow: clip; color: #fff;
       background: radial-gradient(55% 65% at 75% 45%, #b8432f 0%, #98311e 65%, #882b1a 100%), #98311e;
     }
     .top-bar { max-width: 1200px; margin: 0 auto 3rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
@@ -78,8 +78,8 @@ export type AuthShellActive = 'customer' | 'merchant' | 'signin';
     .nav-link:hover { color: #fff; }
     .nav-pill { display: inline-flex; align-items: center; height: 38px; padding: 0 1.25rem; border-radius: 9999px; background: var(--ink); color: #fff; font-size: .875rem; font-weight: 700; text-decoration: none; transition: background-color .2s, transform .2s; }
     .nav-pill:hover { background: #000; transform: translateY(-1px); }
-    .hero-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; gap: 4rem; }
-    .hero-copy { display: flex; flex-direction: column; align-items: flex-start; }
+    .hero-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1.1fr .9fr; align-items: start; gap: 4rem; }
+    .hero-copy { display: flex; flex-direction: column; align-items: flex-start; padding-top: 2.75rem; position: sticky; top: 2rem; }
     .hero-badge { display: inline-flex; align-items: center; gap: .5rem; padding: .35rem .85rem; margin-bottom: 1.5rem; border-radius: 9999px; background: rgba(255,255,255,.15); backdrop-filter: blur(8px); font-size: .8125rem; font-weight: 700; }
     .badge-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; }
     .hero-headline { margin: 0 0 1.5rem; font-family: var(--disp); font-size: clamp(2.4rem, 4.5vw, 4.25rem); font-weight: 900; line-height: .96; letter-spacing: -.035em; text-shadow: 0 2px 0 rgba(140,30,15,.25); }
@@ -93,7 +93,7 @@ export type AuthShellActive = 'customer' | 'merchant' | 'signin';
     @media (max-width: 960px) {
       .auth-page { padding: 1.75rem 1.25rem 3rem; }
       .hero-grid { grid-template-columns: 1fr; gap: 2.5rem; }
-      .hero-copy { align-items: center; text-align: center; }
+      .hero-copy { align-items: center; text-align: center; padding-top: 0; position: static; }
       .hero-steps { align-self: stretch; margin: 0 auto; }
       .hero-steps li { text-align: left; }
       .hero-headline { font-size: 2.5rem; }
