@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { AuthShellComponent } from '../auth-shell/auth-shell.component';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -11,44 +12,9 @@ import {
 @Component({
   selector: 'lib-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [AuthShellComponent, CommonModule, ReactiveFormsModule, RouterModule],
   template: `
-    <div class="yum-page">
-      <header class="top-bar">
-        <a routerLink="/" class="brand">
-          <svg class="brand-icon" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="10" fill="#ffffff" />
-            <path d="M8 12L16 7L24 12V22L16 27L8 22V12Z" fill="#a53a26" />
-            <path d="M16 7V27M8 12L24 22M24 12L8 22" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
-          </svg>
-          <span class="brand-text">SwiftDrop</span>
-        </a>
-
-        <nav class="nav-links">
-          <a routerLink="/register" class="nav-pill">Join as Customer</a>
-          <a routerLink="/merchant-registration" class="nav-link">Join as Merchant</a>
-          <a routerLink="/login" class="nav-link">Sign In</a>
-        </nav>
-      </header>
-
-      <main class="hero-grid">
-        <!-- Left Column: Customer Hero Copy & Spoken Chips -->
-        <section class="hero-copy">
-          <div class="hero-badge">
-            <span class="badge-dot"></span> SwiftDrop Customer Registration
-          </div>
-
-          <h1 class="hero-headline">Create your customer account</h1>
-
-          <p class="hero-lede">
-            Sign up in seconds to schedule door-to-door deliveries, monitor parcels in real time, and enjoy automated doorstep collections.
-          </p>
-
-        </section>
-
-        <!-- Right Column: Tactile Customer Signup White Card -->
-        <section class="auth-card-wrap">
-          <div class="auth-card">
+    <lib-auth-shell active="customer" badge="Customer sign-up" headline="Create your customer account" lede="Book parcels anywhere in Sri Lanka, see the price before you confirm, and follow every status update until delivery.">
             <div class="card-header">
               <span class="card-pill">Customer Signup</span>
               <h2>Join SwiftDrop</h2>
@@ -150,10 +116,7 @@ import {
               <p>Already have an account? <a routerLink="/login">Sign in</a></p>
               <p class="merchant-note">Merchant partner? <a routerLink="/merchant-registration">Register business</a></p>
             </div>
-          </div>
-        </section>
-      </main>
-    </div>
+    </lib-auth-shell>
   `,
   styles: [`
     :host {
@@ -165,135 +128,9 @@ import {
       --ink-3: #6f6d85;
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
     }
-    .yum-page {
-      position: relative;
-      min-height: 100vh;
-      margin: 0;
-      padding: 2.5rem 2rem 4rem;
-      background: radial-gradient(55% 65% at 75% 45%, #b8432f 0%, #98311e 65%, #882b1a 100%), #98311e;
-      color: #fff;
-      overflow: hidden;
-    }
-    .top-bar {
-      max-width: 1200px;
-      margin: 0 auto 3rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1.5rem;
-    }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: #fff;
-      text-decoration: none;
-    }
-    .brand-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .brand-text {
-      font-family: var(--disp);
-      font-size: 1.5rem;
-      font-weight: 900;
-      letter-spacing: -0.03em;
-    }
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
-    .nav-link {
-      color: rgba(255,255,255,0.85);
-      text-decoration: none;
-      font-size: 0.95rem;
-      font-weight: 600;
-      transition: color 0.2s;
-    }
-    .nav-link:hover { color: #fff; }
-    .nav-pill {
-      display: inline-flex;
-      align-items: center;
-      height: 38px;
-      padding: 0 1.25rem;
-      border-radius: 9999px;
-      background: var(--ink);
-      color: #fff;
-      font-size: 0.875rem;
-      font-weight: 700;
-      text-decoration: none;
-      transition: background-color 0.2s, transform 0.2s;
-    }
-    .nav-pill:hover, .submit-btn:hover:not(:disabled) {
+    .submit-btn:hover:not(:disabled) {
       background: #000;
       transform: translateY(-1px);
-    }
-    .hero-grid {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      align-items: center;
-      gap: 4rem;
-    }
-    .hero-copy {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.35rem 0.85rem;
-      border-radius: 9999px;
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(8px);
-      font-size: 0.8125rem;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 1.5rem;
-    }
-    .badge-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #4ade80;
-      box-shadow: 0 0 8px #4ade80;
-    }
-    .hero-headline {
-      font-family: var(--disp);
-      font-size: clamp(2.4rem, 4.5vw, 4.25rem);
-      font-weight: 900;
-      line-height: 0.96;
-      letter-spacing: -0.035em;
-      color: #fff;
-      margin: 0 0 1.5rem;
-      text-shadow: 0 2px 0 rgba(140,30,15,0.25);
-    }
-    .hero-lede {
-      max-width: 28rem;
-      font-size: 1.15rem;
-      line-height: 1.55;
-      color: rgba(255,255,255,0.9);
-      margin: 0 0 2.25rem;
-    }
-    .auth-card-wrap {
-      display: flex;
-      justify-content: center;
-      width: 100%;
-    }
-    .auth-card {
-      width: 100%;
-      max-width: 480px;
-      padding: 2.75rem 2.25rem;
-      background: #fff;
-      color: var(--ink);
-      border-radius: 28px;
-      box-shadow: 0 24px 60px -15px rgba(29,27,44,0.35), 0 8px 24px -6px rgba(0,0,0,0.2);
     }
     .card-header { margin-bottom: 2rem; text-align: left; }
     .card-pill {
@@ -433,18 +270,6 @@ import {
     }
     .auth-footer a:hover { text-decoration: underline; }
     .merchant-note { font-size: 0.8125rem; }
-    @media (max-width: 960px) {
-      .yum-page { padding: 1.75rem 1.25rem 3rem; }
-      .hero-grid { grid-template-columns: 1fr; gap: 2.75rem; }
-      .hero-copy { align-items: center; text-align: center; }
-      .hero-headline { font-size: 2.5rem; }
-      .auth-card { padding: 2.25rem 1.75rem; }
-    }
-    @media (max-width: 480px) {
-      .top-bar { flex-direction: column; gap: 1rem; }
-      .hero-headline { font-size: 2.1rem; }
-      .auth-card { padding: 1.75rem 1.25rem; border-radius: 20px; }
-    }
   `]
 })
 export class RegisterComponent {

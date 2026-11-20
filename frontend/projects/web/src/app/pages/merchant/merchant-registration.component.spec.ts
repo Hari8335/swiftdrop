@@ -68,10 +68,16 @@ describe('MerchantRegistrationComponent', () => {
     const badge = fixture.nativeElement.querySelector('ui-status-badge');
     expect(badge).toBeTruthy();
     expect(badge.textContent).toContain('PENDING');
-    const resetLink = fixture.nativeElement.querySelector('a[href="/forgot-password"]');
-    expect(resetLink?.textContent).toContain('Forgot password');
-    expect(fixture.nativeElement.textContent).toContain('After approval');
-    expect(fixture.nativeElement.textContent).toContain('separate from your sign-in password');
+    // Approval emails a temporary password; the merchant then sets their own at first sign-in.
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('our admin team reviews your application');
+    expect(text).toContain('temporary password');
+    expect(text).toContain('choose your own password');
+    expect(text).not.toContain('24 hours');
+    expect(text).not.toContain('discounted volume rates');
+    expect(fixture.nativeElement.querySelector('a[href="/forgot-password"]')).toBeNull();
+    const signIn = fixture.nativeElement.querySelector('ui-button[ng-reflect-router-link], ui-button');
+    expect(signIn?.textContent).toContain('Go to merchant sign-in');
   });
 
   it('shows a duplicate email message for a registration conflict', () => {
@@ -90,9 +96,14 @@ describe('MerchantRegistrationComponent', () => {
     expect(component.errorMessage()).toContain('already registered');
   });
 
-  it('renders UI kit components: card, inputs, and submit button', () => {
-    const card = fixture.nativeElement.querySelector('ui-card');
-    expect(card).toBeTruthy();
+  it('renders inside the shared sign-up layout with UI kit inputs and submit button', () => {
+    const shell = fixture.nativeElement.querySelector('lib-auth-shell');
+    expect(shell).toBeTruthy();
+    expect(shell.querySelector('.auth-card h2')?.textContent).toContain('Register your business');
+    expect(shell.querySelector('.nav-pill')?.textContent?.trim()).toBe('Join as Merchant');
+    const steps = Array.from(shell.querySelectorAll('.hero-steps li')).map((li) => (li as HTMLElement).textContent?.trim());
+    expect(steps.length).toBe(4);
+    expect(steps[2]).toContain('temporary password');
 
     const inputs = fixture.nativeElement.querySelectorAll('ui-input');
     expect(inputs.length).toBe(5);

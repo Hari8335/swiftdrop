@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, isDevMode, signal, computed, OnInit } from '@angular/core';
+import { AuthShellComponent } from '../auth-shell/auth-shell.component';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -8,44 +9,9 @@ import { AuthRole, LoginRequest } from '../../models/auth.models';
 @Component({
   selector: 'lib-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [AuthShellComponent, CommonModule, ReactiveFormsModule, RouterModule],
   template: `
-    <div class="yum-page">
-      <header class="top-bar">
-        <div class="brand">
-          <svg class="brand-icon" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="10" fill="#ffffff" />
-            <path d="M8 12L16 7L24 12V22L16 27L8 22V12Z" fill="#a53a26" />
-            <path d="M16 7V27M8 12L24 22M24 12L8 22" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
-          </svg>
-          <span class="brand-text">SwiftDrop</span>
-        </div>
-
-        <nav class="nav-links">
-          <a routerLink="/register" class="nav-link">Join as Customer</a>
-          <a routerLink="/merchant-registration" class="nav-link">Join as Merchant</a>
-          <a routerLink="/login" class="nav-pill">Sign In</a>
-        </nav>
-      </header>
-
-      <main class="hero-grid">
-        <!-- Left Column: Hero & Spoken Chips -->
-        <section class="hero-copy">
-          <div class="hero-badge">
-            <span class="badge-dot"></span> Next-Gen Parcel Delivery
-          </div>
-
-          <h1 class="hero-headline">The parcel delivery you can talk to</h1>
-
-          <p class="hero-lede">
-            Sign in to manage doorstep parcels, track real-time dispatches, and coordinate logistics across Sri Lanka.
-          </p>
-
-        </section>
-
-        <!-- Right Column: Tactile YumLog Auth Card with 4-Role Selector -->
-        <section class="auth-card-wrap">
-          <div class="auth-card">
+    <lib-auth-shell active="signin" [badge]="heroCopy().badge" [headline]="heroCopy().headline" [lede]="heroCopy().lede">
             <div class="card-header">
               <span class="card-pill">{{ currentRoleMeta().label }} Sign In</span>
               <h2>Welcome back</h2>
@@ -68,11 +34,13 @@ import { AuthRole, LoginRequest } from '../../models/auth.models';
               }
             </div>
 
-            <div class="sample-hint-row">
-              <button type="button" class="sample-link" (click)="useSampleCredentials(selectedRole())">
-                Fill sample {{ currentRoleMeta().label }} credentials
-              </button>
-            </div>
+            @if (showSampleCredentials) {
+              <div class="sample-hint-row">
+                <button type="button" class="sample-link" (click)="useSampleCredentials(selectedRole())">
+                  Fill sample {{ currentRoleMeta().label }} credentials
+                </button>
+              </div>
+            }
 
             @if (errorMessage()) {
               <div class="error-banner" role="alert">
@@ -153,32 +121,35 @@ import { AuthRole, LoginRequest } from '../../models/auth.models';
               </button>
             </form>
 
-            <div class="oauth-divider">
-              <span>or</span>
-            </div>
+            @if (selectedRole() === 'CUSTOMER') {
+              <div class="oauth-divider">
+                <span>or</span>
+              </div>
 
-            <button
-              type="button"
-              class="google-btn"
-              (click)="onGoogleLogin()"
-              [disabled]="isLoading()"
-            >
-              <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              Continue with Google
-            </button>
+              <button
+                type="button"
+                class="google-btn"
+                (click)="onGoogleLogin()"
+                [disabled]="isLoading()"
+              >
+                <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                Continue with Google
+              </button>
+            }
 
             <div class="auth-footer">
-              <p>Don't have an account? <a routerLink="/register">Customer signup</a> or <a routerLink="/merchant-registration">Merchant partner</a></p>
+              @if (selectedRole() === 'CUSTOMER' || selectedRole() === 'MERCHANT') {
+                <p>Don't have an account? <a routerLink="/register">Customer signup</a> or <a routerLink="/merchant-registration">Merchant partner</a></p>
+              } @else {
+                <p>Need an account? {{ currentRoleMeta().label }} accounts are created by your SwiftDrop administrator.</p>
+              }
             </div>
-          </div>
-        </section>
-      </main>
-    </div>
+    </lib-auth-shell>
   `,
   styles: [`
     :host {
@@ -190,135 +161,9 @@ import { AuthRole, LoginRequest } from '../../models/auth.models';
       --ink-3: #6f6d85;
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
     }
-    .yum-page {
-      position: relative;
-      min-height: 100vh;
-      margin: 0;
-      padding: 2.5rem 2rem 4rem;
-      background: radial-gradient(55% 65% at 75% 45%, #b8432f 0%, #98311e 65%, #882b1a 100%), #98311e;
-      color: #fff;
-      overflow: hidden;
-    }
-    .top-bar {
-      max-width: 1200px;
-      margin: 0 auto 3rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1.5rem;
-    }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: #fff;
-      text-decoration: none;
-    }
-    .brand-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .brand-text {
-      font-family: var(--disp);
-      font-size: 1.5rem;
-      font-weight: 900;
-      letter-spacing: -0.03em;
-    }
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
-    .nav-link {
-      color: rgba(255,255,255,0.85);
-      text-decoration: none;
-      font-size: 0.95rem;
-      font-weight: 600;
-      transition: color 0.2s;
-    }
-    .nav-link:hover { color: #fff; }
-    .nav-pill {
-      display: inline-flex;
-      align-items: center;
-      height: 38px;
-      padding: 0 1.25rem;
-      border-radius: 9999px;
-      background: var(--ink);
-      color: #fff;
-      font-size: 0.875rem;
-      font-weight: 700;
-      text-decoration: none;
-      transition: background-color 0.2s, transform 0.2s;
-    }
-    .nav-pill:hover, .submit-btn:hover:not(:disabled) {
+    .submit-btn:hover:not(:disabled) {
       background: #000;
       transform: translateY(-1px);
-    }
-    .hero-grid {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      align-items: center;
-      gap: 4rem;
-    }
-    .hero-copy {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.35rem 0.85rem;
-      border-radius: 9999px;
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(8px);
-      font-size: 0.8125rem;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 1.5rem;
-    }
-    .badge-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #4ade80;
-      box-shadow: 0 0 8px #4ade80;
-    }
-    .hero-headline {
-      font-family: var(--disp);
-      font-size: clamp(2.4rem, 4.5vw, 4.25rem);
-      font-weight: 900;
-      line-height: 0.96;
-      letter-spacing: -0.035em;
-      color: #fff;
-      margin: 0 0 1.5rem;
-      text-shadow: 0 2px 0 rgba(140,30,15,0.25);
-    }
-    .hero-lede {
-      max-width: 28rem;
-      font-size: 1.15rem;
-      line-height: 1.55;
-      color: rgba(255,255,255,0.9);
-      margin: 0 0 2.25rem;
-    }
-    .auth-card-wrap {
-      display: flex;
-      justify-content: center;
-      width: 100%;
-    }
-    .auth-card {
-      width: 100%;
-      max-width: 480px;
-      padding: 2.5rem 2.25rem;
-      background: #fff;
-      color: var(--ink);
-      border-radius: 28px;
-      box-shadow: 0 24px 60px -15px rgba(29,27,44,0.35), 0 8px 24px -6px rgba(0,0,0,0.2);
     }
     .card-header { margin-bottom: 1.25rem; text-align: left; }
     .card-pill {
@@ -563,17 +408,7 @@ import { AuthRole, LoginRequest } from '../../models/auth.models';
       text-decoration: none;
       font-weight: 700;
     }
-    @media (max-width: 960px) {
-      .yum-page { padding: 1.75rem 1.25rem 3rem; }
-      .hero-grid { grid-template-columns: 1fr; gap: 2.75rem; }
-      .hero-copy { align-items: center; text-align: center; }
-      .hero-headline { font-size: 2.5rem; }
-      .auth-card { padding: 2.25rem 1.75rem; }
-    }
     @media (max-width: 480px) {
-      .top-bar { flex-direction: column; gap: 1rem; }
-      .hero-headline { font-size: 2.1rem; }
-      .auth-card { padding: 1.75rem 1.25rem; border-radius: 20px; }
       .role-tab { font-size: 0.72rem; gap: 0.15rem; }
     }
   `]
@@ -603,6 +438,45 @@ export class LoginComponent implements OnInit {
     { id: 'DISPATCHER' as const, label: 'Dispatcher', placeholder: 'dispatcher@swiftdrop.lk', target: '/dispatch', desc: 'Courier dispatch queue, workload, and zone rates' },
     { id: 'COURIER' as const, label: 'Courier', placeholder: 'courier@swiftdrop.lk', target: '/courier', desc: 'View assigned deliveries and update delivery status' },
   ];
+
+  /** The sample-credentials shortcut is for local development only, never production builds. */
+  readonly showSampleCredentials = isDevMode();
+
+  /** Text beside the form, matching how each role gets and uses its account. */
+  readonly heroCopy = computed(() => {
+    switch (this.selectedRole()) {
+      case 'MERCHANT':
+        return {
+          badge: 'Merchant sign-in',
+          headline: 'Your business deliveries, in one place',
+          lede: 'Upload order CSVs, follow every parcel and manage your API credentials. First time? Use the temporary password from your approval email, then set your own.',
+        };
+      case 'COURIER':
+        return {
+          badge: 'Courier sign-in',
+          headline: 'Ready for today’s deliveries?',
+          lede: 'See the parcels assigned to you and update each status as you go. Your account is created by your SwiftDrop administrator, and your first password arrives by email.',
+        };
+      case 'DISPATCHER':
+        return {
+          badge: 'Dispatcher sign-in',
+          headline: 'Keep every parcel moving',
+          lede: 'Assign couriers, balance workloads and re-queue failed deliveries. Your account is created by your SwiftDrop administrator.',
+        };
+      case 'ADMIN':
+        return {
+          badge: 'Admin sign-in',
+          headline: 'Run the SwiftDrop platform',
+          lede: 'Manage staff accounts, approve merchants and review reports and audit logs.',
+        };
+      default:
+        return {
+          badge: 'Customer sign-in',
+          headline: 'Welcome back',
+          lede: 'Book deliveries, see prices before you confirm and follow every parcel until it arrives. You can also continue with Google.',
+        };
+    }
+  });
 
   readonly currentRoleMeta = computed(() => {
     return this.roles.find((r) => r.id === this.selectedRole()) ?? this.roles[0];

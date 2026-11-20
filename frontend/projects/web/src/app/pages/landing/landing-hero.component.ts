@@ -86,38 +86,6 @@ type Audience = 'customer' | 'merchant';
           <div class="hero-box">
             <app-parcel-box-3d></app-parcel-box-3d>
           </div>
-
-          <div class="booking-card">
-            <div class="booking-head">
-              <span class="eyebrow">Fee estimate</span>
-              <span class="mono muted">Example</span>
-            </div>
-            <div class="booking-route">
-              <div class="route-rail" aria-hidden="true">
-                <span class="dot"></span>
-                <span class="rail-line"></span>
-                <span class="dot dot-end"></span>
-              </div>
-              <div class="route-stops">
-                <div><div class="label">Pickup</div><div class="strong">Your saved address · Nugegoda</div></div>
-                <div><div class="label">Drop-off</div><div class="strong">Kandy · Central Zone</div></div>
-              </div>
-            </div>
-            <div class="booking-stats">
-              <div><div class="label">Weight</div><div class="mono strong">2 kg</div></div>
-              <div><div class="label">Size</div><div class="mono strong">Small</div></div>
-              <div><div class="label">Price</div><div class="mono strong">LKR 860</div></div>
-            </div>
-            <a [routerLink]="bookLink()" class="booking-confirm">Book this delivery</a>
-          </div>
-
-          <div class="courier-chip">
-            <span class="ping" aria-hidden="true"><span class="ping-ring"></span><span class="ping-dot"></span></span>
-            <div>
-              <div class="strong">Courier assigned</div>
-              <div class="chip-sub">You’ll see every status update live</div>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -126,8 +94,6 @@ type Audience = 'customer' | 'merchant';
     :host { display: block; }
     .mono { font-family: var(--mono); }
     .strong { font-weight: 600; }
-    .muted, .label { color: var(--muted); }
-    .label { font-size: 12px; }
     .hero { position: relative; background: var(--terracotta); color: #fff; padding: 0 24px 96px; }
     .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .16; pointer-events: none; }
     .top-bar { position: relative; max-width: 1240px; margin: 0 auto; padding: 24px 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
@@ -153,37 +119,16 @@ type Audience = 'customer' | 'merchant';
     .composer-btn:hover { background: var(--terracotta); }
     .prompt-pills { list-style: none; margin: 0; padding: 0; display: flex; gap: 10px; flex-wrap: wrap; font-size: 14px; }
     .prompt-pills li { padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.3); }
-    .hero-visual { flex: 1 1 440px; min-width: 0; position: relative; min-height: 560px; }
+    .hero-visual { flex: 1 1 440px; min-width: 0; position: relative; min-height: 520px; display: flex; align-items: center; justify-content: center; }
     .hero-glow { position: absolute; left: 50%; top: 52%; width: 420px; height: 420px; transform: translate(-50%,-50%); border-radius: 50%; background: radial-gradient(circle, rgba(242,162,58,.45), rgba(242,162,58,0) 70%); }
-    .hero-box { position: absolute; right: 0; top: 60px; width: 78%; max-width: 460px; }
-    .booking-card { position: absolute; left: 0; top: 0; z-index: 2; width: 330px; box-sizing: border-box; background: #fff; color: var(--ink); border-radius: 20px; padding: 20px; box-shadow: 0 30px 70px rgba(30,8,3,.45); display: flex; flex-direction: column; gap: 14px; }
-    .booking-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
-    .eyebrow { font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #6B2416; }
-    .booking-route { display: flex; gap: 12px; }
-    .route-rail { display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
-    .dot-end { background: var(--terracotta-2); }
-    .rail-line { flex: 1; width: 2px; margin: 4px 0; background: repeating-linear-gradient(#C9C2CF 0 4px, transparent 4px 8px); }
-    .route-stops { display: flex; flex-direction: column; gap: 14px; font-size: 15px; }
-    .booking-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-    .booking-stats > div { background: var(--cream); border-radius: 12px; padding: 10px; }
-    .booking-stats .label { font-size: 11px; }
-    .booking-confirm { text-decoration: none; text-align: center; background: var(--ink); color: #fff; font-weight: 600; padding: 14px; border-radius: 12px; }
-    .courier-chip { position: absolute; right: 8px; bottom: 24px; z-index: 2; background: var(--ink); color: #fff; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 20px 40px rgba(0,0,0,.35); font-size: 14px; }
-    .chip-sub { color: var(--on-dark-muted); font-size: 13px; }
-    .ping { position: relative; width: 12px; height: 12px; flex-shrink: 0; }
-    .ping-dot, .ping-ring { position: absolute; inset: 0; border-radius: 50%; background: #34D399; }
-    .ping-ring { animation: sdPulse 1.8s ease-out infinite; }
+    .hero-box { position: relative; width: 100%; max-width: 500px; }
     a:focus-visible, button:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
     @keyframes sdBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
-    @keyframes sdPulse { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.6); opacity: 0; } }
-    @media (prefers-reduced-motion: reduce) { .caret, .ping-ring { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
     @media (max-width: 960px) {
-      .hero-visual { min-height: 0; display: flex; flex-direction: column; gap: 20px; align-items: center; }
+      .hero-visual { min-height: 0; }
       .hero-glow { display: none; }
-      .hero-box { position: relative; top: 0; width: 100%; max-width: 360px; }
-      .booking-card, .courier-chip { position: relative; inset: auto; }
-      .booking-card { width: 100%; max-width: 380px; }
+      .hero-box { max-width: 360px; }
     }
     @media (max-width: 700px) {
       .top-bar { justify-content: center; }

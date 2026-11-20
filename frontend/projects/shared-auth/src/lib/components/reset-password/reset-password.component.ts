@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { AuthShellComponent } from '../auth-shell/auth-shell.component';
 import { CommonModule } from '@angular/common';
 import {
   AbstractControl,
@@ -42,28 +43,9 @@ export const passwordMatchValidator: ValidatorFn = (
 @Component({
   selector: 'lib-reset-password',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [AuthShellComponent, CommonModule, ReactiveFormsModule, RouterModule],
   template: `
-    <div class="yum-page">
-      <header class="top-bar">
-        <a routerLink="/login" class="brand">
-          <svg class="brand-icon" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="10" fill="#ffffff" />
-            <path d="M8 12L16 7L24 12V22L16 27L8 22V12Z" fill="#a53a26" />
-            <path d="M16 7V27M8 12L24 22M24 12L8 22" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
-          </svg>
-          <span class="brand-text">SwiftDrop</span>
-        </a>
-
-        <nav class="nav-links">
-          <a routerLink="/register" class="nav-link">Customer</a>
-          <a routerLink="/merchant-registration" class="nav-link">Merchant</a>
-          <a routerLink="/login" class="nav-pill">Sign In</a>
-        </nav>
-      </header>
-
-      <main class="auth-card-wrap">
-        <div class="auth-card">
+    <lib-auth-shell active="signin" [badge]="heroCopy().badge" [headline]="heroCopy().headline" [lede]="heroCopy().lede" [steps]="heroCopy().steps" [stepsLabel]="heroCopy().stepsLabel">
           <div class="card-header">
             <span class="card-pill">{{ firstLogin() ? (portalRole() === 'merchant' ? 'Merchant Activation' : 'Account Activation') : 'Password Reset' }}</span>
             <h2>{{ firstLogin() || codeVerified() ? 'Create new password' : 'Enter reset code' }}</h2>
@@ -238,9 +220,7 @@ export const passwordMatchValidator: ValidatorFn = (
               <p>Need a different code? <a routerLink="/forgot-password">Start again</a></p>
             </div>
           }
-        </div>
-      </main>
-    </div>
+    </lib-auth-shell>
   `,
   styles: [`
     :host {
@@ -252,88 +232,9 @@ export const passwordMatchValidator: ValidatorFn = (
       --ink-3: #6f6d85;
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
     }
-    .yum-page {
-      position: relative;
-      min-height: 100vh;
-      margin: 0;
-      padding: 2.5rem 2rem 4rem;
-      background: radial-gradient(55% 65% at 75% 45%, #b8432f 0%, #98311e 65%, #882b1a 100%), #98311e;
-      color: #fff;
-      overflow-x: hidden;
-      box-sizing: border-box;
-    }
-    .top-bar {
-      max-width: 1200px;
-      margin: 0 auto 3rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1.5rem;
-    }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: #fff;
-      text-decoration: none;
-    }
-    .brand-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .brand-text {
-      font-family: var(--disp);
-      font-size: 1.5rem;
-      font-weight: 900;
-      letter-spacing: -0.03em;
-    }
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
-    .nav-link {
-      color: rgba(255,255,255,0.85);
-      text-decoration: none;
-      font-size: 0.95rem;
-      font-weight: 600;
-      transition: color 0.2s;
-    }
-    .nav-link:hover { color: #fff; }
-    .nav-pill {
-      display: inline-flex;
-      align-items: center;
-      height: 38px;
-      padding: 0 1.25rem;
-      border-radius: 9999px;
-      background: var(--ink);
-      color: #fff;
-      font-size: 0.875rem;
-      font-weight: 700;
-      text-decoration: none;
-      transition: background-color 0.2s, transform 0.2s;
-    }
-    .nav-pill:hover, .submit-btn:hover:not(:disabled) {
+    .submit-btn:hover:not(:disabled) {
       background: #000;
       transform: translateY(-1px);
-    }
-    .auth-card-wrap {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      margin: 1.5rem auto 3rem;
-    }
-    .auth-card {
-      width: 100%;
-      max-width: 480px;
-      padding: 2.5rem 2.25rem;
-      background: #fff;
-      color: var(--ink);
-      border-radius: 28px;
-      box-shadow: 0 24px 60px -15px rgba(29,27,44,0.35), 0 8px 24px -6px rgba(0,0,0,0.2);
     }
     .card-header {
       margin-bottom: 1.75rem;
@@ -620,9 +521,6 @@ export const passwordMatchValidator: ValidatorFn = (
       text-decoration: underline;
     }
     @media (max-width: 640px) {
-      .yum-page { padding: 1.5rem 1rem 3rem; }
-      .top-bar { margin-bottom: 2rem; }
-      .auth-card { padding: 1.75rem 1.25rem; border-radius: 20px; }
       .card-header h2 { font-size: 1.5rem; }
     }
   `]
@@ -639,6 +537,31 @@ export class ResetPasswordComponent implements OnInit {
   readonly missingEmail = signal(false);
   readonly firstLogin = signal(false);
   readonly codeVerified = signal(false);
+
+  /** Text beside the form: first sign-in with a temporary password, or recovering a forgotten one. */
+  readonly heroCopy = computed(() => {
+    if (this.firstLogin()) {
+      const merchant = this.portalRole()?.toLowerCase() === 'merchant';
+      return {
+        badge: merchant ? 'Merchant account activation' : 'Account activation',
+        headline: 'Set your own password',
+        lede: 'You signed in with the temporary password from your email. Choose your own password to finish setting up your account.',
+        steps: [] as readonly string[],
+        stepsLabel: '',
+      };
+    }
+    return {
+      badge: 'Password recovery',
+      headline: 'Choose a new password',
+      lede: 'Enter the code we emailed you, then pick a new password for your account.',
+      steps: [
+        'Enter the email address of your account',
+        'Check your inbox for a reset code',
+        'Enter the code and choose a new password',
+      ] as readonly string[],
+      stepsLabel: 'How password recovery works',
+    };
+  });
   readonly isLoading = signal(false);
   readonly isResending = signal(false);
   readonly resendSuccessMessage = signal<string | null>(null);

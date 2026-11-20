@@ -102,9 +102,55 @@ describe('LandingComponent', () => {
     }
   });
 
-  it('links the final call to action to customer and merchant sign-up', () => {
-    const cta = compiled.querySelector('.final-cta') as HTMLElement;
-    const hrefs = Array.from(cta.querySelectorAll('a')).map((a) => a.getAttribute('href'));
-    expect(hrefs).toEqual(['/register', '/merchant-registration']);
+  it('goes straight from the coverage section to the footer, with no separate call-to-action band', () => {
+    expect(compiled.querySelector('.cta-wrap, .final-cta')).toBeNull();
+    expect(compiled.textContent).not.toContain('Your next parcel is a few clicks away');
+    const coverage = compiled.querySelector('#coverage') as HTMLElement;
+    expect(coverage.nextElementSibling?.tagName.toLowerCase()).toBe('app-landing-footer');
+  });
+
+  it('shows only the 3D parcel box in the hero visual, without the fee card or courier chip', () => {
+    const visual = compiled.querySelector('.hero-visual') as HTMLElement;
+    expect(visual.querySelector('app-parcel-box-3d')).toBeTruthy();
+    expect(visual.querySelector('.booking-card, .courier-chip')).toBeNull();
+    expect(compiled.textContent).not.toContain('Fee estimate');
+    expect(compiled.textContent).not.toContain('Courier assigned');
+  });
+
+  describe('footer', () => {
+    const footer = () => compiled.querySelector('app-landing-footer') as HTMLElement;
+    const link = (text: string) =>
+      Array.from(footer().querySelectorAll('a')).find((a) => a.textContent?.trim() === text) as HTMLAnchorElement;
+
+    it('links only to real pages and landing sections', () => {
+      expect(link('Join as Customer').getAttribute('href')).toBe('/register');
+      expect(link('Join as Merchant').getAttribute('href')).toBe('/merchant-registration');
+      expect(link('Sign In').getAttribute('href')).toBe('/login');
+      expect(link('Book a delivery').getAttribute('href')).toBe('/register');
+      for (const [text, id] of [['Features', 'features'], ['For merchants', 'business'], ['Coverage', 'coverage']]) {
+        expect(link(text).getAttribute('href')).toBe('#' + id);
+        expect(compiled.querySelector('#' + id)).toBeTruthy();
+      }
+      expect(footer().textContent).toContain(String(new Date().getFullYear()));
+      expect(footer().querySelectorAll('a[href^="/track"]').length).toBe(0);
+    });
+
+    it('scrolls smoothly to a section instead of jumping', () => {
+      const scroll = jest.fn();
+      (Element.prototype as unknown as { scrollIntoView: jest.Mock }).scrollIntoView = scroll;
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      link('Coverage').dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(scroll).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+      delete (Element.prototype as unknown as { scrollIntoView?: jest.Mock }).scrollIntoView;
+    });
+
+    it('has a back-to-top button', () => {
+      const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+      const button = Array.from(footer().querySelectorAll('button')).find((b) => b.textContent?.includes('Back to top'));
+      button?.click();
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+      scrollTo.mockRestore();
+    });
   });
 });

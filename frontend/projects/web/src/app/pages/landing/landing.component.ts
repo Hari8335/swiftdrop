@@ -1,16 +1,16 @@
 import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { LandingFeaturesComponent } from './landing-features.component';
+import { LandingFooterComponent } from './landing-footer.component';
 import { LandingHeroComponent } from './landing-hero.component';
 
 /**
  * Public landing page. Defines the shared design tokens (inherited by the hero and feature
- * sections) and renders the how-it-works steps, coverage map, final call to action and footer.
+ * sections) and renders the how-it-works steps, coverage map, and footer.
  */
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [RouterLink, LandingHeroComponent, LandingFeaturesComponent],
+  imports: [LandingHeroComponent, LandingFeaturesComponent, LandingFooterComponent],
   template: `
     <div class="sd-page">
       <app-landing-hero></app-landing-hero>
@@ -73,27 +73,8 @@ import { LandingHeroComponent } from './landing-hero.component';
         </div>
       </section>
 
-      <section class="cta-wrap">
-        <div class="container final-cta">
-          <h2 class="title">Your next parcel is a few clicks away.</h2>
-          <div class="cta-actions">
-            <a routerLink="/register" class="cta-primary">Book a delivery</a>
-            <a routerLink="/merchant-registration" class="cta-secondary">Join as merchant</a>
-          </div>
-        </div>
-      </section>
 
-      <footer class="landing-footer">
-        <div class="container footer-inner">
-          <span class="footer-brand">SwiftDrop</span>
-          <div class="footer-links">
-            <a routerLink="/login">Sign In</a>
-            <a routerLink="/register">Join as Customer</a>
-            <a routerLink="/merchant-registration">Join as Merchant</a>
-          </div>
-          <span>© {{ year }} SwiftDrop</span>
-        </div>
-      </footer>
+      <app-landing-footer></app-landing-footer>
     </div>
   `,
   styles: [`
@@ -141,30 +122,14 @@ import { LandingHeroComponent } from './landing-hero.component';
     .map { flex: 1 1 380px; display: flex; justify-content: center; }
     .map svg { width: 100%; max-width: 380px; }
 
-    .cta-wrap { padding: 96px 24px; }
-    .final-cta { background: var(--terracotta); color: #fff; border-radius: 36px; padding: 64px 48px; display: flex; flex-wrap: wrap; gap: 32px; align-items: center; justify-content: space-between; }
-    .final-cta .title { max-width: 640px; }
-    .cta-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-    .cta-primary { text-decoration: none; background: #fff; color: var(--terracotta); font-weight: 700; padding: 18px 28px; border-radius: 999px; font-size: 17px; }
-    .cta-secondary { text-decoration: none; border: 2px solid rgba(255,255,255,.6); color: #fff; font-weight: 600; padding: 16px 26px; border-radius: 999px; font-size: 17px; }
-    .cta-secondary:hover { border-color: #fff; }
 
-    .landing-footer { background: var(--ink); color: var(--on-dark-muted); padding: 40px 24px; }
-    .footer-inner { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: center; font-size: 14px; }
-    .footer-brand { font-family: var(--disp); font-weight: 800; font-size: 20px; color: #fff; }
-    .footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
-    .footer-links a { color: var(--on-dark-muted); text-decoration: none; }
-    .footer-links a:hover { color: #fff; }
     a:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
 
     @media (max-width: 700px) {
       .steps-section { padding: 0 16px 72px; }
       .coverage { padding: 72px 16px; }
-      .cta-wrap { padding: 64px 16px; }
-      .final-cta { padding: 40px 24px; border-radius: 28px; }
     }
   `],
 })
 export class LandingComponent {
-  readonly year = new Date().getFullYear();
 }
