@@ -57,11 +57,11 @@ describe('LandingComponent', () => {
     expect(compiled.querySelector('[data-testid="hero-book-link"]')?.getAttribute('href')).toBe('/merchant-registration');
   });
 
-  it('has no tracking links, no stats placeholders, and keeps the 3D parcel box', () => {
+  it('has no tracking links, no stats placeholders, and shows the 3D scooter courier', () => {
     expect(compiled.querySelectorAll('a[href^="/track"]').length).toBe(0);
     expect(compiled.textContent).not.toContain('Track Parcel');
     expect(compiled.textContent).not.toMatch(/\[[0-9,+h m]+\]/);
-    expect(compiled.querySelector('app-parcel-box-3d')).toBeTruthy();
+    expect(compiled.querySelector('app-scooter-courier-3d')).toBeTruthy();
   });
 
   it('renders the four feature cards', () => {
@@ -109,12 +109,28 @@ describe('LandingComponent', () => {
     expect(coverage.nextElementSibling?.tagName.toLowerCase()).toBe('app-landing-footer');
   });
 
-  it('shows only the 3D parcel box in the hero visual, without the fee card or courier chip', () => {
+  it('shows the 3D scooter courier in the hero visual, without the fee card or courier chip', () => {
     const visual = compiled.querySelector('.hero-visual') as HTMLElement;
-    expect(visual.querySelector('app-parcel-box-3d')).toBeTruthy();
+    expect(visual.querySelector('app-scooter-courier-3d')).toBeTruthy();
+    expect(visual.querySelector('app-parcel-box-3d')).toBeNull();
+    expect(visual.textContent).not.toContain('Move your mouse');
     expect(visual.querySelector('.booking-card, .courier-chip')).toBeNull();
     expect(compiled.textContent).not.toContain('Fee estimate');
     expect(compiled.textContent).not.toContain('Courier assigned');
+  });
+
+  it('does not hard-code a delivery zone count (zones are managed by dispatchers)', () => {
+    const text = compiled.textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(text).not.toMatch(/\b(5|five) delivery zones/i);
+    expect(text).toContain('grouped into delivery zones');
+    expect(text).toContain('25 districts');
+  });
+
+  it('shows delivery routes on the map without district names', () => {
+    const map = compiled.querySelector('.map svg') as SVGElement;
+    expect(map.querySelectorAll('text')).toHaveLength(0);
+    expect(map.querySelectorAll('path[id^="sd-r"]').length).toBeGreaterThanOrEqual(14);
+    expect(map.querySelectorAll('animateMotion').length).toBe(map.querySelectorAll('path[id^="sd-r"]').length);
   });
 
   describe('footer', () => {

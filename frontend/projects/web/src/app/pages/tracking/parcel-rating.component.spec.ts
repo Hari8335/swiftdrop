@@ -4,6 +4,7 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ParcelRatingComponent } from './parcel-rating.component';
 import { RatingResponse } from './tracking.model';
+import { CustomerToastService } from '../customer/customer-toast.service';
 
 @Component({
   standalone: true,
@@ -123,7 +124,8 @@ describe('ParcelRatingComponent', () => {
     fixture.detectChanges();
 
     expect(q('rating-form')).toBeNull();
-    expect(q('rating-saved')?.textContent).toContain('Thank you for your rating');
+    expect(q('rating-saved')?.textContent).toContain('Your rating');
+    expect(TestBed.inject(CustomerToastService).toasts().at(-1)).toMatchObject({ kind: 'success', title: 'Thank you for your rating' });
     expect(q('rating-comment')?.textContent).toBe('Courier was polite');
   });
 

@@ -30,7 +30,6 @@ import { NotificationBellComponent } from '../../notification/notification-bell/
 
         <div id="profile-badge" class="flex items-center gap-3" [attr.title]="email() || null">
           <span class="hidden text-right sm:block">
-            <span class="block text-xs text-[#8e8a9e]">Signed in as</span>
             <span id="profile-badge-name" class="block max-w-[200px] truncate text-sm font-bold text-[#211f32]">{{ name() || 'Customer' }}</span>
           </span>
           <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#9b432f] text-xs font-bold uppercase text-white">
