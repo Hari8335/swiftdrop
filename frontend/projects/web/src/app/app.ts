@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, HostListener, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -177,6 +177,28 @@ export class App {
     const url = this.currentUrl() || this.router.url || '';
     const cleanUrl = url.split('?')[0].split('#')[0];
     return cleanUrl === '/merchant' || cleanUrl.startsWith('/merchant/');
+  }
+
+  readonly logoutConfirmOpen = signal(false);
+
+  openLogoutConfirm(): void {
+    this.logoutConfirmOpen.set(true);
+  }
+
+  cancelLogout(): void {
+    this.logoutConfirmOpen.set(false);
+  }
+
+  confirmLogout(): void {
+    this.logoutConfirmOpen.set(false);
+    this.logout();
+  }
+
+  @HostListener('document:keydown.escape')
+  closeOnEscape(): void {
+    if (this.logoutConfirmOpen()) {
+      this.cancelLogout();
+    }
   }
 
   logout(): void {
