@@ -104,6 +104,14 @@ public class Merchant {
         this.rejectionReason = reason;
     }
 
+    public void suspend() {
+        transitionTo(MerchantStatus.SUSPENDED);
+    }
+
+    public void reactivate() {
+        transitionTo(MerchantStatus.APPROVED);
+    }
+
     private void transitionTo(MerchantStatus next) {
         if (!status.canTransitionTo(next)) {
             throw new IllegalStateException("Merchant cannot transition from " + status + " to " + next);

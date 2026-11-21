@@ -36,23 +36,25 @@ public class MerchantOrderController {
 
     private final MerchantOrderService merchantOrderService;
     private final MerchantOrderQuery merchantOrderQuery;
+    private final MerchantIdentityResolver merchantIdentityResolver;
+    private final MerchantOrderDetailsService merchantOrderDetailsService;
 
     public MerchantOrderController(MerchantOrderService merchantOrderService,
-                                   MerchantOrderQuery merchantOrderQuery) {
+                                   MerchantOrderQuery merchantOrderQuery,
+                                   MerchantIdentityResolver merchantIdentityResolver,
+                                   MerchantOrderDetailsService merchantOrderDetailsService) {
         this.merchantOrderService = merchantOrderService;
         this.merchantOrderQuery = merchantOrderQuery;
+        this.merchantIdentityResolver = merchantIdentityResolver;
+        this.merchantOrderDetailsService = merchantOrderDetailsService;
     }
 
     private UUID requireMerchantId() {
-        CurrentUser user = CurrentUser.require();
-        if (!user.isMerchant() || user.merchantId() == null || user.merchantId().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant credentials are required");
-        }
-        try {
-            return UUID.fromString(user.merchantId());
-        } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant credentials are invalid");
-        }
+        return merchantIdentityResolver.requireMerchantId(CurrentUser.require());
+    }
+
+    private UUID requireApprovedMerchantId() {
+        return merchantIdentityResolver.requireApprovedMerchantId(CurrentUser.require());
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -64,7 +66,7 @@ public class MerchantOrderController {
     public ResponseEntity<MerchantOrderResponse> create(
             @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 128) String idempotencyKey,
             @Valid @RequestBody CreateMerchantOrderRequest request) {
-        UUID merchantId = requireMerchantId();
+        UUID merchantId = requireApprovedMerchantId();
         MerchantOrderIdempotencyStore.StoredResponse stored =
                 merchantOrderService.create(merchantId, idempotencyKey, request);
         return ResponseEntity.status(stored.status()).body(stored.body());
@@ -75,7 +77,7 @@ public class MerchantOrderController {
             @PathVariable UUID orderId,
             @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 128) String idempotencyKey,
             @Valid @RequestBody(required = false) CancelMerchantOrderRequest request) {
-        UUID merchantId = requireMerchantId();
+        UUID merchantId = requireApprovedMerchantId();
         MerchantOrderIdempotencyStore.StoredResponse stored =
                 merchantOrderService.cancel(merchantId, orderId, idempotencyKey, request);
         return ResponseEntity.status(stored.status()).body(stored.body());
@@ -119,5 +121,11 @@ public class MerchantOrderController {
         UUID merchantId = requireMerchantId();
         MerchantOrderStatusCounts counts = merchantOrderQuery.countOrdersByStatus(merchantId);
         return ResponseEntity.ok(MerchantOrderCountsResponse.from(counts));
+    }
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<MerchantOrderDetailsResponse> getOrderDetails(@PathVariable UUID orderId) {
+        UUID merchantId = requireMerchantId();
+        return ResponseEntity.ok(merchantOrderDetailsService.get(orderId, merchantId));
     }
 }

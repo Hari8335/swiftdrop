@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
@@ -12,6 +12,7 @@ import {
 } from './dispatch.model';
 import { DispatchService } from './dispatch.service';
 import { DispatchPortalState, matchesQuery } from './dispatch-portal.state';
+import { DispatchNotificationsService } from './dispatch-notifications.service';
 
 type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
@@ -35,22 +36,11 @@ interface HomeResults {
         <!-- TAB 0: HOME PAGE (Interactive Hero Cards & Operations Launchpad) -->
         <!-- ================================================================= -->
         <div *ngIf="activeTab() === 'home'" class="space-y-8 animate-fade-in">
-          <!-- Greeting Banner -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
-                Welcome back, Dispatcher!
-              </h1>
-              <p class="text-xs sm:text-sm text-[#6f6d85] font-medium mt-1">
-                SwiftDrop Live Queue Management & Courier Workload Board • Port 8083
-              </p>
-            </div>
-          </div>
 
           <!-- Home search results (driven by the top search bar) -->
           <div *ngIf="homeSearchQuery().trim()" id="home-search-results" class="bg-white rounded-3xl border border-[#f0ebe5] p-6 shadow-xs space-y-5">
             <div class="flex items-center justify-between gap-3 border-b border-[#f4efe9] pb-3">
-              <h2 class="text-base font-black text-[#1d1b2c]">Search results for “{{ homeSearchQuery().trim() }}”</h2>
+              <p class="text-base font-black text-[#1d1b2c]">Search results for “{{ homeSearchQuery().trim() }}”</p>
               <span class="text-xs font-bold text-[#6f6d85]">{{ homeResultCount() }} matches</span>
             </div>
 
@@ -147,7 +137,7 @@ interface HomeResults {
                   class="px-5 py-2.5 rounded-full bg-[#a53a26] hover:bg-[#7e2615] text-white font-bold text-xs transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center gap-2"
                 >
                   <span>Review Queue ({{ dispatchService.unassignedCount() }})</span>
-                  <span>→</span>
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
                 </button>
                 <button
                   type="button"
@@ -155,7 +145,7 @@ interface HomeResults {
                   (click)="setTab('workload')"
                   class="px-5 py-2.5 rounded-full border border-[#a53a26] text-[#a53a26] hover:bg-[#faf6f0] font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  <span>👷</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                   <span>Courier Workloads</span>
                 </button>
               </div>
@@ -235,8 +225,8 @@ interface HomeResults {
               title="Configure Delivery Zones"
             >
               <div class="flex items-center gap-4 min-w-0">
-                <div class="w-12 h-12 rounded-2xl bg-[#faf8f6] border border-[#f0ebe5] flex items-center justify-center text-xl text-[#a53a26] group-hover:scale-105 transition-transform shrink-0">
-                  🗺️
+                <div class="w-12 h-12 rounded-2xl bg-[#faf8f6] border border-[#f0ebe5] flex items-center justify-center text-[#a53a26] group-hover:scale-105 transition-transform shrink-0">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
                 </div>
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
@@ -254,7 +244,7 @@ interface HomeResults {
               </div>
               <div class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#faf8f6] group-hover:bg-[#a53a26] text-[#a53a26] group-hover:text-white border border-[#f0ebe5] group-hover:border-[#a53a26] text-xs font-bold transition-all shrink-0">
                 <span>Configure</span>
-                <span class="group-hover:translate-x-0.5 transition-transform">→</span>
+                <span class="group-hover:translate-x-0.5 transition-transform"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
               </div>
             </a>
 
@@ -266,8 +256,8 @@ interface HomeResults {
               title="Configure Pricing Rules"
             >
               <div class="flex items-center gap-4 min-w-0">
-                <div class="w-12 h-12 rounded-2xl bg-[#faf8f6] border border-[#f0ebe5] flex items-center justify-center text-xl text-[#a53a26] group-hover:scale-105 transition-transform shrink-0">
-                  🏷️
+                <div class="w-12 h-12 rounded-2xl bg-[#faf8f6] border border-[#f0ebe5] flex items-center justify-center text-[#a53a26] group-hover:scale-105 transition-transform shrink-0">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                 </div>
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
@@ -285,7 +275,7 @@ interface HomeResults {
               </div>
               <div class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#faf8f6] group-hover:bg-[#a53a26] text-[#a53a26] group-hover:text-white border border-[#f0ebe5] group-hover:border-[#a53a26] text-xs font-bold transition-all shrink-0">
                 <span>Configure</span>
-                <span class="group-hover:translate-x-0.5 transition-transform">→</span>
+                <span class="group-hover:translate-x-0.5 transition-transform"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
               </div>
             </a>
           </div>
@@ -295,38 +285,12 @@ interface HomeResults {
         <!-- TAB 1: UNASSIGNED QUEUE -->
         <!-- ================================================================= -->
         <div *ngIf="activeTab() === 'queue'" class="space-y-7 animate-fade-in">
-          <!-- Queue Title Banner -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
-                Unassigned Parcels Queue
-              </h1>
-              <p class="text-xs sm:text-sm text-[#6f6d85] font-medium mt-1">
-                Parcels awaiting courier dispatch and route assignment • Port 8083
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-[#faf8f6] text-[#a53a26] border border-[#f0ebe5]"
-              >
-                <span>📦</span>
-                <span>{{ filteredParcels().length }} unassigned</span>
-              </span>
-            </div>
-          </div>
 
           <!-- Queue Operations Data Card -->
           <div class="bg-white rounded-3xl border border-[#f0ebe5] p-6 sm:p-8 shadow-xs space-y-6">
             <!-- Header Row with Tools -->
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#f4efe9] pb-5">
-              <div>
-                <h2 class="text-xl sm:text-2xl font-black text-[#1d1b2c] tracking-tight">
-                  Queue Dispatch Management
-                </h2>
-                <p class="text-xs text-[#6f6d85] font-medium mt-1">
-                  Filter by delivery zone, select batches, and assign available fleet couriers
-                </p>
-              </div>
+            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#f4efe9] pb-5">
+              <p id="queue-summary" class="text-sm font-bold text-[#1d1b2c]">{{ filteredParcels().length }} <span class="font-medium text-[#6f6d85]">{{ filteredParcels().length === 1 ? 'parcel awaiting assignment' : 'parcels awaiting assignment' }}</span></p>
 
               <!-- Queue tools: search + zone + select all + refresh -->
               <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
@@ -422,7 +386,7 @@ interface HomeResults {
                   (click)="submitBulkAssign()"
                   class="px-4 py-1.5 rounded-xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white text-xs font-bold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span *ngIf="isSubmittingBulk()" class="animate-spin text-xs">⏳</span>
+                  <span *ngIf="isSubmittingBulk()" class="inline-flex"><span class="inline-block w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true"></span></span>
                   <span>{{ isSubmittingBulk() ? 'Assigning...' : 'Assign Selected' }}</span>
                 </button>
 
@@ -444,16 +408,15 @@ interface HomeResults {
             </div>
 
             <!-- Error State with Retry -->
-            <div *ngIf="!dispatchService.isLoadingParcels() && dispatchService.parcelsError()" class="bg-rose-50 rounded-2xl border border-rose-200 p-6 text-center space-y-3">
-              <h3 class="text-sm font-bold text-rose-800">Failed to Load Dispatch Queue</h3>
-              <p class="text-xs text-rose-600 max-w-md mx-auto">{{ dispatchService.parcelsError() }}</p>
+            <div *ngIf="!dispatchService.isLoadingParcels() && dispatchService.parcelsError()" class="bg-white rounded-2xl border border-[#f0ebe5] p-10 text-center space-y-3">
+              <p class="text-sm font-semibold text-[#6f6d85]">We couldn't load the unassigned queue.</p>
               <button
                 type="button"
                 id="retry-queue-btn"
                 (click)="retryLoadQueue()"
-                class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                class="h-10 px-5 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-[#1d1b2c] hover:text-[#a53a26] hover:bg-[#f3eee9] text-xs font-semibold transition-colors cursor-pointer"
               >
-                Retry Loading Queue
+                Try again
               </button>
             </div>
 
@@ -479,7 +442,7 @@ interface HomeResults {
                         </span>
                       </div>
                       <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                        ● {{ parcel.status }} (Unassigned)
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 align-middle"></span>Unassigned
                       </span>
                     </div>
 
@@ -491,14 +454,14 @@ interface HomeResults {
                       </div>
 
                       <div class="flex items-start gap-2">
-                        <span class="text-emerald-600 font-bold mt-0.5">🟢 PICKUP:</span>
+                        <span class="w-16 shrink-0 mt-0.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Pickup</span>
                         <div>
                           <p class="font-bold text-[#1d1b2c]">{{ parcel.pickupAddress || 'Address on file' }}</p>
                           <p class="text-[11px] text-[#6f6d85]">{{ parcel.pickupZone }}</p>
                         </div>
                       </div>
                       <div class="flex items-start gap-2">
-                        <span class="text-[#a53a26] font-bold mt-0.5">📍 DROPOFF:</span>
+                        <span class="w-16 shrink-0 mt-0.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#a53a26]"><span class="w-2 h-2 rounded-full bg-[#a53a26]"></span>Drop-off</span>
                         <div>
                           <p class="font-bold text-[#1d1b2c]">{{ parcel.dropoffAddress || 'Address on file' }}</p>
                           <p class="text-[11px] text-[#6f6d85]">
@@ -514,7 +477,7 @@ interface HomeResults {
                   <!-- Footer Specs & Assign Trigger -->
                   <div class="pt-3 border-t border-[#f0ebe5] flex items-center justify-between gap-2">
                     <div class="flex items-center gap-3 text-xs text-[#6f6d85] font-medium">
-                      <span *ngIf="parcel.weightKg !== undefined">⚖️ {{ parcel.weightKg }} kg</span>
+                      <span *ngIf="parcel.weightKg !== undefined">{{ parcel.weightKg }} kg</span>
                       <span>•</span>
                       <span>Attempts: {{ parcel.attemptCount ?? 0 }}</span>
                     </div>
@@ -526,7 +489,7 @@ interface HomeResults {
                       class="px-4 py-2 rounded-xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <span>Assign Courier</span>
-                      <span>→</span>
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
                     </button>
                   </div>
                 </div>
@@ -556,38 +519,12 @@ interface HomeResults {
         <!-- TAB 2: COURIER WORKLOAD BOARD -->
         <!-- ================================================================= -->
         <div *ngIf="activeTab() === 'workload'" class="space-y-7 animate-fade-in">
-          <!-- Workload Title Banner -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
-                Courier Fleet & Workload Board
-              </h1>
-              <p class="text-xs sm:text-sm text-[#6f6d85] font-medium mt-1">
-                Real-time workload distribution and capacity across the courier fleet • Port 8083
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-[#faf8f6] text-[#a53a26] border border-[#f0ebe5]"
-              >
-                <span>👷</span>
-                <span>{{ filteredCouriers().length }} couriers</span>
-              </span>
-            </div>
-          </div>
 
           <!-- Workload Operations Data Card -->
           <div class="bg-white rounded-3xl border border-[#f0ebe5] p-6 sm:p-8 shadow-xs space-y-6">
             <!-- Header Row with Tools -->
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#f4efe9] pb-5">
-              <div>
-                <h2 class="text-xl sm:text-2xl font-black text-[#1d1b2c] tracking-tight">
-                  Fleet Availability & Capacity
-                </h2>
-                <p class="text-xs text-[#6f6d85] font-medium mt-1">
-                  Monitor active delivery counts, manage online/offline status, and balance route density
-                </p>
-              </div>
+            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#f4efe9] pb-5">
+              <p id="workload-summary" class="text-sm font-bold text-[#1d1b2c]">{{ filteredCouriers().length }} <span class="font-medium text-[#6f6d85]">{{ filteredCouriers().length === 1 ? 'courier' : 'couriers' }} · {{ dispatchService.availableCouriersCount() }} online</span></p>
 
               <!-- Workload tools: search + zone + online only + refresh -->
               <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
@@ -658,16 +595,15 @@ interface HomeResults {
             </div>
 
             <!-- Workload Error State -->
-            <div *ngIf="!dispatchService.isLoadingCouriers() && dispatchService.couriersError()" class="bg-rose-50 rounded-2xl border border-rose-200 p-6 text-center space-y-3">
-              <h3 class="text-sm font-bold text-rose-800">Failed to Load Workload Board</h3>
-              <p class="text-xs text-rose-600 max-w-md mx-auto">{{ dispatchService.couriersError() }}</p>
+            <div *ngIf="!dispatchService.isLoadingCouriers() && dispatchService.couriersError()" class="bg-white rounded-2xl border border-[#f0ebe5] p-10 text-center space-y-3">
+              <p class="text-sm font-semibold text-[#6f6d85]">We couldn't load courier workload.</p>
               <button
                 type="button"
                 id="retry-workload-btn"
                 (click)="retryLoadWorkload()"
-                class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                class="h-10 px-5 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-[#1d1b2c] hover:text-[#a53a26] hover:bg-[#f3eee9] text-xs font-semibold transition-colors cursor-pointer"
               >
-                Retry Loading Workload
+                Try again
               </button>
             </div>
 
@@ -688,7 +624,7 @@ interface HomeResults {
                           [class.bg-[#f0ebe5]]="!courier.available"
                           [class.text-[#6f6d85]]="!courier.available"
                         >
-                          {{ courier.vehicleType === 'VAN' ? '🚐' : courier.vehicleType === 'THREE_WHEELER' ? '🛺' : '🏍️' }}
+                          {{ courierInitials(courier.name) }}
                         </div>
                         <div>
                           <h3 class="text-sm font-extrabold text-[#1d1b2c]">{{ courier.name }}</h3>
@@ -706,7 +642,7 @@ interface HomeResults {
                         [class.text-[#6f6d85]]="!courier.available"
                         [class.border-[#f0ebe5]]="!courier.available"
                       >
-                        {{ courier.available ? '● Online' : '○ Offline' }}
+                        <span class="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" [class.bg-emerald-500]="courier.available" [class.bg-[#a09eaf]]="!courier.available"></span>{{ courier.available ? 'Online' : 'Offline' }}
                       </span>
                     </div>
 
@@ -773,38 +709,12 @@ interface HomeResults {
         <!-- TAB 3: FAILED DELIVERIES -->
         <!-- ================================================================= -->
         <div *ngIf="activeTab() === 'failed'" class="space-y-7 animate-fade-in">
-          <!-- Failed Deliveries Title Banner -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
-                Failed Deliveries Queue
-              </h1>
-              <p class="text-xs sm:text-sm text-[#6f6d85] font-medium mt-1">
-                Delivery exceptions requiring review, re-queue, or courier reassignment • Port 8083
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200"
-              >
-                <span>⚠️</span>
-                <span>{{ filteredFailedParcels().length }} failed</span>
-              </span>
-            </div>
-          </div>
 
           <!-- Failed Deliveries Operations Data Card -->
           <div class="bg-white rounded-3xl border border-[#f0ebe5] p-6 sm:p-8 shadow-xs space-y-6">
             <!-- Header Row with Tools -->
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#f4efe9] pb-5">
-              <div>
-                <h2 class="text-xl sm:text-2xl font-black text-[#1d1b2c] tracking-tight">
-                  Exception Review & Re-queue
-                </h2>
-                <p class="text-xs text-[#6f6d85] font-medium mt-1">
-                  Inspect failure causes and re-queue parcels back to CREATED status for new attempts
-                </p>
-              </div>
+            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#f4efe9] pb-5">
+              <p id="failed-summary" class="text-sm font-bold text-[#1d1b2c]">{{ filteredFailedParcels().length }} <span class="font-medium text-[#6f6d85]">{{ filteredFailedParcels().length === 1 ? 'failed delivery to review' : 'failed deliveries to review' }}</span></p>
 
               <!-- Failed tools: search + zone + refresh -->
               <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
@@ -864,16 +774,15 @@ interface HomeResults {
             </div>
 
             <!-- Error State with Retry -->
-            <div *ngIf="!dispatchService.isLoadingFailed() && dispatchService.failedError()" class="bg-rose-50 rounded-2xl border border-rose-200 p-6 text-center space-y-3">
-              <h3 class="text-sm font-bold text-rose-800">Failed to Load Failed Deliveries</h3>
-              <p class="text-xs text-rose-600 max-w-md mx-auto">{{ dispatchService.failedError() }}</p>
+            <div *ngIf="!dispatchService.isLoadingFailed() && dispatchService.failedError()" class="bg-white rounded-2xl border border-[#f0ebe5] p-10 text-center space-y-3">
+              <p class="text-sm font-semibold text-[#6f6d85]">We couldn't load failed deliveries.</p>
               <button
                 type="button"
                 id="retry-failed-btn"
                 (click)="retryLoadFailed()"
-                class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                class="h-10 px-5 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-[#1d1b2c] hover:text-[#a53a26] hover:bg-[#f3eee9] text-xs font-semibold transition-colors cursor-pointer"
               >
-                Retry Loading
+                Try again
               </button>
             </div>
 
@@ -890,30 +799,30 @@ interface HomeResults {
                         {{ parcel.trackingNumber }}
                       </span>
                       <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                        ● FAILED
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-rose-600 mr-1.5 align-middle"></span>Failed
                       </span>
                     </div>
 
                     <!-- Failure Reason Alert Box -->
                     <div class="mt-3 p-3 rounded-xl bg-rose-50/70 border border-rose-200 text-xs text-rose-900 space-y-1">
                       <div class="flex items-center gap-1.5 font-bold">
-                        <span>⚠️</span>
-                        <span>Failure Reason:</span>
+                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>Failure reason</span>
                       </div>
-                      <p class="text-rose-700 font-medium pl-5">{{ parcel.failureReason || 'Delivery attempt failed' }}</p>
+                      <p class="text-rose-700 font-medium pl-[22px]">{{ readableReason(parcel.failureReason) }}</p>
                     </div>
 
                     <!-- Routing -->
                     <div class="mt-3 space-y-2 text-xs text-[#6f6d85]">
                       <div class="flex items-start gap-2">
-                        <span class="text-emerald-600 font-bold mt-0.5">🟢 PICKUP:</span>
+                        <span class="w-16 shrink-0 mt-0.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Pickup</span>
                         <div>
                           <p class="font-bold text-[#1d1b2c]">{{ parcel.pickupAddress || 'Address on file' }}</p>
                           <p class="text-[11px] text-[#6f6d85]">{{ parcel.pickupZone }}</p>
                         </div>
                       </div>
                       <div class="flex items-start gap-2">
-                        <span class="text-[#a53a26] font-bold mt-0.5">📍 DROPOFF:</span>
+                        <span class="w-16 shrink-0 mt-0.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#a53a26]"><span class="w-2 h-2 rounded-full bg-[#a53a26]"></span>Drop-off</span>
                         <div>
                           <p class="font-bold text-[#1d1b2c]">{{ parcel.dropoffAddress || 'Address on file' }}</p>
                           <p class="text-[11px] text-[#6f6d85]">
@@ -941,7 +850,7 @@ interface HomeResults {
                       (click)="openRequeueModal(parcel)"
                       class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
-                      <span>🔄 Re-queue Parcel</span>
+                      <span>Re-queue parcel</span>
                     </button>
                   </div>
                 </div>
@@ -958,28 +867,6 @@ interface HomeResults {
             </div>
           </div>
         </div>
-
-      <!-- Toast Feedback -->
-      <div
-        *ngIf="toastMessage()"
-        class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-lg border text-sm font-semibold transition-all transform animate-fade-in"
-        [class.bg-emerald-50]="toastType() === 'success'"
-        [class.border-emerald-300]="toastType() === 'success'"
-        [class.text-emerald-800]="toastType() === 'success'"
-        [class.bg-rose-50]="toastType() === 'error'"
-        [class.border-rose-300]="toastType() === 'error'"
-        [class.text-rose-800]="toastType() === 'error'"
-      >
-        <span>{{ toastType() === 'success' ? '✅' : '⚠️' }}</span>
-        <span>{{ toastMessage() }}</span>
-        <button
-          type="button"
-          (click)="toastMessage.set(null)"
-          class="ml-2 text-[#6f6d85] hover:text-[#1d1b2c] cursor-pointer"
-        >
-          ✕
-        </button>
-      </div>
 
 
 
@@ -1002,7 +889,7 @@ interface HomeResults {
               (click)="selectedParcelForAssign.set(null)"
               class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6f6d85] hover:text-[#1d1b2c] hover:bg-[#faf8f6] text-sm disabled:opacity-50 cursor-pointer"
             >
-              ✕
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
@@ -1056,7 +943,7 @@ interface HomeResults {
                     {{ courier.activeCount }} active
                   </span>
                   <p class="text-[10px] text-[#6f6d85] mt-0.5">
-                    {{ courier.available ? '● Available' : '○ Offline' }}
+                    <span class="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" [class.bg-emerald-500]="courier.available" [class.bg-[#a09eaf]]="!courier.available"></span>{{ courier.available ? 'Available' : 'Offline' }}
                   </p>
                 </div>
               </div>
@@ -1080,7 +967,7 @@ interface HomeResults {
               (click)="confirmAssignment()"
               class="px-5 py-2 rounded-xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white text-xs font-bold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
             >
-              <span *ngIf="isSubmittingAssignment()" class="animate-spin text-xs">⏳</span>
+              <span *ngIf="isSubmittingAssignment()" class="inline-flex"><span class="inline-block w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true"></span></span>
               <span>{{ isSubmittingAssignment() ? 'Assigning...' : 'Confirm Assignment' }}</span>
             </button>
           </div>
@@ -1102,7 +989,7 @@ interface HomeResults {
               (click)="bulkResult.set(null)"
               class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6f6d85] hover:text-[#1d1b2c] text-sm cursor-pointer"
             >
-              ✕
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
@@ -1131,7 +1018,8 @@ interface HomeResults {
               [class.border-rose-200]="!item.success"
             >
               <div class="flex items-center gap-2">
-                <span>{{ item.success ? '✅' : '❌' }}</span>
+                <svg *ngIf="item.success" class="w-4 h-4 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg *ngIf="!item.success" class="w-4 h-4 text-rose-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 <div>
                   <p class="font-mono font-bold text-[#1d1b2c]">{{ item.parcelId }}</p>
                   <p *ngIf="!item.success" class="text-[11px] text-rose-600">
@@ -1183,7 +1071,7 @@ interface HomeResults {
               (click)="selectedParcelForRequeue.set(null)"
               class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6f6d85] hover:text-[#1d1b2c] hover:bg-[#faf8f6] text-sm disabled:opacity-50 cursor-pointer"
             >
-              ✕
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
@@ -1235,7 +1123,7 @@ interface HomeResults {
               (click)="confirmRequeue()"
               class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
             >
-              <span *ngIf="isSubmittingRequeue()" class="animate-spin text-xs">⏳</span>
+              <span *ngIf="isSubmittingRequeue()" class="inline-flex"><span class="inline-block w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true"></span></span>
               <span>{{ isSubmittingRequeue() ? 'Re-queueing...' : 'Confirm Re-queue' }}</span>
             </button>
           </div>
@@ -1250,6 +1138,7 @@ export class DispatchComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router, { optional: true });
 
   private readonly portal = inject(DispatchPortalState);
+  private readonly alerts = inject(DispatchNotificationsService);
 
   public activeTab = signal<DispatchTab>('home');
   private pollIntervalId: any = null;
@@ -1289,6 +1178,27 @@ export class DispatchComponent implements OnInit, OnDestroy {
   // Toast state
   public toastMessage = signal<string | null>(null);
   public toastType = signal<'success' | 'error'>('success');
+
+  /** Last load error already shown as a toast, per list, so polling doesn't repeat it. */
+  private readonly toastedLoadErrors: Record<string, string | null> = {};
+
+  private readonly loadErrorToasts = effect(() => {
+    this.toastLoadError('queue', "Couldn't load the unassigned queue", this.dispatchService.parcelsError?.(), this.dispatchService.isLoadingParcels?.());
+    this.toastLoadError('workload', "Couldn't load courier workload", this.dispatchService.couriersError?.(), this.dispatchService.isLoadingCouriers?.());
+    this.toastLoadError('failed', "Couldn't load failed deliveries", this.dispatchService.failedError?.(), this.dispatchService.isLoadingFailed?.());
+  });
+
+  private toastLoadError(key: string, title: string, error: string | null | undefined, loading: boolean | undefined): void {
+    if (error) {
+      if (this.toastedLoadErrors[key] !== error) {
+        this.toastedLoadErrors[key] = error;
+        untracked(() => this.alerts.toast('error', title, error));
+      }
+    } else if (!loading) {
+      // A successful load: the next failure should toast again.
+      this.toastedLoadErrors[key] = null;
+    }
+  }
 
   constructor() {
     this.route?.queryParamMap.subscribe((params) => {
@@ -1593,13 +1503,14 @@ export class DispatchComponent implements OnInit, OnDestroy {
         this.clearSelection();
         this.showToast(
           `Bulk assignment completed: ${response.successfulCount} succeeded, ${response.failedCount} failed.`,
-          response.failedCount === 0 ? 'success' : 'error'
+          response.failedCount === 0 ? 'success' : 'error',
+          response.failedCount === 0 ? 'Parcels assigned' : 'Some assignments failed'
         );
       },
       error: (err: any) => {
         this.isSubmittingBulk.set(false);
         const msg = err?.error?.message || err?.message || 'Bulk assignment failed.';
-        this.showToast(msg, 'error');
+        this.showToast(msg, 'error', 'Bulk assignment failed');
       },
     });
   }
@@ -1627,7 +1538,8 @@ export class DispatchComponent implements OnInit, OnDestroy {
         this.selectedParcelForRequeue.set(null);
         this.showToast(
           `Parcel ${parcel.trackingNumber} successfully re-queued to CREATED (Attempt #${res.attemptCount})!`,
-          'success'
+          'success',
+          'Parcel re-queued'
         );
       },
       error: (err: any) => {
@@ -1636,7 +1548,7 @@ export class DispatchComponent implements OnInit, OnDestroy {
           err?.error?.message ||
           err?.message ||
           'Failed to re-queue parcel. Please try again.';
-        this.showToast(errorMsg, 'error');
+        this.showToast(errorMsg, 'error', 'Re-queue failed');
 
         if (err?.status === 400 || err?.status === 409) {
           this.retryLoadFailed();
@@ -1669,7 +1581,8 @@ export class DispatchComponent implements OnInit, OnDestroy {
       next: () => {
         this.showToast(
           `Assignment accepted for parcel ${parcel.trackingNumber}; updating workload via event stream...`,
-          'success'
+          'success',
+          'Parcel assigned'
         );
         this.selectedParcelForAssign.set(null);
         this.selectedCourierId.set('');
@@ -1681,7 +1594,7 @@ export class DispatchComponent implements OnInit, OnDestroy {
           err?.error?.message ||
           err?.message ||
           'Failed to assign parcel. Please try again.';
-        this.showToast(errorMsg, 'error');
+        this.showToast(errorMsg, 'error', 'Assignment failed');
 
         if (err?.status === 409) {
           this.retryLoadQueue();
@@ -1697,21 +1610,35 @@ export class DispatchComponent implements OnInit, OnDestroy {
       next: () => {
         this.showToast(
           `${courier.name} is now ${nextStatus ? 'Online' : 'Offline'}.`,
-          'success'
+          'success',
+          'Courier status updated'
         );
       },
       error: (err: any) => {
         const msg = err?.error?.message || err?.message || 'Failed to update courier availability.';
-        this.showToast(msg, 'error');
+        this.showToast(msg, 'error', "Couldn't update courier");
       },
     });
   }
 
-  private showToast(message: string, type: 'success' | 'error'): void {
+  private showToast(message: string, type: 'success' | 'error', title?: string): void {
     this.toastMessage.set(message);
     this.toastType.set(type);
+    this.alerts.toast(type, title ?? (type === 'success' ? 'Done' : 'Something went wrong'), message);
     setTimeout(() => {
       this.toastMessage.set(null);
     }, 4500);
+  }
+
+  /** Two-letter avatar for a courier card. */
+  public courierInitials(name: string): string {
+    const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return (parts[0] ?? '?').slice(0, 2).toUpperCase();
+  }
+
+  /** RECIPIENT_ABSENT -> "Recipient absent". */
+  public readableReason(reason?: string | null): string {
+    return this.alerts.readableReason(reason);
   }
 }

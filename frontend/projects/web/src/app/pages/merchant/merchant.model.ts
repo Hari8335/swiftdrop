@@ -29,6 +29,18 @@ export interface MerchantOrder {
   externalReference?: string;
 }
 
+export interface MerchantOrderDetails extends MerchantOrder {
+  externalReference: string;
+  history: MerchantOrderStatusEntry[];
+}
+
+export interface MerchantOrderStatusEntry {
+  fromStatus: string | null;
+  toStatus: ParcelLifecycleStatus;
+  occurredAt: string;
+  reason: string | null;
+}
+
 export interface MerchantOrderListPage {
   content: MerchantOrder[];
   totalElements: number;

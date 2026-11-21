@@ -45,13 +45,17 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
           [email]="customerEmail()"
         >
             <!-- Search Input -->
-            <div class="relative w-full max-w-lg">
+            <div
+              id="customer-search-box"
+              class="relative flex w-full items-center gap-2.5 rounded-full border border-[#e4e0db] bg-white px-4 py-2 shadow-sm transition-all focus-within:border-[#9b432f] focus-within:ring-2 focus-within:ring-[#f2e4de] sm:max-w-[480px]"
+            >
               <svg
-                class="w-4 h-4 text-[#a09eaf] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
+                class="w-4 h-4 shrink-0 text-[#9a97a8] pointer-events-none"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2.5"
+                aria-hidden="true"
               >
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -59,9 +63,21 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
               <input
                 type="text"
                 [(ngModel)]="searchQuery"
+                aria-label="Search parcels"
                 placeholder="Search for parcel numbers, shippers, carriers ..."
-                class="w-full pl-11 pr-4 py-2.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
+                class="w-full bg-transparent text-sm font-medium text-[#211f32] outline-none placeholder:text-[#9a97a8]"
               />
+              @if (searchQuery()) {
+              <button
+                type="button"
+                id="customer-search-clear"
+                (click)="searchQuery.set('')"
+                aria-label="Clear search"
+                class="grid h-5 w-5 shrink-0 place-items-center rounded-full text-xs text-[#9a97a8] transition hover:bg-[#f2e4de] hover:text-[#9b432f] cursor-pointer"
+              >
+                ✕
+              </button>
+              }
             </div>
         </app-customer-topbar>
 

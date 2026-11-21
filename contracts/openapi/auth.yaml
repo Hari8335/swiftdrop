@@ -529,6 +529,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /internal/v1/clients/merchants/{merchantId}/status:
+    post:
+      summary: Suspend or reactivate merchant OAuth clients
+      description: Internal merchant-service operation. Suspended and revoked clients cannot obtain new client-credentials tokens; reactivation only restores clients suspended by merchant status.
+      operationId: setMerchantClientStatusInternal
+      tags: [Internal Client API]
+      x-internal: true
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [suspended]
+              properties:
+                suspended:
+                  type: boolean
+      responses:
+        '204':
+          description: Merchant client statuses synchronized.
+        '400':
+          description: Invalid status request.
+        '401':
+          description: Missing or invalid internal service token.
+        '403':
+          description: Caller is not merchant-service.
+
 components:
   schemas:
     RegisterRequest:

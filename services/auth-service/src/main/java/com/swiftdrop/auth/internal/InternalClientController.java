@@ -9,6 +9,7 @@ import com.swiftdrop.auth.internal.dto.InternalClientCredentialsResponse;
 import com.swiftdrop.auth.internal.dto.InternalCreateClientRequest;
 import com.swiftdrop.auth.user.UserRepository;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -94,6 +96,21 @@ public class InternalClientController {
                 saved.getCreatedAt()
         ));
     }
+
+    @PostMapping("/merchants/{merchantId}/status")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> setMerchantClientStatus(@PathVariable UUID merchantId,
+            @Valid @RequestBody MerchantClientStatusRequest request) {
+        var clients = clientCredentialRepository.findByMerchantId(merchantId.toString());
+        clients.forEach(client -> {
+            if (request.suspended()) client.suspendForMerchant();
+            else client.reactivateForMerchant();
+        });
+        clientCredentialRepository.saveAll(clients);
+        return ResponseEntity.noContent().build();
+    }
+
+    public record MerchantClientStatusRequest(@NotNull Boolean suspended) {}
 
     /**
      * Exchanges OAuth2 client credentials for a signed RS256 machine-to-machine JWT token.

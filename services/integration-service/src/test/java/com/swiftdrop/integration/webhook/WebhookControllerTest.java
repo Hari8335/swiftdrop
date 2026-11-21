@@ -1,6 +1,8 @@
 package com.swiftdrop.integration.webhook;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.swiftdrop.common.security.CurrentUser;
+import com.swiftdrop.integration.merchant.MerchantIdentityResolver;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.server.ResponseStatusException;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.time.Instant;
 import java.util.List;
@@ -46,7 +49,28 @@ class WebhookControllerTest {
     @MockBean
     private WebhookService webhookService;
 
+    @MockBean
+    private MerchantIdentityResolver merchantIdentityResolver;
+
     private final UUID merchantId = UUID.fromString("9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d");
+
+    @BeforeEach
+    void resolveMerchantFromJwtClaim() {
+        when(merchantIdentityResolver.requireMerchantId(any(CurrentUser.class))).thenAnswer(invocation -> {
+            CurrentUser user = invocation.getArgument(0);
+            if (user == null || !user.isMerchant() || user.merchantId() == null || user.merchantId().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant credentials are required");
+            }
+            return UUID.fromString(user.merchantId());
+        });
+        when(merchantIdentityResolver.requireApprovedMerchantId(any(CurrentUser.class))).thenAnswer(invocation -> {
+            CurrentUser user = invocation.getArgument(0);
+            if (user == null || !user.isMerchant() || user.merchantId() == null || user.merchantId().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant credentials are required");
+            }
+            return UUID.fromString(user.merchantId());
+        });
+    }
 
     private RequestPostProcessor merchantJwt() {
         return jwt().jwt(token -> token.subject("merchant-user")

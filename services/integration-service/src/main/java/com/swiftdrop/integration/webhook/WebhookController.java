@@ -1,6 +1,7 @@
 package com.swiftdrop.integration.webhook;
 
 import com.swiftdrop.common.security.CurrentUser;
+import com.swiftdrop.integration.merchant.MerchantIdentityResolver;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -25,21 +26,19 @@ import java.util.UUID;
 public class WebhookController {
 
     private final WebhookService webhookService;
+    private final MerchantIdentityResolver merchantIdentityResolver;
 
-    public WebhookController(WebhookService webhookService) {
+    public WebhookController(WebhookService webhookService, MerchantIdentityResolver merchantIdentityResolver) {
         this.webhookService = webhookService;
+        this.merchantIdentityResolver = merchantIdentityResolver;
     }
 
     private UUID requireMerchantId() {
-        CurrentUser user = CurrentUser.require();
-        if (!user.isMerchant() || user.merchantId() == null || user.merchantId().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant credentials are required");
-        }
-        try {
-            return UUID.fromString(user.merchantId());
-        } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant credentials are invalid");
-        }
+        return merchantIdentityResolver.requireMerchantId(CurrentUser.require());
+    }
+
+    private UUID requireApprovedMerchantId() {
+        return merchantIdentityResolver.requireApprovedMerchantId(CurrentUser.require());
     }
 
     @GetMapping("/settings")
@@ -52,7 +51,7 @@ public class WebhookController {
     @PutMapping("/settings")
     public ResponseEntity<WebhookSettingsResponse> updateSettings(
             @Valid @RequestBody UpdateWebhookSettingsRequest request) {
-        UUID merchantId = requireMerchantId();
+        UUID merchantId = requireApprovedMerchantId();
         WebhookSettingsResponse response = webhookService.updateSettings(merchantId, request);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);
     }
@@ -60,7 +59,7 @@ public class WebhookController {
     @PostMapping("/test")
     public ResponseEntity<TestWebhookResultResponse> triggerTest(
             @RequestBody(required = false) TestWebhookRequest request) {
-        UUID merchantId = requireMerchantId();
+        UUID merchantId = requireApprovedMerchantId();
         TestWebhookResultResponse result = webhookService.triggerTestWebhook(merchantId, request);
 
         if (result.success()) {
@@ -113,7 +112,7 @@ public class WebhookController {
     @PostMapping("/deliveries/{deliveryId}/retry")
     public ResponseEntity<WebhookDeliveryDetailResponse> retryDelivery(
             @PathVariable UUID deliveryId) {
-        UUID merchantId = requireMerchantId();
+        UUID merchantId = requireApprovedMerchantId();
         WebhookDeliveryDetailResponse updated = webhookService.retryDelivery(merchantId, deliveryId);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .cacheControl(CacheControl.noStore()).body(updated);
