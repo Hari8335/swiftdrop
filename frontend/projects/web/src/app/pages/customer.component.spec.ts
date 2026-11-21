@@ -544,6 +544,14 @@ describe('CustomerComponent', () => {
       expect(el().querySelector('#settings-logout-btn')).toBeNull();
     });
 
+    it('top bar shows "Signed in as" with the customer name and initials', () => {
+      fixture.detectChanges();
+      const badge = el().querySelector<HTMLElement>('#profile-badge')!;
+
+      expect(badge.textContent).toContain('Signed in as');
+      expect(el().querySelector('#profile-badge-name')!.textContent!.trim()).toBe(component.customerName() || 'Customer');
+    });
+
     it('shows the notification bell in the top bar, not the sidebar', () => {
       fixture.detectChanges();
 

@@ -12,7 +12,7 @@ import { NotificationBellComponent } from '../../notification/notification-bell/
   imports: [NotificationBellComponent],
   template: `
     <header
-      class="w-full h-[72px] flex-shrink-0 flex items-center justify-between gap-4 px-4 sm:px-8 lg:px-10 border-b border-[#f0ebe5] bg-white sticky top-0 z-30"
+      class="w-full h-[72px] flex-shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 border-b border-[#ece9e4] bg-white sticky top-0 z-30"
     >
       <!-- Page-specific left content -->
       <div class="flex-1 min-w-0 flex items-center">
@@ -28,17 +28,14 @@ import { NotificationBellComponent } from '../../notification/notification-bell/
           <app-notification-bell></app-notification-bell>
         </div>
 
-        <div
-          id="profile-badge"
-          class="h-11 flex items-center gap-2.5 pl-1.5 pr-4 rounded-full bg-[#faf8f6] border border-[#e8e2dc]"
-          [attr.title]="email() || null"
-        >
-          <span
-            class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm"
-          >
+        <div id="profile-badge" class="flex items-center gap-3" [attr.title]="email() || null">
+          <span class="hidden text-right sm:block">
+            <span class="block text-xs text-[#8e8a9e]">Signed in as</span>
+            <span id="profile-badge-name" class="block max-w-[200px] truncate text-sm font-bold text-[#211f32]">{{ name() || 'Customer' }}</span>
+          </span>
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#9b432f] text-xs font-bold uppercase text-white">
             {{ initials() }}
           </span>
-          <span class="text-xs font-bold text-[#1d1b2c] hidden sm:inline">{{ name() }}</span>
         </div>
       </div>
     </header>
