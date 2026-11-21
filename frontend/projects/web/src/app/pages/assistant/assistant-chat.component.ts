@@ -63,8 +63,6 @@ const SUGGESTIONS = [
         <app-customer-topbar
           [name]="customerName()"
           [email]="customerEmail()"
-          (settings)="openSettings()"
-          (logout)="sidebar.openLogoutConfirm()"
         >
         </app-customer-topbar>
 
