@@ -92,9 +92,37 @@ import { MerchantApiCredentials } from './merchant.model';
                     <p class="text-[11px] text-slate-600 leading-normal">
                       Copy and store this secret securely. It will not be shown again after you hide it or leave this page.
                     </p>
-                    <div class="pt-1">
-                      <ui-button variant="secondary" (click)="hideSecret()">I saved the secret</ui-button>
+                    <div class="pt-1 flex flex-wrap items-center gap-2.5">
+                      <ui-button variant="primary" [disabled]="isSendingSecret()" (click)="onSendSecret()">
+                        @if (isSendingSecret()) {
+                          <span class="inline-flex items-center gap-2">
+                            <span class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                            <span>Sending secret…</span>
+                          </span>
+                        } @else if (secretSent()) {
+                          <span class="inline-flex items-center gap-1.5 font-bold">
+                            <svg class="w-4 h-4 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            <span>Secret sent to email</span>
+                          </span>
+                        } @else {
+                          <span class="inline-flex items-center gap-1.5">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            <span>Send secret</span>
+                          </span>
+                        }
+                      </ui-button>
+                      <ui-button variant="secondary" (click)="hideSecret()">Dismiss</ui-button>
                     </div>
+                    @if (sendSuccessMessage()) {
+                      <p class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 mt-2">
+                        {{ sendSuccessMessage() }}
+                      </p>
+                    }
+                    @if (sendErrorMessage()) {
+                      <p class="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5 mt-2">
+                        {{ sendErrorMessage() }}
+                      </p>
+                    }
                   </div>
                 } @else {
                   <p class="rounded-xl bg-white border border-[#e8e2dc] px-4 py-3 text-xs text-[#6f6d85] leading-relaxed">
@@ -103,44 +131,46 @@ import { MerchantApiCredentials } from './merchant.model';
                 }
               </div>
 
-              <!-- Token Request Guide -->
-              <div class="rounded-2xl border border-[#eee7e0] p-5 bg-white space-y-3">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h3 class="text-xs font-black uppercase tracking-wider text-[#1d1b2c]">Token request</h3>
-                    <p class="text-xs text-[#6f6d85] mt-0.5">
-                      Request a short-lived bearer token using the client credentials grant. Send the token in the Authorization header when calling merchant APIs.
-                    </p>
+              @if (showTokenRequest()) {
+                <!-- Token Request Guide -->
+                <div class="rounded-2xl border border-[#eee7e0] p-5 bg-white space-y-3">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h3 class="text-xs font-black uppercase tracking-wider text-[#1d1b2c]">Token request</h3>
+                      <p class="text-xs text-[#6f6d85] mt-0.5">
+                        Request a short-lived bearer token using the client credentials grant. Send the token in the Authorization header when calling merchant APIs.
+                      </p>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#a53a26]/10 text-[#a53a26]">
+                      OAuth 2.0
+                    </span>
                   </div>
-                  <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#a53a26]/10 text-[#a53a26]">
-                    OAuth 2.0
-                  </span>
-                </div>
 
-                <div class="space-y-2 pt-1">
-                  <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Request Header Format</span>
-                  <code class="block overflow-x-auto rounded-xl bg-[#1d1b2c] px-4 py-3 text-xs font-mono text-[#faf8f6] shadow-sm">Authorization: Bearer &lt;access-token&gt;</code>
-                </div>
+                  <div class="space-y-2 pt-1">
+                    <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Request Header Format</span>
+                    <code class="block overflow-x-auto rounded-xl bg-[#1d1b2c] px-4 py-3 text-xs font-mono text-[#faf8f6] shadow-sm">Authorization: Bearer &lt;access-token&gt;</code>
+                  </div>
 
-                <!-- Integration Quick Reference -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-[11px]">
-                  <div class="p-3 rounded-xl bg-[#faf8f6] border border-[#e8e2dc]">
-                    <span class="font-bold text-[#1d1b2c] block">Base API URL</span>
-                    <span class="font-mono text-[#6f6d85] text-[10px] break-all block mt-0.5">/api/v1/merchant</span>
-                  </div>
-                  <div class="p-3 rounded-xl bg-[#faf8f6] border border-[#e8e2dc]">
-                    <span class="font-bold text-[#1d1b2c] block">Grant Type</span>
-                    <span class="font-mono text-[#6f6d85] text-[10px] block mt-0.5">client_credentials</span>
-                  </div>
-                  <div class="p-3 rounded-xl bg-[#faf8f6] border border-[#e8e2dc]">
-                    <span class="font-bold text-[#1d1b2c] block">Rate Limit</span>
-                    <span class="font-mono text-[#6f6d85] text-[10px] block mt-0.5">60 requests / min</span>
+                  <!-- Integration Quick Reference -->
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-[11px]">
+                    <div class="p-3 rounded-xl bg-[#faf8f6] border border-[#e8e2dc]">
+                      <span class="font-bold text-[#1d1b2c] block">Base API URL</span>
+                      <span class="font-mono text-[#6f6d85] text-[10px] break-all block mt-0.5">/api/v1/merchant</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-[#faf8f6] border border-[#e8e2dc]">
+                      <span class="font-bold text-[#1d1b2c] block">Grant Type</span>
+                      <span class="font-mono text-[#6f6d85] text-[10px] block mt-0.5">client_credentials</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-[#faf8f6] border border-[#e8e2dc]">
+                      <span class="font-bold text-[#1d1b2c] block">Rate Limit</span>
+                      <span class="font-mono text-[#6f6d85] text-[10px] block mt-0.5">60 requests / min</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              }
 
               <p class="text-xs text-slate-500 font-medium">
-                Hand over these credentials securely to the merchant. The secret cannot be retrieved again from this page.
+                Hand over these credentials securely to the merchant, or click "Send secret" to email them directly.
               </p>
             </div>
           }
@@ -195,8 +225,18 @@ import { MerchantApiCredentials } from './merchant.model';
 })
 export class MerchantCredentialsComponent {
   readonly credentials = input<MerchantApiCredentials | null>(null);
+  readonly showTokenRequest = input<boolean>(false);
+  readonly isSendingSecret = input<boolean>(false);
+  readonly secretSent = input<boolean>(false);
+  readonly sendSuccessMessage = input<string | null>(null);
+  readonly sendErrorMessage = input<string | null>(null);
+  readonly sendSecret = output<void>();
   readonly secretSaved = output<void>();
   readonly copiedField = signal<string | null>(null);
+
+  onSendSecret(): void {
+    this.sendSecret.emit();
+  }
 
   hideSecret(): void {
     this.secretSaved.emit();
