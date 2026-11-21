@@ -41,18 +41,18 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
         </svg>
       </a>
 
-      <nav class="flex md:flex-col items-center gap-3 sm:gap-5" aria-label="Customer Navigation">
+      <nav class="flex md:flex-col items-center md:items-stretch gap-1 md:gap-1.5" aria-label="Customer Navigation">
         <!-- My Deliveries (dashboard) -->
         <a
           routerLink="/customer"
           id="nav-deliveries-link"
           (click)="deliveries.emit()"
           [class.rail-active]="active() === 'deliveries'"
-          class="rail-icon-btn w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
+          class="rail-item"
           title="My Deliveries"
           aria-label="My Deliveries"
         >
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <rect width="7" height="9" x="3" y="3" rx="1"/>
             <rect width="7" height="5" x="14" y="3" rx="1"/>
             <rect width="7" height="9" x="14" y="12" rx="1"/>
@@ -65,11 +65,11 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
           routerLink="/customer/assistant"
           id="nav-assistant-link"
           [class.rail-active]="active() === 'assistant'"
-          class="rail-icon-btn w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
+          class="rail-item"
           title="AI Assistant"
           aria-label="AI Assistant"
         >
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/>
             <path d="m14 7 3 3"/>
             <path d="M5 6v4"/>
@@ -86,14 +86,17 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
           type="button"
           id="tab-wizard-btn"
           (click)="newDelivery.emit()"
-          class="w-12 h-12 rounded-2xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white flex items-center justify-center shadow-lg shadow-[#a53a26]/25 hover:scale-[1.03] transition-all cursor-pointer"
+          [class.rail-active]="active() === 'wizard'"
+          class="rail-item"
           title="Book New Delivery"
           aria-label="Book New Delivery"
         >
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
+          <span class="rail-cta grid w-7 h-7 -mx-1 shrink-0 place-items-center rounded-lg bg-[#9b432f] text-white shadow-[0_6px_14px_rgba(155,67,47,0.25)]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </span>
         </button>
       </nav>
       </div>
@@ -106,11 +109,11 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
           id="nav-settings-btn"
           (click)="settings.emit()"
           [class.rail-active]="active() === 'settings'"
-          class="rail-icon-btn w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] hover:bg-white transition-colors cursor-pointer"
+          class="rail-item"
           title="Settings"
           aria-label="Settings"
         >
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
             <circle cx="12" cy="12" r="3"/>
           </svg>
@@ -119,11 +122,11 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
           type="button"
           id="sidebar-logout-btn"
           (click)="openLogoutConfirm()"
-          class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] hover:bg-white transition-colors cursor-pointer"
+          class="rail-item"
           title="Sign Out"
           aria-label="Sign Out"
         >
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             <polyline points="16 17 21 12 16 7"/>
             <line x1="21" y1="12" x2="9" y2="12"/>
@@ -184,9 +187,36 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
       :host {
         display: contents;
       }
-      .rail-icon-btn.rail-active {
-        background: #ffffff;
-        box-shadow: 0 4px 14px rgba(29, 27, 44, 0.06);
+      /* Nav item, matching the admin sidebar. */
+      .rail-item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.75rem;
+        height: 2.75rem;
+        border-radius: 1rem;
+        color: #6f6d85;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+      }
+      .rail-item:hover {
+        background: #fbf7f5;
+        color: #9b432f;
+      }
+      .rail-item.rail-active {
+        background: #faf0ec;
+        color: #9b432f;
+        font-weight: 700;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 0 0 1px #f2ded8;
+      }
+      @media (min-width: 768px) {
+        .rail-item {
+          width: 100%;
+          justify-content: flex-start;
+          padding: 0 0.75rem;
+        }
       }
     `,
   ],
