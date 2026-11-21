@@ -5,6 +5,7 @@ export interface UserSummary {
   phoneNumber: string;
   role: 'CUSTOMER' | 'MERCHANT' | 'COURIER' | 'DISPATCHER' | 'ADMIN';
   enabled: boolean;
+  zone?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -35,6 +36,7 @@ export interface CreateStaffUserRequest {
   fullName: string;
   phoneNumber: string;
   role: 'COURIER' | 'DISPATCHER';
+  zone?: string;
 }
 
 export type CreateStaffPayload = CreateStaffUserRequest;
@@ -44,6 +46,7 @@ export interface UpdateUserRequest {
   fullName?: string;
   phoneNumber?: string;
   email?: string;
+  zone?: string;
 }
 
 export type UpdateUserStatusRequest = UpdateUserRequest;
@@ -53,5 +56,13 @@ export interface AdminUserFilterParams {
   enabled?: boolean;
   page?: number;
   size?: number;
+}
+
+export interface DeliveryZoneOption {
+  id: string;
+  name: string;
+  districts?: string[];
+  served?: boolean;
+  baseFeeLkr?: number;
 }
 

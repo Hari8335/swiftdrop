@@ -99,6 +99,42 @@ class AdminUserControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @DisplayName("POST /api/v1/admin/users with zone returns 201 with zone in payload")
+    void createStaffUser_withZone_returnsCreatedAndZone() throws Exception {
+        CreateStaffUserRequest request = new CreateStaffUserRequest(
+            "courier.zone@swiftdrop.lk",
+            "SecurePass#2026",
+            "Kamal Gunaratne",
+            "+94771234567",
+            "COURIER",
+            "COLOMBO_ZONE"
+        );
+        UserSummary summary = new UserSummary(
+            "u-2",
+            "courier.zone@swiftdrop.lk",
+            "Kamal Gunaratne",
+            "+94771234567",
+            "COURIER",
+            true,
+            "COLOMBO_ZONE",
+            Instant.now(),
+            null
+        );
+
+        when(adminUserService.createStaffUser(any())).thenReturn(summary);
+
+        mockMvc.perform(post("/api/v1/admin/users")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value("u-2"))
+            .andExpect(jsonPath("$.email").value("courier.zone@swiftdrop.lk"))
+            .andExpect(jsonPath("$.zone").value("COLOMBO_ZONE"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
     @DisplayName("POST /api/v1/admin/users returns 409 when email already exists")
     void createStaffUser_returns409_whenEmailExists() throws Exception {
         CreateStaffUserRequest request = new CreateStaffUserRequest(
