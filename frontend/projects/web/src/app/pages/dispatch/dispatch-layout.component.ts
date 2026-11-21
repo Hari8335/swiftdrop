@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -16,134 +16,161 @@ interface NavItem {
 }
 
 /**
- * Shell for the whole dispatcher portal, laid out like the customer portal: an icon rail on the
- * left (names slide out on hover, Settings and Log out at the bottom), a sticky top bar with
+ * Shell for the whole dispatcher portal. The sidebar works like the admin portal's: a fixed icon
+ * rail that widens on hover/keyboard focus to show the brand and every label (Settings and Log out
+ * at the bottom); below md it becomes an icon bar. Also a sticky top bar with
  * search, notifications and the profile chip, one heading per page, and the toast stack.
  */
 @Component({
   selector: 'app-dispatch-layout',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, RouterOutlet],
+  imports: [CommonModule, NgTemplateOutlet, FormsModule, RouterLink, RouterOutlet],
   template: `
-    <div class="w-full min-h-screen flex flex-col md:flex-row bg-white">
-      <!-- ============================== Sidebar ============================== -->
+    <!-- Shared icon set for the sidebar and the mobile nav -->
+    <ng-template #navIcon let-page>
+      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        @switch (page) {
+          @case ('home') {
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          }
+          @case ('queue') {
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+            <path d="M9 12h6"/>
+            <path d="M9 16h6"/>
+          }
+          @case ('failed') {
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          }
+          @case ('workload') {
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          }
+          @case ('zones') {
+            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+            <line x1="8" y1="2" x2="8" y2="18"/>
+            <line x1="16" y1="6" x2="16" y2="22"/>
+          }
+          @case ('pricing') {
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          }
+          @case ('settings') {
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          }
+          @case ('logout') {
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          }
+        }
+      </svg>
+    </ng-template>
+
+    <div class="w-full min-h-screen bg-white">
+      <!-- ============================== Sidebar (admin-portal style) ============================== -->
       <aside
-        class="w-full md:w-20 flex-shrink-0 flex md:flex-col items-center justify-between md:justify-start gap-6 py-4 md:py-7 px-4 md:px-0 border-b md:border-b-0 md:border-r border-[#f0ebe5] bg-[#faf8f6] md:sticky md:top-0 md:h-screen z-40"
+        class="group fixed inset-y-0 left-0 z-40 hidden md:flex h-screen w-20 flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-[#ece9e4] bg-white py-5 px-3 transition-all duration-300 ease-in-out hover:w-[272px] focus-within:w-[272px] hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)] focus-within:shadow-[0_15px_35px_rgba(0,0,0,0.08)]"
+        aria-label="Dispatcher sidebar"
       >
-        <a
-          routerLink="/dispatch"
-          id="dispatch-brand-link"
-          class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 shrink-0 hover:scale-105 transition-transform"
-          title="SwiftDrop Dispatch"
-          aria-label="SwiftDrop Dispatch home"
-        >
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-        </a>
+        <div>
+          <!-- Brand -->
+          <div class="flex items-center px-1">
+            <a routerLink="/dispatch" id="dispatch-brand-link" aria-label="SwiftDrop Dispatch home" class="flex items-center gap-3">
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#a53a26] text-white shadow-[0_8px_18px_rgba(165,58,38,0.25)]">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              </span>
+              <span class="whitespace-nowrap text-base font-extrabold tracking-tight text-[#1d1b2c] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                SwiftDrop Dispatch
+              </span>
+            </a>
+          </div>
 
-        <span class="hidden md:block w-10 h-px bg-[#e8e2dc]" aria-hidden="true"></span>
-
-        <nav class="flex md:flex-col items-center gap-3 sm:gap-4" aria-label="Dispatcher navigation">
-          @for (item of navItems; track item.page) {
-            <div class="group relative w-11 h-11">
+          <!-- Main navigation -->
+          <nav class="mt-8 flex flex-col gap-1.5" aria-label="Dispatcher navigation">
+            @for (item of navItems; track item.page) {
               <a
                 [routerLink]="item.path"
                 [queryParams]="item.tab ? { tab: item.tab } : {}"
                 [attr.id]="'tab-' + item.page + '-link'"
                 [attr.aria-current]="portal.page() === item.page ? 'page' : null"
                 [attr.aria-label]="item.title"
-                class="rail-link"
+                class="rail-link relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
                 [class.rail-active]="portal.page() === item.page"
               >
-                <span class="rail-icon">
-                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    @switch (item.page) {
-                      @case ('home') {
-                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                        <polyline points="9 22 9 12 15 12 15 22"/>
-                      }
-                      @case ('queue') {
-                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                        <path d="M9 12h6"/>
-                        <path d="M9 16h6"/>
-                      }
-                      @case ('failed') {
-                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                        <line x1="12" y1="9" x2="12" y2="13"/>
-                        <line x1="12" y1="17" x2="12.01" y2="17"/>
-                      }
-                      @case ('workload') {
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                      }
-                      @case ('zones') {
-                        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-                        <line x1="8" y1="2" x2="8" y2="18"/>
-                        <line x1="16" y1="6" x2="16" y2="22"/>
-                      }
-                      @case ('pricing') {
-                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                        <line x1="7" y1="7" x2="7.01" y2="7"/>
-                      }
-                    }
-                  </svg>
+                <span class="relative grid h-5 w-5 shrink-0 place-items-center">
+                  <ng-container *ngTemplateOutlet="navIcon; context: { $implicit: item.page }"></ng-container>
                   @if (item.page === 'queue' && notifications.queueCount() > 0) {
                     <span class="rail-badge bg-[#a53a26]">{{ badge(notifications.queueCount()) }}</span>
                   }
                   @if (item.page === 'failed' && notifications.failedCount() > 0) {
-                    <span class="rail-badge bg-rose-600">{{ badge(notifications.failedCount()) }}</span>
+                    <span class="rail-badge bg-[#a53a26]">{{ badge(notifications.failedCount()) }}</span>
                   }
                 </span>
-                <span class="rail-label">{{ item.title }}</span>
+                <span class="rail-label ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">{{ item.title }}</span>
               </a>
-            </div>
-          }
-        </nav>
+            }
+          </nav>
+        </div>
 
-        <!-- Footer: Settings above Log out, pinned to the bottom -->
-        <div class="flex md:flex-col items-center gap-3 sm:gap-4 md:mt-auto">
-          <span class="hidden md:block w-10 h-px bg-[#e8e2dc]" aria-hidden="true"></span>
-          <div class="group relative w-11 h-11">
-            <a
-              routerLink="/dispatch/settings"
-              id="tab-settings-link"
-              [attr.aria-current]="portal.page() === 'settings' ? 'page' : null"
-              aria-label="Settings"
-              class="rail-link"
-              [class.rail-active]="portal.page() === 'settings'"
-            >
-              <span class="rail-icon">
-                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </span>
-              <span class="rail-label">Settings</span>
-            </a>
-          </div>
-          <div class="group relative w-11 h-11">
-            <button type="button" id="sidebar-logout-btn" (click)="logoutConfirmOpen.set(true)" aria-label="Log out" class="rail-link">
-              <span class="rail-icon">
-                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                  <polyline points="16 17 21 12 16 7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-              </span>
-              <span class="rail-label">Log out</span>
-            </button>
-          </div>
+        <!-- Bottom: Settings above Log out -->
+        <div class="flex flex-col gap-1.5 border-t border-[#f0ece8] pt-3">
+          <a
+            routerLink="/dispatch/settings"
+            id="tab-settings-link"
+            [attr.aria-current]="portal.page() === 'settings' ? 'page' : null"
+            aria-label="Settings"
+            class="rail-link relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
+            [class.rail-active]="portal.page() === 'settings'"
+          >
+            <span class="grid h-5 w-5 shrink-0 place-items-center">
+              <ng-container *ngTemplateOutlet="navIcon; context: { $implicit: 'settings' }"></ng-container>
+            </span>
+            <span class="rail-label ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">Settings</span>
+          </a>
+          <button type="button" id="sidebar-logout-btn" (click)="logoutConfirmOpen.set(true)" aria-label="Log out" class="rail-link relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200 cursor-pointer">
+            <span class="grid h-5 w-5 shrink-0 place-items-center">
+              <ng-container *ngTemplateOutlet="navIcon; context: { $implicit: 'logout' }"></ng-container>
+            </span>
+            <span class="rail-label ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">Log out</span>
+          </button>
         </div>
       </aside>
 
+      <!-- Mobile navigation (below md): compact icon bar -->
+      <nav class="md:hidden flex items-center gap-1 overflow-x-auto border-b border-[#ece9e4] bg-white px-3 py-2" aria-label="Dispatcher navigation (mobile)">
+        @for (item of navItems; track item.page) {
+          <a
+            [routerLink]="item.path"
+            [queryParams]="item.tab ? { tab: item.tab } : {}"
+            [attr.aria-label]="item.title"
+            [attr.aria-current]="portal.page() === item.page ? 'page' : null"
+            class="rail-link grid h-11 w-11 shrink-0 place-items-center rounded-2xl"
+            [class.rail-active]="portal.page() === item.page"
+          >
+            <ng-container *ngTemplateOutlet="navIcon; context: { $implicit: item.page }"></ng-container>
+          </a>
+        }
+        <a routerLink="/dispatch/settings" aria-label="Settings" class="rail-link grid h-11 w-11 shrink-0 place-items-center rounded-2xl ml-auto" [class.rail-active]="portal.page() === 'settings'">
+          <ng-container *ngTemplateOutlet="navIcon; context: { $implicit: 'settings' }"></ng-container>
+        </a>
+        <button type="button" (click)="logoutConfirmOpen.set(true)" aria-label="Log out" class="rail-link grid h-11 w-11 shrink-0 place-items-center rounded-2xl cursor-pointer">
+          <ng-container *ngTemplateOutlet="navIcon; context: { $implicit: 'logout' }"></ng-container>
+        </button>
+      </nav>
+
       <!-- ============================== Main column ============================== -->
-      <div class="flex-1 min-w-0 flex flex-col">
+      <div class="md:ml-20 min-w-0 min-h-screen flex flex-col">
         <header
           class="w-full h-[72px] flex-shrink-0 flex items-center justify-between gap-4 px-4 sm:px-8 lg:px-10 border-b border-[#f0ebe5] bg-white sticky top-0 z-30"
         >
@@ -349,45 +376,29 @@ interface NavItem {
   `,
   styles: [
     `
-      /* Icon button that slides out into a labelled pill on hover/focus. */
+      /* Sidebar links: admin portal colours, in the dispatcher brand red. */
       .rail-link {
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 2.75rem;
-        display: flex;
-        align-items: center;
-        border-radius: 1rem;
-        color: #a53a26;
-        background: transparent;
+        color: #6f6d85;
         text-decoration: none;
-        white-space: nowrap;
-        cursor: pointer;
-        transition: background-color 0.18s ease, box-shadow 0.18s ease;
-        z-index: 1;
       }
-      .rail-icon {
-        position: relative;
-        width: 2.75rem;
-        height: 2.75rem;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+      .rail-link:hover {
+        background: #fbf7f5;
+        color: #a53a26;
       }
-      .rail-label {
-        max-width: 0;
-        overflow: hidden;
-        opacity: 0;
-        font-size: 0.75rem;
+      .rail-link.rail-active {
+        background: #faf0ec;
+        color: #a53a26;
         font-weight: 700;
-        color: #1d1b2c;
-        transition: max-width 0.22s ease, opacity 0.18s ease, padding 0.22s ease;
+        box-shadow: inset 0 0 0 1px #f2ded8;
+      }
+      .rail-link:focus-visible {
+        outline: 2px solid rgba(165, 58, 38, 0.35);
+        outline-offset: 2px;
       }
       .rail-badge {
         position: absolute;
-        top: -0.25rem;
-        right: -0.25rem;
+        top: -0.5rem;
+        right: -0.65rem;
         min-width: 1.1rem;
         height: 1.1rem;
         padding: 0 0.25rem;
@@ -398,29 +409,7 @@ interface NavItem {
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 0 0 2px #faf8f6;
-      }
-      .rail-link.rail-active {
-        background: #ffffff;
-        box-shadow: 0 4px 14px rgba(29, 27, 44, 0.06);
-      }
-      @media (min-width: 768px) {
-        .group:hover .rail-link,
-        .rail-link:focus-visible {
-          background: #ffffff;
-          box-shadow: 0 8px 24px rgba(29, 27, 44, 0.12);
-          z-index: 50;
-        }
-        .group:hover .rail-label,
-        .rail-link:focus-visible .rail-label {
-          max-width: 12rem;
-          opacity: 1;
-          padding-right: 1rem;
-        }
-      }
-      .rail-link:focus-visible {
-        outline: 2px solid rgba(165, 58, 38, 0.35);
-        outline-offset: 2px;
+        box-shadow: 0 0 0 2px #fff;
       }
       .dispatch-toast {
         animation: dispatch-toast-in 0.22s ease-out;
