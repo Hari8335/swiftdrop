@@ -99,22 +99,28 @@ export const routes: Routes = [
       import('./pages/admin/reports.component').then((m) => m.ReportsComponent),
   },
   {
+    // One dispatcher portal: shared sidebar + header, six pages inside it.
     path: 'dispatch',
     canActivate: [roleGuard(['DISPATCHER'])],
     loadComponent: () =>
-      import('./pages/dispatch/dispatch.component').then((m) => m.DispatchComponent),
-  },
-  {
-    path: 'dispatch/zones',
-    canActivate: [roleGuard(['DISPATCHER'])],
-    loadComponent: () =>
-      import('./pages/dispatch/dispatch-zones.component').then((m) => m.DispatchZonesComponent),
-  },
-  {
-    path: 'dispatch/pricing',
-    canActivate: [roleGuard(['DISPATCHER'])],
-    loadComponent: () =>
-      import('./pages/dispatch/dispatch-pricing.component').then((m) => m.DispatchPricingComponent),
+      import('./pages/dispatch/dispatch-layout.component').then((m) => m.DispatchLayoutComponent),
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./pages/dispatch/dispatch.component').then((m) => m.DispatchComponent),
+      },
+      {
+        path: 'zones',
+        loadComponent: () =>
+          import('./pages/dispatch/dispatch-zones.component').then((m) => m.DispatchZonesComponent),
+      },
+      {
+        path: 'pricing',
+        loadComponent: () =>
+          import('./pages/dispatch/dispatch-pricing.component').then((m) => m.DispatchPricingComponent),
+      },
+    ],
   },
   {
     path: 'dispatcher',
