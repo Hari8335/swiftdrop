@@ -56,6 +56,10 @@ public class ParcelQueryServiceImpl implements ParcelQueryService {
         if (caller.isCourier() && userId != null && Objects.equals(userId, parcel.getCourierId())) {
             return true;
         }
+        if (caller.isMerchant() && caller.merchantId() != null
+                && Objects.equals(caller.merchantId(), parcel.getMerchantId())) {
+            return true;
+        }
         return caller.isCustomer() && userId != null && Objects.equals(userId, parcel.getCustomerId());
     }
 }

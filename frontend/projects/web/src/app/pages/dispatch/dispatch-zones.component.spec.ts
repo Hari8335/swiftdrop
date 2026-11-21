@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { DispatchZonesComponent } from './dispatch-zones.component';
+import { DispatchNotificationsService } from './dispatch-notifications.service';
 
 describe('DispatchZonesComponent', () => {
   let component: DispatchZonesComponent;
@@ -46,6 +47,43 @@ describe('DispatchZonesComponent', () => {
     component.searchQuery.set('nowhere');
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('#zones-no-match')).toBeTruthy();
+  });
+
+  it('should pick districts by clicking options in the district picker', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+    const click = (selector: string) => {
+      (compiled.querySelector(selector) as HTMLElement).click();
+      fixture.detectChanges();
+    };
+
+    click('#zone-districts-toggle');
+    expect(compiled.querySelector('#zone-districts-panel')).toBeTruthy();
+    expect(compiled.querySelectorAll('#zone-districts-panel [role="option"]')).toHaveLength(25);
+
+    click('#zone-district-option-Kandy');
+    click('#zone-district-option-Colombo');
+    expect(component.zoneForm.get('districts')?.value).toEqual(['Colombo', 'Kandy']);
+    expect(compiled.querySelector('#zone-districts-toggle')?.textContent).toContain('2 districts selected');
+
+    click('#zone-district-option-Kandy');
+    expect(component.zoneForm.get('districts')?.value).toEqual(['Colombo']);
+
+    component.districtFilter.set('mat');
+    fixture.detectChanges();
+    expect(component.filteredDistricts()).toEqual(['Matale', 'Matara']);
+    click('#zone-districts-select-all');
+    expect(component.zoneForm.get('districts')?.value).toEqual(['Colombo', 'Matale', 'Matara']);
+
+    click('#zone-districts-done');
+    expect(compiled.querySelector('#zone-districts-panel')).toBeNull();
+    expect(compiled.querySelector('#zone-districts-chips')?.textContent).toContain('Matara');
+  });
+
+  it('should show the edited zone districts in the picker', () => {
+    component.editZone(component.zones()[0]);
+    fixture.detectChanges();
+    expect(component.selectedDistricts()).toEqual(['Colombo']);
+    expect((fixture.nativeElement as HTMLElement).querySelector('#zone-districts-toggle')?.textContent).toContain('1 district selected');
   });
 
   it('should expose all 25 canonical districts for zone configuration', () => {
@@ -149,8 +187,10 @@ describe('DispatchZonesComponent', () => {
     fixture.detectChanges();
 
     expect(component.successMessage()).toContain('GALLE_COAST');
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('#zone-success-banner')?.textContent).toContain('GALLE_COAST');
+    // Confirmations are shown as toasts, not an inline banner.
+    expect((fixture.nativeElement as HTMLElement).querySelector('#zone-success-banner')).toBeNull();
+    expect(TestBed.inject(DispatchNotificationsService).toasts().at(-1)).toMatchObject({ kind: 'success' });
+    expect(TestBed.inject(DispatchNotificationsService).toasts().at(-1)?.title).toContain('GALLE_COAST');
   });
 
   it('should display success feedback banner after deleting a zone', () => {

@@ -18,19 +18,17 @@ import org.springframework.web.server.ResponseStatusException;
 public class MerchantBulkController {
     private final MerchantBulkService bulk;
     private final MerchantRepository merchants;
-    public MerchantBulkController(MerchantBulkService bulk, MerchantRepository merchants) {
-        this.bulk = bulk; this.merchants = merchants;
+    private final MerchantIdentityResolver merchantIdentityResolver;
+    public MerchantBulkController(MerchantBulkService bulk, MerchantRepository merchants,
+                                  MerchantIdentityResolver merchantIdentityResolver) {
+        this.bulk = bulk; this.merchants = merchants; this.merchantIdentityResolver = merchantIdentityResolver;
     }
 
     @PostMapping(value = "/api/v1/merchant/orders/bulk", consumes = "text/csv")
     public ResponseEntity<MerchantBulkResponse> submit(@RequestHeader(value = "Idempotency-Key", required = false) String key,
                                                        HttpServletRequest request) throws IOException {
         CurrentUser user = CurrentUser.require();
-        UUID merchant;
-        try {
-            if (!user.isMerchant() || user.merchantId() == null || user.userId() == null || user.userId().isBlank()) throw new IllegalArgumentException();
-            merchant = UUID.fromString(user.merchantId());
-        } catch (IllegalArgumentException exception) { throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant credentials are required"); }
+        UUID merchant = merchantIdentityResolver.requireApprovedMerchantId(user);
         if (merchants.findById(merchant).filter(m -> m.getStatus().canPlaceOrders()).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An approved merchant is required");
         }
