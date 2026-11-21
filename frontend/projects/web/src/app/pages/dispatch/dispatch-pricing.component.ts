@@ -12,6 +12,7 @@ import {
 
 import { DispatchService } from './dispatch.service';
 import { DispatchPortalState, matchesQuery } from './dispatch-portal.state';
+import { DispatchNotificationsService } from './dispatch-notifications.service';
 import { CANONICAL_DISTRICTS, ParcelSize, PricingRule, QuoteResponse } from './dispatch.model';
 
 const weightBandBoundsValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -35,66 +36,14 @@ const weightBandBoundsValidator: ValidatorFn = (control: AbstractControl): Valid
   imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="space-y-7">
-        <!-- Greeting Banner -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#1d1b2c]">
-              Pricing Rules Configuration
-            </h1>
-            <p class="text-sm font-medium text-[#6f6d85] mt-1">
-              Configure delivery pricing models, weight tiers, and parcel size charges per ADR 003
-            </p>
-          </div>
 
-          <div class="flex items-center gap-3">
-            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#faf8f6] text-[#6f6d85] border border-[#f0ebe5]">
-              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-              Ops Hub • Port 8083
-            </span>
-            <div class="px-3.5 py-1.5 rounded-full bg-[#faf8f6] border border-[#f0ebe5] text-center">
-              <span class="text-xs font-bold text-[#a53a26]">{{ pricingRules().length }} Active Rules</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section Heading -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-          <div>
-            <h2 class="text-xl sm:text-2xl font-black text-[#1d1b2c] tracking-tight">
-              Pricing Surcharge Tiers
-            </h2>
-            <p class="text-xs text-[#6f6d85] font-medium mt-1">
-              Active parcel weight band thresholds and volumetric size surcharges
-            </p>
-          </div>
-        </div>
-
-        <!-- Success Feedback Banner -->
-        @if (successMessage(); as msg) {
-          <div
-            id="pricing-success-banner"
-            class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-xs font-semibold text-emerald-800 flex items-center justify-between shadow-xs"
-          >
-            <div class="flex items-center gap-2">
-              <span>✅</span>
-              <span>{{ msg }}</span>
-            </div>
-            <button
-              type="button"
-              class="text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
-              (click)="successMessage.set(null)"
-            >
-              ✕
-            </button>
-          </div>
-        }
 
         <!-- Main Pricing Grid -->
         <div id="pricing" class="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
           <!-- Existing Pricing Rules Card -->
           <div class="bg-white rounded-3xl border border-[#f0ebe5] p-6 sm:p-7 shadow-xs space-y-5">
             <div class="flex items-center justify-between border-b border-[#f4efe9] pb-3">
-              <h2 class="text-base font-bold text-[#1d1b2c]">Configured Pricing Rules</h2>
+              <h3 class="text-base font-extrabold text-[#1d1b2c]">Configured Pricing Rules</h3>
               <span class="text-xs font-semibold text-[#6f6d85]">
                 {{ searchQuery() ? filteredPricingRules().length + ' of ' + pricingRules().length : pricingRules().length }} rules
               </span>
@@ -104,7 +53,7 @@ const weightBandBoundsValidator: ValidatorFn = (control: AbstractControl): Valid
               @if (dispatchService.isLoadingPricingRules()) {
                 <p class="text-xs text-[#6f6d85]">Loading pricing rules...</p>
               } @else if (dispatchService.pricingRulesError()) {
-                <p class="text-xs text-rose-600 font-medium">{{ dispatchService.pricingRulesError() }}</p>
+                <p class="text-xs text-[#6f6d85] font-medium">Pricing rules couldn't be loaded. Refresh the page to try again.</p>
               } @else if (pricingRules().length === 0) {
                 <p class="text-xs text-[#6f6d85]">No pricing rules configured.</p>
               } @else if (filteredPricingRules().length === 0) {
@@ -139,16 +88,13 @@ const weightBandBoundsValidator: ValidatorFn = (control: AbstractControl): Valid
           <!-- Add / Edit Pricing Rule Card -->
           <div class="bg-white rounded-3xl border border-[#f0ebe5] p-6 sm:p-7 shadow-xs space-y-5">
             <div class="border-b border-[#f4efe9] pb-3">
-              <h2 class="text-base font-bold text-[#1d1b2c]">
+              <h3 class="text-base font-extrabold text-[#1d1b2c]">
                 {{ editingRuleId ? 'Edit pricing rule' : 'Add pricing rule' }}
-              </h2>
+              </h3>
               <p class="text-xs text-[#6f6d85] mt-0.5">Specify tier thresholds and surcharge rates</p>
             </div>
 
             <form class="space-y-4" [formGroup]="pricingForm" (ngSubmit)="savePricingRule()">
-              @if (mutationError()) {
-                <p class="text-xs text-rose-600 font-medium">{{ mutationError() }}</p>
-              }
 
               <div>
                 <label class="block text-xs font-bold text-[#1d1b2c] mb-1">
@@ -245,7 +191,7 @@ const weightBandBoundsValidator: ValidatorFn = (control: AbstractControl): Valid
         <!-- Try a Quote Live Fee Calculator -->
         <div id="quote-calculator" class="bg-white rounded-3xl border border-[#f0ebe5] p-6 sm:p-7 shadow-xs space-y-6">
           <div class="border-b border-[#f4efe9] pb-3">
-            <h2 class="text-base font-bold text-[#1d1b2c]">Try a Quote calculator</h2>
+            <h3 class="text-base font-extrabold text-[#1d1b2c]">Try a Quote calculator</h3>
             <p class="text-xs text-[#6f6d85] mt-1">
               Calculate estimated parcel delivery fees in real time using the backend pricing engine (ADR 003 formula: Drop-off Zone Base Fee + Weight Band Charge + Size Charge).
             </p>
@@ -344,12 +290,6 @@ const weightBandBoundsValidator: ValidatorFn = (control: AbstractControl): Valid
             </div>
           </form>
 
-          @if (quoteError()) {
-            <div id="quote-error" class="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-xs font-semibold text-rose-800" role="alert">
-              {{ quoteError() }}
-            </div>
-          }
-
           @if (quoteResult(); as result) {
             <div id="quote-result" class="rounded-2xl border border-[#f0ebe5] bg-[#faf8f6] p-5 space-y-4">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#f0ebe5] pb-3">
@@ -411,6 +351,7 @@ export class DispatchPricingComponent {
 
   readonly mutationError = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  private readonly alerts = inject(DispatchNotificationsService);
   readonly isSaving = signal<boolean>(false);
   readonly pricingRules = signal<PricingRule[]>([]);
 
@@ -462,7 +403,8 @@ export class DispatchPricingComponent {
   private loadPricingRules(): void {
     this.dispatchService.listPricingRules().subscribe({
       next: (rules) => this.pricingRules.set(rules),
-      error: () => undefined,
+      error: (err) =>
+        this.alerts.toast('error', "Couldn't load pricing rules", err?.error?.message || err?.message || 'Please try again.'),
     });
   }
 
@@ -488,7 +430,7 @@ export class DispatchPricingComponent {
       next: () => {
         this.editingRuleId = null;
         this.isSaving.set(false);
-        this.successMessage.set(
+        this.notifySuccess(
           isEditing
             ? `Pricing rule "${ruleKey}" updated successfully.`
             : `Pricing rule "${ruleKey}" created successfully.`
@@ -500,7 +442,7 @@ export class DispatchPricingComponent {
       },
       error: (error) => {
         this.isSaving.set(false);
-        this.mutationError.set(
+        this.notifyError(
           error?.error?.message || error?.message || 'Unable to save the pricing rule.'
         );
       },
@@ -527,10 +469,10 @@ export class DispatchPricingComponent {
     this.mutationError.set(null);
     this.dispatchService.deletePricingRule(rule.id).subscribe({
       next: () => {
-        this.successMessage.set(`Pricing rule "${rule.key}" deleted successfully.`);
+        this.notifySuccess(`Pricing rule "${rule.key}" deleted successfully.`);
         this.loadPricingRules();
       },
-      error: (error) => this.mutationError.set(
+      error: (error) => this.notifyError(
         error?.error?.message || error?.message || 'Unable to delete the pricing rule.'
       ),
     });
@@ -551,7 +493,7 @@ export class DispatchPricingComponent {
       next: (result) => {
         this.isCalculatingQuote.set(false);
         if (!result || typeof result.totalFee !== 'number' || !result.breakdown) {
-          this.quoteError.set('Pricing engine returned an incomplete quote response.');
+          this.setQuoteError('Pricing engine returned an incomplete quote response.');
           return;
         }
         this.quoteResult.set(result);
@@ -559,11 +501,11 @@ export class DispatchPricingComponent {
       error: (error) => {
         this.isCalculatingQuote.set(false);
         if (error?.status === 422) {
-          this.quoteError.set(`Pickup district "${pickupDistrict}" is not an active served area.`);
+          this.setQuoteError(`Pickup district "${pickupDistrict}" is not an active served area.`);
         } else if (error?.status === 404) {
-          this.quoteError.set(error?.error?.message || 'Pricing rule or district not found in active configuration.');
+          this.setQuoteError(error?.error?.message || 'Pricing rule or district not found in active configuration.');
         } else {
-          this.quoteError.set(error?.error?.message || error?.message || 'Failed to calculate quote from pricing engine.');
+          this.setQuoteError(error?.error?.message || error?.message || 'Failed to calculate quote from pricing engine.');
         }
       },
     });
@@ -580,5 +522,23 @@ export class DispatchPricingComponent {
     });
     this.quoteForm.markAsPristine();
     this.quoteForm.markAsUntouched();
+  }
+
+  /** Confirmation for a save/delete: shown as a toast. */
+  private notifySuccess(message: string): void {
+    this.successMessage.set(message);
+    this.alerts.toast('success', message);
+  }
+
+  /** Errors are shown as toasts. */
+  private notifyError(message: string): void {
+    this.mutationError.set(message);
+    this.alerts.toast('error', 'Pricing rule update failed', message);
+  }
+
+  /** Quote problems are shown as toasts. */
+  private setQuoteError(message: string): void {
+    this.quoteError.set(message);
+    this.alerts.toast('error', "Couldn't calculate the quote", message);
   }
 }

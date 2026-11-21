@@ -120,6 +120,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/dispatch/dispatch-pricing.component').then((m) => m.DispatchPricingComponent),
       },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('./pages/dispatch/dispatch-settings.component').then((m) => m.DispatchSettingsComponent),
+      },
     ],
   },
   {
