@@ -62,11 +62,21 @@ public class LocalSampleUserInitializer implements CommandLineRunner {
     }
 
     private void createIfMissing(String email, String fullName, String role) {
+        String defaultZone = ("COURIER".equalsIgnoreCase(role) || "DISPATCHER".equalsIgnoreCase(role))
+                ? "COLOMBO_ZONE"
+                : null;
+
         if (userRepository.existsByEmailIgnoreCase(email)) {
+            userRepository.findByEmailIgnoreCase(email).ifPresent(user -> {
+                if (defaultZone != null && (user.getZone() == null || user.getZone().isBlank())) {
+                    user.setZone(defaultZone);
+                    userRepository.save(user);
+                }
+            });
             return;
         }
 
-        userRepository.save(new User(
+        User user = new User(
                 "usr-local-" + role.toLowerCase() + "-" + UUID.randomUUID().toString().replace("-", ""),
                 email,
                 passwordEncoder.encode(password),
@@ -74,7 +84,9 @@ public class LocalSampleUserInitializer implements CommandLineRunner {
                 null,
                 role,
                 true,
-                null
-        ));
+                null,
+                defaultZone
+        );
+        userRepository.save(user);
     }
 }

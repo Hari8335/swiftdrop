@@ -133,6 +133,31 @@ class AdminUserServiceTest {
     }
 
     @Test
+    @DisplayName("createStaffUser with assigned zone persists and exposes zone")
+    void createStaffUser_withZone_persistsZone() {
+        CreateStaffUserRequest request = new CreateStaffUserRequest(
+            "courier.zone@swiftdrop.lk",
+            "SecurePass#2026",
+            "Nimal Perera",
+            "+94771234567",
+            "COURIER",
+            "COLOMBO_ZONE"
+        );
+
+        when(adminUserRepository.existsByEmailIgnoreCase("courier.zone@swiftdrop.lk")).thenReturn(false);
+        when(passwordEncoder.encode("SecurePass#2026")).thenReturn("$2a$10$hashedPassword");
+        when(adminUserRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserSummary summary = adminUserService.createStaffUser(request);
+
+        assertThat(summary.zone()).isEqualTo("COLOMBO_ZONE");
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(adminUserRepository, atLeastOnce()).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getZone()).isEqualTo("COLOMBO_ZONE");
+    }
+
+    @Test
     @DisplayName("createStaffUser generates 6-letter temporary password and sets mustChangePassword when password omitted")
     void createStaffUser_generates6LetterTemporaryPasswordWhenPasswordOmitted() {
         CreateStaffUserRequest request = new CreateStaffUserRequest(

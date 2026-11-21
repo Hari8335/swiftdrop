@@ -19,8 +19,8 @@ export class AdminComponent implements OnInit {
     this.loadActivities(0);
   }
 
-  loadActivities(page: number): void {
-    this.auditService.loadAuditLogs(page, 10).subscribe({
+  loadActivities(page: number = 0): void {
+    this.auditService.loadAuditLogs(page, 50).subscribe({
       error: () => {},
     });
   }
