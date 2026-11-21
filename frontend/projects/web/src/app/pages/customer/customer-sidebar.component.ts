@@ -1,6 +1,5 @@
 import { Component, HostListener, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { NotificationBellComponent } from '../../notification/notification-bell/notification-bell.component';
 
 export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'settings' | null;
 
@@ -12,7 +11,7 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
 @Component({
   selector: 'app-customer-sidebar',
   standalone: true,
-  imports: [RouterLink, NotificationBellComponent],
+  imports: [RouterLink],
   template: `
     <!-- Reserves the rail's width in the page layout; the rail itself is fixed. -->
     <div class="hidden md:block w-20 flex-shrink-0" aria-hidden="true"></div>
@@ -110,9 +109,6 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
 
       <!-- Bottom section: Settings & Log out (also shown in the mobile bar) -->
       <div id="customer-sidebar-footer" class="flex md:flex-col items-center md:items-stretch gap-1 md:gap-1.5 md:border-t md:border-[#f0ece8] md:pt-3">
-        <div class="hidden md:block">
-          <app-notification-bell placement="right" tone="brand"></app-notification-bell>
-        </div>
         <button
           type="button"
           id="nav-settings-btn"

@@ -19,9 +19,12 @@ import { NotificationBellComponent } from '../../notification/notification-bell/
         <ng-content></ng-content>
       </div>
 
-      <!-- Notifications (mobile) & Profile Badge -->
+      <!-- Notifications & Profile Badge -->
       <div class="flex items-center gap-3 flex-shrink-0">
-        <div class="md:hidden">
+        <div
+          id="topbar-notifications"
+          class="mr-1 sm:mr-2 rounded-xl border border-[#e8e4df] bg-white shadow-sm transition hover:border-[#d7b4a7]"
+        >
           <app-notification-bell></app-notification-bell>
         </div>
 

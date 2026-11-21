@@ -544,6 +544,13 @@ describe('CustomerComponent', () => {
       expect(el().querySelector('#settings-logout-btn')).toBeNull();
     });
 
+    it('shows the notification bell in the top bar, not the sidebar', () => {
+      fixture.detectChanges();
+
+      expect(el().querySelector('#topbar-notifications app-notification-bell')).not.toBeNull();
+      expect(el().querySelector('#customer-sidebar app-notification-bell')).toBeNull();
+    });
+
     it('sidebar footer holds Settings and Log out, and is not hidden on mobile', () => {
       fixture.detectChanges();
       const footer = el().querySelector<HTMLElement>('#customer-sidebar-footer')!;
