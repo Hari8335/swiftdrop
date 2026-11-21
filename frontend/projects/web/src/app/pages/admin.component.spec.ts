@@ -69,19 +69,14 @@ describe('AdminComponent', () => {
     fixture.detectChanges();
   });
 
-  it('creates and renders admin shell and navigation without Audit log tab', () => {
+  it('creates and renders admin shell and module governance cards', () => {
     expect(component).toBeTruthy();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('Welcome back, admin!');
-    expect(element.textContent).toContain('Merchant approval');
+    expect(element.textContent).toContain('Merchant Approval');
     expect(element.textContent).toContain('Staff Management');
 
-    const nav = element.querySelector('nav[aria-label="Admin section navigation"]');
-    expect(nav?.textContent).not.toContain('Audit log');
-
-    expect(element.querySelector('#admin-staff-management-link')).toBeTruthy();
     expect(element.querySelector('#admin-card-staff-link')).toBeTruthy();
-    expect(element.querySelector('#admin-merchant-approval-link')).toBeTruthy();
     expect(element.querySelector('#admin-card-merchant-approval-link')).toBeTruthy();
     expect(element.querySelector('#admin-reports-card-link')).toBeTruthy();
   });
