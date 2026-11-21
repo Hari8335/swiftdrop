@@ -86,6 +86,15 @@ describe('DispatchLayoutComponent', () => {
     expect(href('tab-settings-link')).toBe('/dispatch/settings');
   });
 
+  it('uses the admin-style sidebar: a fixed icon rail that widens on hover or focus', () => {
+    const aside = el().querySelector('aside') as HTMLElement;
+    expect(aside.className).toContain('fixed');
+    expect(aside.className).toContain('w-20');
+    expect(aside.className).toContain('hover:w-[272px]');
+    expect(aside.className).toContain('focus-within:w-[272px]');
+    expect(aside.textContent).toContain('SwiftDrop Dispatch');
+  });
+
   it('shows each nav item name for the hover/focus label', () => {
     expect(el().querySelector('#tab-workload-link .rail-label')?.textContent?.trim()).toBe('Courier Workload');
     expect(el().querySelector('#tab-settings-link .rail-label')?.textContent?.trim()).toBe('Settings');
@@ -99,6 +108,10 @@ describe('DispatchLayoutComponent', () => {
   it('shows queue and failed badges from the unfiltered notification poll', () => {
     expect(el().querySelector('#tab-queue-link')?.textContent).toContain('24');
     expect(el().querySelector('#tab-failed-link')?.textContent).toContain('7');
+    // Both counts use the one brand colour.
+    const badges = Array.from(el().querySelectorAll('aside .rail-badge'));
+    expect(badges).toHaveLength(2);
+    badges.forEach((b) => expect(b.className).toContain('bg-[#a53a26]'));
     expect(notificationsStub.start).toHaveBeenCalled();
   });
 
