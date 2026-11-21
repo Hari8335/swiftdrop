@@ -544,6 +544,43 @@ describe('CustomerComponent', () => {
       expect(el().querySelector('#settings-logout-btn')).toBeNull();
     });
 
+    it('search box shows a clear button only while a query is typed', () => {
+      fixture.detectChanges();
+      expect(el().querySelector('#customer-search-clear')).toBeNull();
+
+      component.searchQuery.set('SD-2026');
+      fixture.detectChanges();
+      el().querySelector<HTMLButtonElement>('#customer-search-clear')!.click();
+      fixture.detectChanges();
+
+      expect(component.searchQuery()).toBe('');
+      expect(el().querySelector('#customer-search-clear')).toBeNull();
+    });
+
+    it('top bar shows "Signed in as" with the customer name and initials', () => {
+      fixture.detectChanges();
+      const badge = el().querySelector<HTMLElement>('#profile-badge')!;
+
+      expect(badge.textContent).toContain('Signed in as');
+      expect(el().querySelector('#profile-badge-name')!.textContent!.trim()).toBe(component.customerName() || 'Customer');
+    });
+
+    it('shows the notification bell in the top bar, not the sidebar', () => {
+      fixture.detectChanges();
+
+      expect(el().querySelector('#topbar-notifications app-notification-bell')).not.toBeNull();
+      expect(el().querySelector('#customer-sidebar app-notification-bell')).toBeNull();
+    });
+
+    it('sidebar footer holds Settings and Log out, and is not hidden on mobile', () => {
+      fixture.detectChanges();
+      const footer = el().querySelector<HTMLElement>('#customer-sidebar-footer')!;
+
+      expect(footer.classList).not.toContain('hidden');
+      expect(footer.querySelector('#nav-settings-btn')).not.toBeNull();
+      expect(footer.querySelector('#sidebar-logout-btn')).not.toBeNull();
+    });
+
     it('sidebar Log out asks for confirmation before signing out', () => {
       fixture.detectChanges();
       const signOut = jest.spyOn(component, 'signOut');
