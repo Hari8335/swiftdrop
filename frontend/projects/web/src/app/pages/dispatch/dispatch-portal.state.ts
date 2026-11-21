@@ -1,6 +1,17 @@
 import { Injectable, WritableSignal, computed, signal } from '@angular/core';
 
-export type DispatchPage = 'home' | 'queue' | 'failed' | 'workload' | 'zones' | 'pricing';
+export type DispatchPage = 'home' | 'queue' | 'failed' | 'workload' | 'zones' | 'pricing' | 'settings';
+
+/** The single heading shown at the top of each dispatcher page. */
+export const DISPATCH_PAGE_TITLES: Record<DispatchPage, string> = {
+  home: 'Dispatch Overview',
+  queue: 'Unassigned Parcels',
+  failed: 'Failed Deliveries',
+  workload: 'Courier Workload',
+  zones: 'Delivery Zones',
+  pricing: 'Pricing Rules',
+  settings: 'Settings',
+};
 
 const PLACEHOLDERS: Record<DispatchPage, string> = {
   home: 'Search parcels, couriers, tracking ID, address...',
@@ -9,6 +20,7 @@ const PLACEHOLDERS: Record<DispatchPage, string> = {
   workload: 'Search couriers by name, phone, zone, vehicle...',
   zones: 'Search zones by name or district...',
   pricing: 'Search pricing rules by key or type...',
+  settings: '',
 };
 
 /**
@@ -27,10 +39,14 @@ export class DispatchPortalState {
     workload: signal(''),
     zones: signal(''),
     pricing: signal(''),
+    settings: signal(''),
   };
 
   readonly query = computed(() => this.queries[this.page()]());
   readonly placeholder = computed(() => PLACEHOLDERS[this.page()]);
+  readonly title = computed(() => DISPATCH_PAGE_TITLES[this.page()]);
+  /** Settings has nothing to search, so the header hides its search box there. */
+  readonly searchable = computed(() => this.page() !== 'settings');
 
   setQuery(value: string): void {
     this.queries[this.page()].set(value ?? '');

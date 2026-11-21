@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { DispatchPricingComponent } from './dispatch-pricing.component';
+import { DispatchNotificationsService } from './dispatch-notifications.service';
 
 describe('DispatchPricingComponent', () => {
   let component: DispatchPricingComponent;
@@ -252,8 +253,10 @@ describe('DispatchPricingComponent', () => {
     quoteReq.flush({ message: 'Pickup district is not served' }, { status: 422, statusText: 'Unprocessable Entity' });
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('#quote-error')?.textContent).toContain('not an active served area');
+    // Errors are shown as toasts, not inline.
+    expect((fixture.nativeElement as HTMLElement).querySelector('#quote-error')).toBeNull();
+    expect(TestBed.inject(DispatchNotificationsService).toasts().at(-1)).toMatchObject({ kind: 'error', title: "Couldn't calculate the quote" });
+    expect(TestBed.inject(DispatchNotificationsService).toasts().at(-1)?.message).toContain('not an active served area');
     expect(component.quoteResult()).toBeNull();
   });
 
@@ -289,8 +292,10 @@ describe('DispatchPricingComponent', () => {
     fixture.detectChanges();
 
     expect(component.successMessage()).toContain('SMALL_RULE');
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('#pricing-success-banner')?.textContent).toContain('SMALL_RULE');
+    // Confirmations are shown as toasts, not an inline banner.
+    expect((fixture.nativeElement as HTMLElement).querySelector('#pricing-success-banner')).toBeNull();
+    expect(TestBed.inject(DispatchNotificationsService).toasts().at(-1)).toMatchObject({ kind: 'success' });
+    expect(TestBed.inject(DispatchNotificationsService).toasts().at(-1)?.title).toContain('SMALL_RULE');
   });
 
   it('displays success banner after deleting a pricing rule', () => {

@@ -11,6 +11,7 @@ import {
 } from './dispatch.model';
 import { DispatchService } from './dispatch.service';
 import { DispatchPortalState } from './dispatch-portal.state';
+import { DispatchNotificationsService } from './dispatch-notifications.service';
 
 describe('DispatchComponent (Real API Integration)', () => {
   let component: DispatchComponent;
@@ -497,14 +498,21 @@ describe('DispatchComponent (Real API Integration)', () => {
     expect(component.toastMessage()).toContain('is now Offline');
   });
 
-  it('should display error banner with retry button when queue loading fails', () => {
-    component.activeTab.set('queue');
+  it('should show a retry state and an error toast when queue loading fails', () => {
     dispatchServiceSpy.parcelsError = jest.fn(() => 'Network Error');
+    // Fresh component so its load-error effect starts out seeing the failure.
+    fixture = TestBed.createComponent(DispatchComponent);
+    component = fixture.componentInstance;
+    component.activeTab.set('queue');
     fixture.detectChanges();
+    TestBed.flushEffects();
 
     const compiled = fixture.nativeElement as HTMLElement;
     const retryBtn = compiled.querySelector('#retry-queue-btn');
     expect(retryBtn).toBeTruthy();
+    expect(compiled.textContent).not.toContain('Network Error');
+    const toasts = TestBed.inject(DispatchNotificationsService).toasts();
+    expect(toasts.at(-1)).toMatchObject({ kind: 'error', title: "Couldn't load the unassigned queue", message: 'Network Error' });
 
     dispatchServiceSpy.loadUnassignedParcels.mockClear();
     (retryBtn as HTMLButtonElement).click();
