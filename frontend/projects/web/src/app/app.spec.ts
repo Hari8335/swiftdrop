@@ -191,4 +191,70 @@ describe('App', () => {
     expect(logoutSpy).toHaveBeenCalled();
     expect(navigateSpy).toHaveBeenCalledWith(['/']);
   });
+
+  it('should open admin logout confirmation modal and cancel cleanly', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('#logout-confirm-modal')).toBeNull();
+
+    const logoutBtn = compiled.querySelector('#admin-sidebar-logout-btn') as HTMLButtonElement;
+    expect(logoutBtn).toBeTruthy();
+    logoutBtn.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('#logout-confirm-modal')).not.toBeNull();
+    expect(compiled.querySelector('#logout-confirm-title')?.textContent).toContain('Log out of SwiftDrop?');
+
+    const cancelBtn = compiled.querySelector('#logout-cancel-btn') as HTMLButtonElement;
+    expect(cancelBtn).toBeTruthy();
+    cancelBtn.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('#logout-confirm-modal')).toBeNull();
+  });
+
+  it('should confirm logout from the admin confirmation modal', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+    const logoutSpy = jest.spyOn(app, 'logout').mockImplementation();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    app.openLogoutConfirm();
+    fixture.detectChanges();
+
+    const confirmBtn = compiled.querySelector('#logout-confirm-btn') as HTMLButtonElement;
+    expect(confirmBtn).toBeTruthy();
+    confirmBtn.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('#logout-confirm-modal')).toBeNull();
+    expect(logoutSpy).toHaveBeenCalled();
+  });
+
+  it('should only show the activity indicator dot on merchant approval when pending requests exist', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    const merchantService = TestBed.inject(MerchantApprovalService);
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+
+    // Initial state: 0 pending requests -> no dot
+    (merchantService as any).pendingCountSignal.set(0);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const merchantLink = compiled.querySelector('a[routerLink="/admin/merchants"]') as HTMLElement;
+    expect(merchantLink).toBeTruthy();
+    expect(merchantLink.querySelector('.bg-\\[\\#9b432f\\].rounded-full')).toBeNull();
+
+    // New request comes in: pending count > 0 -> dot is displayed
+    (merchantService as any).pendingCountSignal.set(2);
+    fixture.detectChanges();
+    expect(merchantLink.querySelector('.bg-\\[\\#9b432f\\].rounded-full')).not.toBeNull();
+  });
 });
