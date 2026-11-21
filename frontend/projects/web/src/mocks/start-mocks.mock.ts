@@ -11,5 +11,5 @@ export async function startMocks(): Promise<void> {
     // Requests without a handler (e.g. auth, other services) go to the network / dev proxy.
     onUnhandledRequest: 'bypass',
   });
-  console.info('[SwiftDrop] Mock API is ON (MSW). Handled: parcels, addresses, tracking, dispatch.');
+  console.info('[SwiftDrop] Mock API is ON (MSW). Handled: parcels, addresses, tracking.');
 }

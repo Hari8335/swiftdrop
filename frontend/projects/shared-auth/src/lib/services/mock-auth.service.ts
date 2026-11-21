@@ -35,13 +35,6 @@ export const MOCK_USERS: Record<string, User> = {
     role: 'COURIER',
     merchantId: null,
   },
-  dispatcher: {
-    id: 'usr-mock-dispatcher-1',
-    email: 'dispatcher@swiftdrop.lk',
-    fullName: 'Dinesh Dispatcher',
-    role: 'DISPATCHER',
-    merchantId: null,
-  },
   admin: {
     id: 'usr-mock-admin-1',
     email: 'admin@swiftdrop.lk',

@@ -10,6 +10,7 @@ import {
   UnassignedParcelsPage,
 } from './dispatch.model';
 import { DispatchService } from './dispatch.service';
+import { DispatchPortalState } from './dispatch-portal.state';
 
 describe('DispatchComponent (Real API Integration)', () => {
   let component: DispatchComponent;
@@ -208,14 +209,11 @@ describe('DispatchComponent (Real API Integration)', () => {
     fixture.detectChanges();
   });
 
-  it('should create and render navigation tabs and links', () => {
+  it('should create without its own sidebar (navigation lives in DispatchLayoutComponent)', () => {
     expect(component).toBeTruthy();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('#tab-queue-btn')).toBeTruthy();
-    expect(compiled.querySelector('#tab-workload-btn')).toBeTruthy();
-    expect(compiled.querySelector('#tab-failed-btn')).toBeTruthy();
-    expect(compiled.querySelector('#tab-zones-link')).toBeTruthy();
-    expect(compiled.querySelector('#tab-pricing-link')).toBeTruthy();
+    expect(compiled.querySelector('aside')).toBeNull();
+    expect(compiled.querySelector('#tab-queue-link')).toBeNull();
   });
 
   it('should render interactive delivery zones and pricing rules buttons on home page', () => {
@@ -291,8 +289,13 @@ describe('DispatchComponent (Real API Integration)', () => {
     dispatchServiceSpy.loadUnassignedParcels.mockClear();
     component.onQueueZoneChange('ZONE-COLOMBO-NORTH');
     expect(component.selectedZone()).toBe('ZONE-COLOMBO-NORTH');
-    expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith('ZONE-COLOMBO-NORTH');
+    expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith('ZONE-COLOMBO-NORTH', undefined, 0, 100);
   });
+
+  const westernAndCentralZones = () => [
+    { id: 'z1', name: 'E2E western', districts: ['Colombo', 'Gampaha'], served: true, baseFeeLkr: 350, createdAt: '', updatedAt: '' },
+    { id: 'z2', name: 'E2E central', districts: ['Kandy'], served: true, baseFeeLkr: 450, createdAt: '', updatedAt: '' },
+  ];
 
   it('should filter parcels by real zone name and resolve backend district', () => {
     component.availableZones.set([
@@ -316,16 +319,83 @@ describe('DispatchComponent (Real API Integration)', () => {
       },
     ]);
 
-    expect(component.resolveBackendDistrict('E2E western (Colombo)')).toBe('Colombo');
-    expect(component.resolveBackendDistrict('E2E central (Kandy)')).toBe('Kandy');
+    // Configured zones are filtered client-side across all their districts, so the backend
+    // gets no single-district zone param; unknown values are passed through unchanged.
+    expect(component.resolveBackendDistrict('E2E western')).toBeUndefined();
+    expect(component.resolveBackendDistrict('e2e CENTRAL')).toBeUndefined();
+    expect(component.resolveBackendDistrict('ZONE-COLOMBO-NORTH')).toBe('ZONE-COLOMBO-NORTH');
+    expect(component.resolveBackendDistrict('')).toBeUndefined();
 
     dispatchServiceSpy.loadUnassignedParcels.mockClear();
     component.onQueueZoneChange('E2E western');
-    expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith('Colombo');
+    expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith(undefined, undefined, 0, 100);
+  });
 
-    dispatchServiceSpy.loadUnassignedParcels.mockClear();
-    component.onQueueZoneChange('E2E central');
-    expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith('Kandy');
+  it('should match every district of a multi-district zone and nothing outside it', () => {
+    component.availableZones.set(westernAndCentralZones());
+    const parcel = (id: string, dropoffZone: string): DispatchParcelSummary => ({
+      parcelId: id, trackingNumber: id, status: 'CREATED', pickupZone: 'Colombo', dropoffZone, createdAt: '',
+    });
+    (dispatchServiceSpy.unassignedParcels as any).mockReturnValue([
+      parcel('A', 'Colombo'), parcel('B', 'Gampaha'), parcel('C', 'Kandy'), parcel('D', 'Galle'),
+    ]);
+
+    component.selectedZone.set('E2E western');
+    expect(component.filteredParcels().map((p) => p.trackingNumber)).toEqual(['A', 'B']);
+
+    component.selectedZone.set('E2E central');
+    expect(component.filteredParcels().map((p) => p.trackingNumber)).toEqual(['C']);
+  });
+
+  it('should use zones from the zones API only, with no hard-coded fallback', () => {
+    dispatchServiceSpy.listZones.mockReturnValue(of(westernAndCentralZones()));
+    component.loadAvailableZones();
+    expect(component.availableZones().map((z) => z.name)).toEqual(['E2E western', 'E2E central']);
+
+    dispatchServiceSpy.listZones.mockReturnValue(throwError(() => new Error('down')));
+    component.loadAvailableZones();
+    expect(component.availableZones()).toEqual([]);
+  });
+
+  it('should clear a zone filter whose zone was deleted on the zones page', () => {
+    component.availableZones.set(westernAndCentralZones());
+    component.selectedZone.set('E2E central');
+    dispatchServiceSpy.listZones.mockReturnValue(of([westernAndCentralZones()[0]]));
+    component.loadAvailableZones();
+    expect(component.selectedZone()).toBe('');
+  });
+
+  it('should share search text with the portal header for the matching page', () => {
+    const portal = TestBed.inject(DispatchPortalState);
+    portal.page.set('failed');
+    portal.setQuery('RECIPIENT');
+    expect(component.failedSearchQuery()).toBe('RECIPIENT');
+    expect(component.searchQuery()).toBe('');
+
+    component.searchQuery.set('Kandy');
+    portal.page.set('queue');
+    expect(portal.query()).toBe('Kandy');
+  });
+
+  it('should search couriers on the workload page', () => {
+    (dispatchServiceSpy.couriers as any).mockReturnValue([
+      { courierId: 'c1', name: 'Saman Perera', zone: 'Colombo', activeCount: 1, available: true, vehicleType: 'VAN' },
+      { courierId: 'c2', name: 'Kasun Rathnayake', zone: 'Kandy', activeCount: 0, available: false },
+    ]);
+    component.workloadSearchQuery.set('kasun');
+    expect(component.filteredCouriers().map((c) => c.courierId)).toEqual(['c2']);
+    component.workloadSearchQuery.set('van');
+    expect(component.filteredCouriers().map((c) => c.courierId)).toEqual(['c1']);
+  });
+
+  it('should search across queue, failed and couriers on the home page and open a result', () => {
+    component.homeSearchQuery.set('SD-20261028-001');
+    expect(component.homeResults().queue.length).toBe(1);
+    expect(component.homeResultCount()).toBeGreaterThanOrEqual(1);
+
+    component.openSearchResult('queue', 'SD-20261028-001');
+    expect(component.activeTab()).toBe('queue');
+    expect(component.searchQuery()).toBe('SD-20261028-001');
   });
 
   it('should filter parcels appropriately between Colombo and Kandy dropoff destinations', () => {
@@ -347,6 +417,7 @@ describe('DispatchComponent (Real API Integration)', () => {
     };
 
     (dispatchServiceSpy.unassignedParcels as any).mockReturnValue([colomboParcel, kandyParcel]);
+    component.availableZones.set(westernAndCentralZones());
 
     component.selectedZone.set('E2E western');
     let filtered = component.filteredParcels();
@@ -486,7 +557,7 @@ describe('DispatchComponent (Real API Integration)', () => {
       dispatchServiceSpy.loadFailedParcels.mockClear();
       component.onFailedZoneChange('ZONE-COLOMBO-NORTH');
       expect(component.failedSelectedZone()).toBe('ZONE-COLOMBO-NORTH');
-      expect(dispatchServiceSpy.loadFailedParcels).toHaveBeenCalledWith('ZONE-COLOMBO-NORTH');
+      expect(dispatchServiceSpy.loadFailedParcels).toHaveBeenCalledWith('ZONE-COLOMBO-NORTH', undefined, 0, 100);
     });
 
     it('should open re-queue modal, accept optional reason, and confirm re-queue via API', () => {

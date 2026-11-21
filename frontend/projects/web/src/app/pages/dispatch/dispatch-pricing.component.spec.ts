@@ -34,14 +34,20 @@ describe('DispatchPricingComponent', () => {
     expect(component.pricingRules().length).toBe(2);
   });
 
-  it('should render navigation links to queue, workload, and zones', () => {
+  it('should render inside the shared portal shell (sidebar links are tested in DispatchLayoutComponent)', () => {
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('#tab-queue-link')).toBeTruthy();
-    const workloadLink = compiled.querySelector('#tab-workload-link') as HTMLAnchorElement;
-    expect(workloadLink).toBeTruthy();
-    expect(workloadLink.getAttribute('href')).toContain('tab=workload');
-    expect(compiled.querySelector('#tab-zones-link')).toBeTruthy();
-    expect(compiled.querySelector('#tab-pricing-btn')).toBeTruthy();
+    expect(compiled.querySelector('aside')).toBeNull();
+    expect(compiled.querySelector('#tab-queue-link')).toBeNull();
+  });
+
+  it('should filter pricing rules with the portal search', () => {
+    component.searchQuery.set('medium');
+    expect(component.filteredPricingRules().map((r) => r.key)).toEqual(['MEDIUM']);
+    component.searchQuery.set('weight band');
+    expect(component.filteredPricingRules().map((r) => r.key)).toEqual(['UP_TO_5KG']);
+    component.searchQuery.set('nothing-matches');
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('#pricing-no-match')).toBeTruthy();
   });
 
   it('should show validation feedback when form inputs are invalid and touched', () => {
