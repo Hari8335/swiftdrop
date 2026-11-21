@@ -117,6 +117,13 @@ export class MerchantApprovalService {
     return this.http.post<MerchantSummary>(`${this.baseUrl}/${merchantId}/reactivate`, {});
   }
 
+  sendCredentialsEmail(merchantId: string, clientId: string, clientSecret: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${merchantId}/send-credentials`, {
+      clientId,
+      clientSecret,
+    });
+  }
+
   clearError(): void {
     this.errorSignal.set(null);
   }

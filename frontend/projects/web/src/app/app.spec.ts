@@ -179,6 +179,59 @@ describe('App', () => {
     expect(compiled.querySelector('#admin-notification-dropdown')).toBeFalsy();
   });
 
+  it('should display security alerts in admin notification dropdown and allow dismissal', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+    app.securityAlerts.set([
+      {
+        id: 'alert-1',
+        occurredAt: '2026-11-21T10:00:00Z',
+        actorId: 'SYSTEM',
+        actorRole: 'SECURITY',
+        action: 'ACCOUNT_LOCKED',
+        targetType: 'USER',
+        targetId: 'hacker@example.com',
+        ipAddress: '192.168.1.50',
+        details: { portal: 'CUSTOMER', reason: '5 consecutive failed password attempts' },
+      },
+    ]);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const badge = compiled.querySelector('#admin-notification-badge');
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent?.trim()).toBe('1');
+
+    // Open dropdown
+    const bellBtn = compiled.querySelector('#admin-notification-bell-btn') as HTMLButtonElement;
+    bellBtn.click();
+    fixture.detectChanges();
+
+    const dropdown = compiled.querySelector('#admin-notification-dropdown');
+    expect(dropdown).toBeTruthy();
+    expect(dropdown?.textContent).toContain('Account Lockout');
+    expect(dropdown?.textContent).toContain('CUSTOMER');
+    expect(dropdown?.textContent).toContain('hacker@example.com');
+    expect(dropdown?.textContent).toContain('5 failed password attempts • Locked 15 mins');
+
+    // Dismiss alert
+    app.dismissSecurityAlert('alert-1');
+    fixture.detectChanges();
+
+    expect(app.activeSecurityAlerts().length).toBe(0);
+    expect(app.totalAdminNotificationCount()).toBe(0);
+    expect(localStorage.getItem('swiftdrop_dismissed_security_alerts')).toContain('alert-1');
+  });
+
+  it('should restore dismissed alert ids from localStorage upon initialization', () => {
+    localStorage.setItem('swiftdrop_dismissed_security_alerts', JSON.stringify(['stored-alert-99']));
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    expect(app.dismissedAlertIds().has('stored-alert-99')).toBe(true);
+    localStorage.removeItem('swiftdrop_dismissed_security_alerts');
+  });
+
   it('should call authService.logout() and redirect to landing page on logout', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
@@ -190,5 +243,71 @@ describe('App', () => {
 
     expect(logoutSpy).toHaveBeenCalled();
     expect(navigateSpy).toHaveBeenCalledWith(['/']);
+  });
+
+  it('should open admin logout confirmation modal and cancel cleanly', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('#logout-confirm-modal')).toBeNull();
+
+    const logoutBtn = compiled.querySelector('#admin-sidebar-logout-btn') as HTMLButtonElement;
+    expect(logoutBtn).toBeTruthy();
+    logoutBtn.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('#logout-confirm-modal')).not.toBeNull();
+    expect(compiled.querySelector('#logout-confirm-title')?.textContent).toContain('Log out of SwiftDrop?');
+
+    const cancelBtn = compiled.querySelector('#logout-cancel-btn') as HTMLButtonElement;
+    expect(cancelBtn).toBeTruthy();
+    cancelBtn.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('#logout-confirm-modal')).toBeNull();
+  });
+
+  it('should confirm logout from the admin confirmation modal', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+    const logoutSpy = jest.spyOn(app, 'logout').mockImplementation();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    app.openLogoutConfirm();
+    fixture.detectChanges();
+
+    const confirmBtn = compiled.querySelector('#logout-confirm-btn') as HTMLButtonElement;
+    expect(confirmBtn).toBeTruthy();
+    confirmBtn.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('#logout-confirm-modal')).toBeNull();
+    expect(logoutSpy).toHaveBeenCalled();
+  });
+
+  it('should only show the activity indicator dot on merchant approval when pending requests exist', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    const merchantService = TestBed.inject(MerchantApprovalService);
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+
+    // Initial state: 0 pending requests -> no dot
+    (merchantService as any).pendingCountSignal.set(0);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const merchantLink = compiled.querySelector('a[routerLink="/admin/merchants"]') as HTMLElement;
+    expect(merchantLink).toBeTruthy();
+    expect(merchantLink.querySelector('.bg-\\[\\#9b432f\\].rounded-full')).toBeNull();
+
+    // New request comes in: pending count > 0 -> dot is displayed
+    (merchantService as any).pendingCountSignal.set(2);
+    fixture.detectChanges();
+    expect(merchantLink.querySelector('.bg-\\[\\#9b432f\\].rounded-full')).not.toBeNull();
   });
 });
