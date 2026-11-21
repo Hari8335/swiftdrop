@@ -26,10 +26,10 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
       >
         <!-- Brand Logo Icon -->
         <a
-          href="/"
-          (click)="$event.preventDefault(); navigateTo('/')"
+          href="/courier"
+          (click)="$event.preventDefault(); navigateTo('/courier')"
           class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 group cursor-pointer hover:scale-105 transition-transform"
-          title="SwiftDrop Home"
+          title="SwiftDrop Courier"
         >
           <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -56,20 +56,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
             <span class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
           </a>
 
-          <!-- 2. Profile & Availability Icon -->
-          <a
-            href="/courier/profile"
-            (click)="$event.preventDefault(); navigateTo('/courier/profile')"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
-            title="Profile & Availability"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </a>
-
-          <!-- 3. Daily Summary Icon -->
+          <!-- 2. Daily Summary Icon -->
           <a
             href="/courier/summary"
             (click)="$event.preventDefault(); navigateTo('/courier/summary')"
