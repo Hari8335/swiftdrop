@@ -55,6 +55,18 @@ public class MerchantController {
         return merchantService.reject(merchantId, request.reason());
     }
 
+    @PostMapping("/api/v1/admin/merchants/{merchantId}/suspend")
+    public MerchantSummary suspend(@PathVariable UUID merchantId, Authentication authentication) {
+        requireAdmin(authentication);
+        return merchantService.suspend(merchantId);
+    }
+
+    @PostMapping("/api/v1/admin/merchants/{merchantId}/reactivate")
+    public MerchantSummary reactivate(@PathVariable UUID merchantId, Authentication authentication) {
+        requireAdmin(authentication);
+        return merchantService.reactivate(merchantId);
+    }
+
     private void requireAdmin(Authentication authentication) {
         boolean isAdmin = authentication != null && authentication.isAuthenticated()
                 && authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority)

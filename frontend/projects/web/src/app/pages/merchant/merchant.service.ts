@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   MerchantOrderFilterParams,
+  MerchantOrderDetails,
   MerchantOrderListPage,
   OrderCounts,
   TestWebhookResult,
@@ -55,6 +56,10 @@ export class MerchantService {
 
   getOrderCounts(): Observable<OrderCounts> {
     return this.http.get<OrderCounts>('/api/v1/merchant/orders/counts');
+  }
+
+  getOrderDetails(orderId: string): Observable<MerchantOrderDetails> {
+    return this.http.get<MerchantOrderDetails>(`/api/v1/merchant/orders/${encodeURIComponent(orderId)}`);
   }
 
   getWebhookSettings(): Observable<WebhookSettings> {

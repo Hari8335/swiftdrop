@@ -36,9 +36,9 @@ export class MerchantApprovalService {
 
   private lastPage = 0;
   private lastSize = 20;
-  private lastStatus: 'PENDING' | 'APPROVED' = 'PENDING';
+  private lastStatus: MerchantStatus = 'PENDING';
 
-  loadMerchants(page = 0, size = 20, status: 'PENDING' | 'APPROVED' = this.lastStatus): Observable<MerchantPage> {
+  loadMerchants(page = 0, size = 20, status: MerchantStatus = this.lastStatus): Observable<MerchantPage> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     this.lastPage = page;
@@ -107,6 +107,14 @@ export class MerchantApprovalService {
   recover(merchantId: string, key: string): Observable<MerchantApprovalResponse> {
     return this.http.post<MerchantApprovalResponse>(`${this.baseUrl}/${merchantId}/recover-credentials`,
       { confirmReplacement: true }, { headers: { 'Idempotency-Key': key } });
+  }
+
+  suspend(merchantId: string): Observable<MerchantSummary> {
+    return this.http.post<MerchantSummary>(`${this.baseUrl}/${merchantId}/suspend`, {});
+  }
+
+  reactivate(merchantId: string): Observable<MerchantSummary> {
+    return this.http.post<MerchantSummary>(`${this.baseUrl}/${merchantId}/reactivate`, {});
   }
 
   clearError(): void {

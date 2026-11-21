@@ -145,6 +145,18 @@ public class ClientCredential {
         return "ACTIVE".equalsIgnoreCase(this.status);
     }
 
+    public void suspendForMerchant() {
+        if (isActive()) {
+            this.status = "SUSPENDED";
+        }
+    }
+
+    public void reactivateForMerchant() {
+        if ("SUSPENDED".equalsIgnoreCase(this.status)) {
+            this.status = "ACTIVE";
+        }
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

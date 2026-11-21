@@ -10,6 +10,7 @@ public interface AuthProvisioningClient {
     AuthUserResponse createMerchantUser(AuthCreateUserRequest request);
     AuthUserResponse activateUser(String userId);
     AuthClientCredentialsResponse createClient(AuthCreateClientRequest request);
+    void setMerchantClientSuspended(UUID merchantId, boolean suspended);
 
     record AuthCreateUserRequest(String email, String password, String fullName, String phoneNumber,
                                  String role, String merchantId, Boolean enabled) {}

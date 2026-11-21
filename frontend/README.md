@@ -2,6 +2,14 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.28.
 
+## Production build in sandboxed macOS shells
+
+Angular's local persistent build cache uses the native `lmdb` package. Some macOS command
+sandboxes block the System V semaphores used by that native module, which can abort `ng build`
+with exit code 134 before Angular prints a diagnostic. On a normal workstation, use `npm run build`.
+Inside an affected sandbox, use `CI=true npm run build`; Angular then skips only the persistent
+cache, and the production bundle is still compiled with the same checks and optimizations.
+
 ## Development server
 
 To start a local development server, run:

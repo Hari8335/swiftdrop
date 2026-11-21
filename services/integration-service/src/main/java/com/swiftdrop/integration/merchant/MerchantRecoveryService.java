@@ -105,6 +105,44 @@ public class MerchantRecoveryService {
         });
     }
 
+    public MerchantSummary suspend(UUID id) {
+        return changeSuspension(id, true);
+    }
+
+    public MerchantSummary reactivate(UUID id) {
+        return changeSuspension(id, false);
+    }
+
+    private MerchantSummary changeSuspension(UUID id, boolean suspended) {
+        String actor = SecurityContextHolder.getContext().getAuthentication().getName();
+        MerchantSummary summary = transaction.execute(status -> {
+            Merchant merchant = lock(id);
+            MerchantStatus target = suspended ? MerchantStatus.SUSPENDED : MerchantStatus.APPROVED;
+            if (merchant.getStatus() != target && !merchant.getStatus().canTransitionTo(target)) {
+                throw conflict(suspended
+                        ? "Only an approved merchant can be suspended"
+                        : "Only a suspended merchant can be reactivated");
+            }
+            if (merchant.getStatus() != target) {
+                if (suspended) merchant.suspend();
+                else merchant.reactivate();
+                merchant = merchants.saveAndFlush(merchant);
+                auditStatusChange(merchant, actor, suspended ? "SUSPENDED" : "REACTIVATED");
+            }
+            return MerchantSummary.from(merchant);
+        });
+
+        try {
+            auth.setMerchantClientSuspended(id, suspended);
+        } catch (RestClientException | IllegalStateException exception) {
+            transaction.executeWithoutResult(status -> auditStatusChange(lock(id), actor,
+                    suspended ? "SUSPENSION_AUTH_SYNC_FAILED" : "REACTIVATION_AUTH_SYNC_FAILED"));
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "Merchant status was saved but auth-service could not synchronize client access; retry this action");
+        }
+        return summary;
+    }
+
     private void validate(ProvisioningResponse response, UUID operation, Merchant merchant) {
         if (response == null || !operation.equals(response.operationId()) || !merchant.getId().equals(response.merchantId())
                 || response.user() == null || response.user().id() == null || response.user().id().isBlank()
@@ -130,6 +168,10 @@ public class MerchantRecoveryService {
     private void audit(Merchant merchant, UUID replacement, String actor, String outcome) {
         jdbc.update("insert into merchant_provisioning_audit(merchant_id,operation_id,replacement_id,actor_id,outcome) values (?,?,?,?,?)",
                 merchant.getId(), merchant.getProvisioningOperationId(), replacement, actor, outcome);
+    }
+    private void auditStatusChange(Merchant merchant, String actor, String outcome) {
+        jdbc.update("insert into merchant_provisioning_audit(merchant_id,operation_id,replacement_id,actor_id,outcome) values (?,?,NULL,?,?)",
+                merchant.getId(), UUID.randomUUID(), actor, outcome);
     }
     private ResponseStatusException conflict(String reason) { return new ResponseStatusException(HttpStatus.CONFLICT, reason); }
 }

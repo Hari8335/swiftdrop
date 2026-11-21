@@ -58,6 +58,14 @@ public class MerchantService {
         return recovery.reject(merchantId, reason);
     }
 
+    public MerchantSummary suspend(UUID merchantId) {
+        return recovery.suspend(merchantId);
+    }
+
+    public MerchantSummary reactivate(UUID merchantId) {
+        return recovery.reactivate(merchantId);
+    }
+
     private String normalize(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }

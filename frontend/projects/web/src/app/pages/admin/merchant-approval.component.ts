@@ -8,7 +8,7 @@ import { MerchantSummary } from './merchant-approval.model';
 import { MerchantCredentialsComponent } from '../merchant/merchant-credentials.component';
 import { MerchantApiCredentials } from '../merchant/merchant.model';
 
-type Action = 'approve' | 'reject' | 'recover';
+type Action = 'approve' | 'reject' | 'recover' | 'suspend' | 'reactivate';
 
 @Component({
   selector: 'app-merchant-approval',
@@ -33,7 +33,7 @@ type Action = 'approve' | 'reject' | 'recover';
         <div>
           <label for="merchant-list-status" class="text-sm font-bold text-[#77748a]">Merchant status</label>
           <select id="merchant-list-status" [ngModel]="listStatus()" (ngModelChange)="changeStatus($event)" class="ml-2 rounded-full border border-[#e8e4df] bg-[#fbfaf8] px-3 py-2 outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]">
-            <option value="PENDING">Pending</option><option value="APPROVED">Approved</option>
+            <option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="SUSPENDED">Suspended</option>
           </select>
           <p class="text-xs text-[#77748a]">{{ merchantService.totalElements() }} merchants</p>
         </div>
@@ -107,6 +107,8 @@ type Action = 'approve' | 'reject' | 'recover';
                         <button type="button" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" [disabled]="isSubmitting() || handoff() !== null" (click)="openApprove(merchant)">Approve</button>
                         <button type="button" class="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50" [disabled]="isSubmitting() || handoff() !== null" (click)="openReject(merchant)">Reject</button>
                         }
+                        @if (merchant.status === 'APPROVED') { <button type="button" class="rounded border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700" [disabled]="isSubmitting() || handoff() !== null" (click)="openStatusAction(merchant, 'suspend')">Suspend</button> }
+                        @if (merchant.status === 'SUSPENDED') { <button type="button" class="rounded border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700" [disabled]="isSubmitting() || handoff() !== null" (click)="openStatusAction(merchant, 'reactivate')">Reactivate</button> }
                         @if (merchant.credentialRecoveryAvailable) {
                           <button type="button" class="rounded border px-3 py-1.5 text-xs font-semibold" [disabled]="isSubmitting() || handoff() !== null" (click)="openRecover(merchant)">Recover credentials</button>
                         }
@@ -163,7 +165,7 @@ type Action = 'approve' | 'reject' | 'recover';
       @if (selected(); as merchant) {
         <div class="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/50 p-4" role="presentation">
           <section class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" role="dialog" aria-modal="true" [attr.aria-labelledby]="currentAction + '-merchant-title'">
-            <h2 [id]="currentAction + '-merchant-title'" class="text-xl font-bold text-slate-900">{{ currentAction === 'recover' ? 'Replace lost credentials?' : (currentAction === 'approve' ? 'Approve merchant?' : 'Reject merchant?') }}</h2>
+            <h2 [id]="currentAction + '-merchant-title'" class="text-xl font-bold text-slate-900">{{ currentAction === 'recover' ? 'Replace lost credentials?' : (currentAction === 'approve' ? 'Approve merchant?' : (currentAction === 'reject' ? 'Reject merchant?' : (currentAction === 'suspend' ? 'Suspend merchant?' : 'Reactivate merchant?'))) }}</h2>
             <p class="mt-2 text-sm text-slate-600">Confirm this action for <strong>{{ merchant.businessName }}</strong>.</p>
             @if (currentAction === 'approve') {
               <div class="mt-4 space-y-1 rounded-xl border border-slate-100 bg-slate-50 p-3.5 text-xs text-slate-600">
@@ -183,10 +185,11 @@ type Action = 'approve' | 'reject' | 'recover';
               <textarea id="rejection-reason" class="mt-2 min-h-28 w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" maxlength="1000" [ngModel]="reason()" (ngModelChange)="reason.set($event)" aria-describedby="rejection-help"></textarea>
               <p id="rejection-help" class="mt-1 text-xs text-slate-500">{{ reason().length }}/1000 characters. A reason is required.</p>
             }
+            @if (currentAction === 'suspend') { <p class="mt-4 text-sm text-amber-900">Merchant writes and new API tokens will be blocked. Existing orders and queued webhook deliveries will continue to be preserved.</p> }
             @if (reasonError()) { <p class="mt-1 text-xs text-rose-600" role="alert">{{ reasonError() }}</p> }
             <div class="mt-6 flex justify-end gap-2">
               <button type="button" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" [disabled]="isSubmitting()" (click)="closeAction()">Cancel</button>
-              <button type="button" class="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" [class.bg-emerald-600]="currentAction === 'approve'" [class.bg-rose-600]="currentAction === 'reject'" [disabled]="isSubmitting()" (click)="confirmAction()">{{ isSubmitting() ? 'Submitting…' : (currentAction === 'recover' ? 'Confirm replacement' : (currentAction === 'approve' ? 'Confirm approval' : 'Confirm rejection')) }}</button>
+              <button type="button" class="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" [class.bg-emerald-600]="currentAction === 'approve' || currentAction === 'reactivate'" [class.bg-rose-600]="currentAction === 'reject' || currentAction === 'suspend'" [disabled]="isSubmitting()" (click)="confirmAction()">{{ isSubmitting() ? 'Submitting…' : (currentAction === 'recover' ? 'Confirm replacement' : (currentAction === 'approve' ? 'Confirm approval' : (currentAction === 'reject' ? 'Confirm rejection' : (currentAction === 'suspend' ? 'Confirm suspension' : 'Confirm reactivation')))) }}</button>
             </div>
           </section>
         </div>
@@ -197,7 +200,7 @@ type Action = 'approve' | 'reject' | 'recover';
 export class MerchantApprovalComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   readonly merchantService = inject(MerchantApprovalService);
-  readonly listStatus = signal<'PENDING' | 'APPROVED'>('PENDING');
+  readonly listStatus = signal<'PENDING' | 'APPROVED' | 'SUSPENDED'>('PENDING');
   readonly confirmReplacement = signal(false);
   private replacementKey = '';
   readonly selected = signal<MerchantSummary | null>(null);
@@ -247,9 +250,16 @@ export class MerchantApprovalComponent implements OnInit, OnDestroy {
     this.reasonError.set(null);
   }
 
-  changeStatus(status: 'PENDING' | 'APPROVED'): void {
+  changeStatus(status: 'PENDING' | 'APPROVED' | 'SUSPENDED'): void {
     this.listStatus.set(status);
     this.merchantService.loadMerchants(0, this.merchantService.pageSize(), status).subscribe({ error: () => undefined });
+  }
+
+  openStatusAction(merchant: MerchantSummary, action: 'suspend' | 'reactivate'): void {
+    if (this.isSubmitting() || this.handoff()) return;
+    if (action === 'suspend' && merchant.status !== 'APPROVED') return;
+    if (action === 'reactivate' && merchant.status !== 'SUSPENDED') return;
+    this.selected.set(merchant); this.action.set(action); this.reasonError.set(null);
   }
 
   openRecover(merchant: MerchantSummary): void {
@@ -268,7 +278,10 @@ export class MerchantApprovalComponent implements OnInit, OnDestroy {
   confirmAction(): void {
     const merchant = this.selected();
     const currentAction = this.action();
-    if (!merchant || !currentAction || this.isSubmitting() || (currentAction !== 'recover' && merchant.status !== 'PENDING')) return;
+    if (!merchant || !currentAction || this.isSubmitting()) return;
+    if ((currentAction === 'approve' || currentAction === 'reject') && merchant.status !== 'PENDING') return;
+    if (currentAction === 'suspend' && merchant.status !== 'APPROVED') return;
+    if (currentAction === 'reactivate' && merchant.status !== 'SUSPENDED') return;
     if (currentAction === 'recover' && !this.confirmReplacement()) { this.reasonError.set('Confirm replacement of the lost secret.'); return; }
 
     const trimmedReason = this.reason().trim();
@@ -279,6 +292,11 @@ export class MerchantApprovalComponent implements OnInit, OnDestroy {
 
     this.isSubmitting.set(true);
     this.reasonError.set(null);
+    if (currentAction === 'suspend' || currentAction === 'reactivate') {
+      const request = currentAction === 'suspend' ? this.merchantService.suspend(merchant.id) : this.merchantService.reactivate(merchant.id);
+      request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: (result) => this.completeAction(result), error: (error: unknown) => this.failAction(error) });
+      return;
+    }
     if (currentAction === 'approve' || currentAction === 'recover') {
       const request = currentAction === 'recover' ? this.merchantService.recover(merchant.id, this.replacementKey) : this.merchantService.approve(merchant.id);
       request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({

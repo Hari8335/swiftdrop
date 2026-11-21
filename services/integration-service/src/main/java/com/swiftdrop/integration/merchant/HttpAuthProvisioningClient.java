@@ -62,4 +62,13 @@ public class HttpAuthProvisioningClient implements AuthProvisioningClient {
         return restClient.post().uri("/internal/v1/clients").body(request)
                 .retrieve().body(AuthClientCredentialsResponse.class);
     }
+
+    @Override
+    public void setMerchantClientSuspended(UUID merchantId, boolean suspended) {
+        restClient.post().uri("/internal/v1/clients/merchants/{merchantId}/status", merchantId)
+                .body(new MerchantClientStatusRequest(suspended))
+                .retrieve().toBodilessEntity();
+    }
+
+    private record MerchantClientStatusRequest(boolean suspended) {}
 }

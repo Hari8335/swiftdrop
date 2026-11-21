@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import java.math.BigDecimal;
@@ -27,7 +28,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest(properties = {
         "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://127.0.0.1:9/jwks",
-        "swiftdrop.security.jwks-url=http://127.0.0.1:9/jwks"
+        "swiftdrop.security.jwks-url=http://127.0.0.1:9/jwks",
+        "swiftdrop.merchant.local-demo.enabled=true",
+        "swiftdrop.merchant.local-demo.email=merchant@swiftdrop.lk"
 }) @AutoConfigureMockMvc @Testcontainers
 class MerchantBulkIntegrationTest {
     @Container @ServiceConnection static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
@@ -47,6 +50,30 @@ class MerchantBulkIntegrationTest {
         when(parcels.createParcel(any(), any(), any(), any())).thenAnswer(call -> new ParcelClient.InternalParcelResponse(
                 UUID.randomUUID().toString(), "SD-test-" + UUID.randomUUID(), "CREATED", call.getArgument(0).toString(),
                 call.getArgument(2), Instant.now(), Instant.now()));
+    }
+    @Test void localSampleMerchantCanLoadOrdersAndConfirmUploadWithoutMerchantIdClaim() throws Exception {
+        UUID merchant = UUID.fromString("5a5bda96-61f7-4de5-b680-0ee204822315");
+        Merchant sample = new Merchant(merchant, "SwiftDrop Sample Store", "Sample Merchant",
+                "merchant@swiftdrop.lk", "+94770000000", null, Instant.now());
+        sample.approve(null);
+        merchants.saveAndFlush(sample);
+
+        var sampleJwt = jwt().jwt(token -> token.subject("usr-local-merchant-sample")
+                .claim("email", "merchant@swiftdrop.lk")
+                .claim("role", "MERCHANT"));
+
+        mvc.perform(get("/api/v1/merchant/orders/counts").with(sampleJwt))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/merchant/orders/bulk").with(sampleJwt)
+                        .contentType("text/csv")
+                        .header("Idempotency-Key", "sample-merchant-demo")
+                        .content(MerchantCsvTest.file(MerchantCsvTest.row("sample-demo-order"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.acceptedRows").value(1));
+
+        assertThat(orders.findAll()).hasSize(1);
+        assertThat(orders.findAll().getFirst().getMerchantId()).isEqualTo(merchant);
+        verify(parcels).createParcel(eq(merchant), any(), any(), any());
     }
     @Test void partialValidationCreatesOnlyValidRowsWithCorrectMerchantFeeAndMapping() throws Exception {
         UUID merchant = merchant("partial");
