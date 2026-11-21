@@ -544,6 +544,19 @@ describe('CustomerComponent', () => {
       expect(el().querySelector('#settings-logout-btn')).toBeNull();
     });
 
+    it('search box shows a clear button only while a query is typed', () => {
+      fixture.detectChanges();
+      expect(el().querySelector('#customer-search-clear')).toBeNull();
+
+      component.searchQuery.set('SD-2026');
+      fixture.detectChanges();
+      el().querySelector<HTMLButtonElement>('#customer-search-clear')!.click();
+      fixture.detectChanges();
+
+      expect(component.searchQuery()).toBe('');
+      expect(el().querySelector('#customer-search-clear')).toBeNull();
+    });
+
     it('top bar shows "Signed in as" with the customer name and initials', () => {
       fixture.detectChanges();
       const badge = el().querySelector<HTMLElement>('#profile-badge')!;
