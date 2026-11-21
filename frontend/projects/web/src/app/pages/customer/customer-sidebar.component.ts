@@ -108,9 +108,11 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
       </nav>
       </div>
 
-      <!-- Footer Utilities -->
-      <div class="hidden md:flex flex-col items-center gap-4">
-        <app-notification-bell placement="right" tone="brand"></app-notification-bell>
+      <!-- Bottom section: Settings & Log out (also shown in the mobile bar) -->
+      <div id="customer-sidebar-footer" class="flex md:flex-col items-center md:items-stretch gap-1 md:gap-1.5 md:border-t md:border-[#f0ece8] md:pt-3">
+        <div class="hidden md:block">
+          <app-notification-bell placement="right" tone="brand"></app-notification-bell>
+        </div>
         <button
           type="button"
           id="nav-settings-btn"

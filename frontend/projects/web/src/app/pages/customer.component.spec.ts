@@ -544,6 +544,15 @@ describe('CustomerComponent', () => {
       expect(el().querySelector('#settings-logout-btn')).toBeNull();
     });
 
+    it('sidebar footer holds Settings and Log out, and is not hidden on mobile', () => {
+      fixture.detectChanges();
+      const footer = el().querySelector<HTMLElement>('#customer-sidebar-footer')!;
+
+      expect(footer.classList).not.toContain('hidden');
+      expect(footer.querySelector('#nav-settings-btn')).not.toBeNull();
+      expect(footer.querySelector('#sidebar-logout-btn')).not.toBeNull();
+    });
+
     it('sidebar Log out asks for confirmation before signing out', () => {
       fixture.detectChanges();
       const signOut = jest.spyOn(component, 'signOut');
