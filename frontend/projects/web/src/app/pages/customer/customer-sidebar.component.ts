@@ -22,7 +22,8 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
       aria-label="Customer sidebar"
       class="w-full flex items-center justify-between gap-4 px-4 py-3 border-b border-[#ece9e4] bg-white z-40
              md:fixed md:inset-y-0 md:left-0 md:h-screen md:w-20 md:flex-col md:items-stretch md:justify-between
-             md:py-5 md:px-3 md:border-b-0 md:border-r md:overflow-y-auto md:overflow-x-hidden"
+             md:py-5 md:px-3 md:border-b-0 md:border-r md:overflow-y-auto md:overflow-x-hidden
+             md:transition-all md:duration-300 md:ease-in-out md:hover:w-[272px] md:focus-within:w-[272px] md:hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)]"
     >
       <div class="flex md:flex-col items-center md:items-stretch gap-3 md:gap-8">
       <!-- Brand Logo -->
@@ -30,15 +31,18 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
         routerLink="/customer"
         id="customer-home-link"
         (click)="deliveries.emit()"
-        class="md:mx-1 w-10 h-10 shrink-0 rounded-2xl bg-[#9b432f] text-white flex items-center justify-center shadow-[0_8px_18px_rgba(155,67,47,0.25)] cursor-pointer"
+        class="md:mx-1 flex items-center gap-3 shrink-0 no-underline cursor-pointer"
         title="SwiftDrop Home"
         aria-label="SwiftDrop Home"
       >
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-          <line x1="12" y1="22.08" x2="12" y2="12"/>
-        </svg>
+        <span class="w-10 h-10 shrink-0 rounded-2xl bg-[#9b432f] text-white flex items-center justify-center shadow-[0_8px_18px_rgba(155,67,47,0.25)]">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </span>
+        <span class="rail-label rail-brand">SwiftDrop</span>
       </a>
 
       <nav class="flex md:flex-col items-center md:items-stretch gap-1 md:gap-1.5" aria-label="Customer Navigation">
@@ -58,6 +62,7 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
             <rect width="7" height="9" x="14" y="12" rx="1"/>
             <rect width="7" height="5" x="3" y="16" rx="1"/>
           </svg>
+          <span class="rail-label">My Deliveries</span>
         </a>
 
         <!-- AI Assistant -->
@@ -79,6 +84,7 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
             <path d="M21 16h-4"/>
             <path d="M11 3H9"/>
           </svg>
+          <span class="rail-label">AI Assistant</span>
         </a>
 
         <!-- Book New Delivery -->
@@ -97,6 +103,7 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
           </span>
+          <span class="rail-label">Book Delivery</span>
         </button>
       </nav>
       </div>
@@ -117,6 +124,7 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
             <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
             <circle cx="12" cy="12" r="3"/>
           </svg>
+          <span class="rail-label">Settings</span>
         </button>
         <button
           type="button"
@@ -131,6 +139,7 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
             <polyline points="16 17 21 12 16 7"/>
             <line x1="21" y1="12" x2="9" y2="12"/>
           </svg>
+          <span class="rail-label">Log out</span>
         </button>
       </div>
     </aside>
@@ -211,11 +220,39 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
         font-weight: 700;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 0 0 1px #f2ded8;
       }
+      /* Labels stay hidden on mobile and fade in when the rail is hovered (md+). */
+      .rail-label {
+        display: none;
+        margin-left: 0.875rem;
+        white-space: nowrap;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-weight: 500;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      .rail-active .rail-label {
+        font-weight: 700;
+      }
+      .rail-brand {
+        margin-left: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        color: #211f32;
+      }
       @media (min-width: 768px) {
         .rail-item {
           width: 100%;
           justify-content: flex-start;
           padding: 0 0.75rem;
+        }
+        .rail-label {
+          display: inline;
+        }
+        aside:hover .rail-label,
+        aside:focus-within .rail-label {
+          opacity: 1;
         }
       }
     `,
