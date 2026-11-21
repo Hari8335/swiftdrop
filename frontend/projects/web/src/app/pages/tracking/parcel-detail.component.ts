@@ -65,8 +65,6 @@ import { CustomerTopbarComponent } from '../customer/customer-topbar.component';
         <app-customer-topbar
           [name]="customerName()"
           [email]="customerEmail()"
-          (settings)="openSettings()"
-          (logout)="sidebar.openLogoutConfirm()"
         >
           <button
             type="button"

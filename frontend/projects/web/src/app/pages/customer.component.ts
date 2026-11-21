@@ -43,8 +43,6 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
         <app-customer-topbar
           [name]="customerName()"
           [email]="customerEmail()"
-          (settings)="openSettings()"
-          (logout)="requestSignOut()"
         >
             <!-- Search Input -->
             <div class="relative w-full max-w-lg">
@@ -1690,11 +1688,6 @@ export class CustomerComponent implements OnInit {
     const tab = this.activeTab();
     return tab === 'deliveries' || tab === 'wizard' || tab === 'settings' ? tab : null;
   });
-
-  /** Opens the shared logout confirmation; sign-out happens only once confirmed. */
-  requestSignOut(): void {
-    this.sidebar?.openLogoutConfirm();
-  }
 
   @HostListener('document:keydown.escape')
   closeOnEscape(): void {
