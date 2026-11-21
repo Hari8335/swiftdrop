@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from 'shared-auth';
 import { CustomerSidebarComponent, CustomerSidebarItem } from './customer/customer-sidebar.component';
 import { CustomerTopbarComponent } from './customer/customer-topbar.component';
+import { CustomerChangePasswordComponent } from './customer/customer-change-password.component';
 import {
   AddressDto,
   CreateCustomerParcelRequest,
@@ -20,12 +21,12 @@ import {
 import { CustomerService } from './customer/customer.service';
 
 type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
-type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
+type SettingsSection = 'profile' | 'addresses' | 'security';
 
 @Component({
   selector: 'app-customer',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent],
+  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent, CustomerChangePasswordComponent],
   template: `
     <!-- Full-Screen Customer Dashboard Layout -->
     <div class="w-full min-h-screen flex flex-col md:flex-row bg-white">
@@ -33,6 +34,7 @@ type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
         [active]="sidebarActive()"
         (deliveries)="activeTab.set('deliveries')"
         (newDelivery)="startNewDelivery()"
+        (settings)="openSettings()"
         (signOut)="signOut()"
       ></app-customer-sidebar>
 
@@ -1328,9 +1330,6 @@ type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
                       @case ('security') {
                       <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
                       }
-                      @case ('session') {
-                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                      }
                     }
                   </span>
                   <span>{{ item.label }}</span>
@@ -1343,7 +1342,20 @@ type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
             <section class="min-w-0 max-w-3xl">
               @switch (settingsSection()) {
                 @case ('profile') {
-                <h2 class="text-2xl font-black text-[#1d1b2c] tracking-tight">Personal information</h2>
+                <div class="flex items-center justify-between gap-4">
+                  <h2 class="text-2xl font-black text-[#1d1b2c] tracking-tight">Personal information</h2>
+                  @if (!isEditingProfile()) {
+                  <button
+                    type="button"
+                    id="customer-edit-profile-btn"
+                    (click)="startEditingProfile()"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#eee7e0] hover:border-[#a53a26] text-[#a53a26] text-xs font-bold rounded-full transition-colors cursor-pointer"
+                  >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    Edit profile
+                  </button>
+                  }
+                </div>
                 <div class="h-px bg-[#f0ebe5] my-6"></div>
 
                 <form id="settings-profile-form" (ngSubmit)="saveProfile()" class="space-y-8">
@@ -1370,7 +1382,8 @@ type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
                           [(ngModel)]="editProfileFullName"
                           name="editFullName"
                           required
-                          class="w-full rounded-xl border border-[#eee7e0] bg-[#faf8f6] px-3.5 py-2.5 text-sm text-[#1d1b2c] outline-none focus:bg-white focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/15 transition-colors"
+                          [readonly]="!isEditingProfile()"
+                          class="w-full rounded-xl border border-[#eee7e0] bg-[#faf8f6] px-3.5 py-2.5 text-sm text-[#1d1b2c] outline-none focus:bg-white focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/15 transition-colors read-only:bg-white read-only:border-[#f0ebe5] read-only:cursor-default read-only:focus:ring-0 read-only:focus:border-[#f0ebe5]"
                         />
                       </div>
                     </div>
@@ -1389,7 +1402,8 @@ type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
                           [(ngModel)]="editProfileEmail"
                           name="editEmail"
                           required
-                          class="w-full rounded-xl border border-[#eee7e0] bg-[#faf8f6] px-3.5 py-2.5 text-sm text-[#1d1b2c] outline-none focus:bg-white focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/15 transition-colors"
+                          [readonly]="!isEditingProfile()"
+                          class="w-full rounded-xl border border-[#eee7e0] bg-[#faf8f6] px-3.5 py-2.5 text-sm text-[#1d1b2c] outline-none focus:bg-white focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/15 transition-colors read-only:bg-white read-only:border-[#f0ebe5] read-only:cursor-default read-only:focus:ring-0 read-only:focus:border-[#f0ebe5]"
                         />
                       </div>
                       <div>
@@ -1399,8 +1413,9 @@ type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
                           id="edit-profile-phone"
                           [(ngModel)]="editProfilePhone"
                           name="editPhone"
-                          placeholder="0771234567"
-                          class="w-full rounded-xl border border-[#eee7e0] bg-[#faf8f6] px-3.5 py-2.5 text-sm text-[#1d1b2c] outline-none focus:bg-white focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/15 transition-colors"
+                          [placeholder]="isEditingProfile() ? '0771234567' : 'Not provided'"
+                          [readonly]="!isEditingProfile()"
+                          class="w-full rounded-xl border border-[#eee7e0] bg-[#faf8f6] px-3.5 py-2.5 text-sm text-[#1d1b2c] outline-none focus:bg-white focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/15 transition-colors read-only:bg-white read-only:border-[#f0ebe5] read-only:cursor-default read-only:focus:ring-0 read-only:focus:border-[#f0ebe5]"
                         />
                       </div>
                     </div>
@@ -1417,11 +1432,12 @@ type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
                   </div>
                   }
 
+                  @if (isEditingProfile()) {
                   <div class="flex items-center justify-end gap-3 border-t border-[#f0ebe5] pt-6">
                     <button
                       type="button"
                       id="cancel-profile-btn"
-                      (click)="resetProfileForm()"
+                      (click)="cancelEditingProfile()"
                       class="px-5 py-2.5 bg-white border border-[#eee7e0] hover:bg-[#faf8f6] text-[#1d1b2c] text-xs font-bold rounded-full transition-all cursor-pointer"
                     >
                       Cancel
@@ -1435,6 +1451,7 @@ type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
                       {{ isSavingProfile() ? 'Saving...' : 'Save' }}
                     </button>
                   </div>
+                  }
                 </form>
                 }
 
@@ -1461,35 +1478,9 @@ type SettingsSection = 'profile' | 'addresses' | 'security' | 'session';
                 @case ('security') {
                 <h2 class="text-2xl font-black text-[#1d1b2c] tracking-tight">Security</h2>
                 <div class="h-px bg-[#f0ebe5] my-6"></div>
-                <h3 class="text-sm font-black text-[#1d1b2c]">Password</h3>
-                <p class="text-xs text-[#6f6d85] font-medium mt-0.5">We will email you a secure link to set a new password.</p>
-                <div class="flex justify-end border-t border-[#f0ebe5] pt-6 mt-8">
-                  <a
-                    routerLink="/forgot-password"
-                    id="settings-password-link"
-                    class="px-5 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-all no-underline whitespace-nowrap text-center"
-                  >
-                    Change password
-                  </a>
-                </div>
+                <app-customer-change-password [email]="customerEmail()"></app-customer-change-password>
                 }
 
-                @case ('session') {
-                <h2 class="text-2xl font-black text-[#1d1b2c] tracking-tight">Sign out</h2>
-                <div class="h-px bg-[#f0ebe5] my-6"></div>
-                <h3 class="text-sm font-black text-[#1d1b2c]">This device</h3>
-                <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Log out of SwiftDrop on this device.</p>
-                <div class="flex justify-end border-t border-[#f0ebe5] pt-6 mt-8">
-                  <button
-                    type="button"
-                    id="settings-logout-btn"
-                    (click)="requestSignOut()"
-                    class="px-5 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-all cursor-pointer whitespace-nowrap"
-                  >
-                    Log out
-                  </button>
-                </div>
-                }
               }
             </section>
           </div>
@@ -1629,7 +1620,6 @@ export class CustomerComponent implements OnInit {
     { id: 'profile', label: 'Personal information' },
     { id: 'addresses', label: 'Saved addresses' },
     { id: 'security', label: 'Security' },
-    { id: 'session', label: 'Sign out' },
   ];
   settingsSection = signal<SettingsSection>('profile');
   editProfileFullName = '';
@@ -1638,6 +1628,17 @@ export class CustomerComponent implements OnInit {
   editProfileError = signal<string | null>(null);
   isSavingProfile = signal(false);
   profileSaved = signal(false);
+  isEditingProfile = signal(false);
+
+  startEditingProfile(): void {
+    this.resetProfileForm();
+    this.isEditingProfile.set(true);
+  }
+
+  cancelEditingProfile(): void {
+    this.resetProfileForm();
+    this.isEditingProfile.set(false);
+  }
 
   selectSettingsSection(section: SettingsSection): void {
     this.settingsSection.set(section);
@@ -1651,9 +1652,11 @@ export class CustomerComponent implements OnInit {
     this.editProfileEmail = this.customerEmail();
     this.editProfileError.set(null);
     this.profileSaved.set(false);
+    this.isEditingProfile.set(false);
   }
 
   saveProfile(): void {
+    if (!this.isEditingProfile()) return;
     if (!this.editProfileFullName.trim() || !this.editProfileEmail.trim()) return;
     this.isSavingProfile.set(true);
     this.editProfileError.set(null);
@@ -1666,6 +1669,7 @@ export class CustomerComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.isSavingProfile.set(false);
+        this.isEditingProfile.set(false);
         this.profileSaved.set(true);
       },
       error: (err) => {
@@ -1684,7 +1688,7 @@ export class CustomerComponent implements OnInit {
 
   sidebarActive = computed<CustomerSidebarItem>(() => {
     const tab = this.activeTab();
-    return tab === 'deliveries' || tab === 'wizard' ? tab : null;
+    return tab === 'deliveries' || tab === 'wizard' || tab === 'settings' ? tab : null;
   });
 
   /** Opens the shared logout confirmation; sign-out happens only once confirmed. */

@@ -2,7 +2,7 @@ import { Component, HostListener, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NotificationBellComponent } from '../../notification/notification-bell/notification-bell.component';
 
-export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | null;
+export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'settings' | null;
 
 /**
  * Shared customer navigation rail, used by every customer page so the
@@ -95,12 +95,26 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | null;
 
       <!-- Footer Utilities -->
       <div class="hidden md:flex flex-col items-center gap-4">
-        <app-notification-bell placement="right"></app-notification-bell>
+        <app-notification-bell placement="right" tone="brand"></app-notification-bell>
+        <button
+          type="button"
+          id="nav-settings-btn"
+          (click)="settings.emit()"
+          [class.rail-active]="active() === 'settings'"
+          class="rail-icon-btn w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] hover:bg-white transition-colors cursor-pointer"
+          title="Settings"
+          aria-label="Settings"
+        >
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
         <button
           type="button"
           id="sidebar-logout-btn"
           (click)="openLogoutConfirm()"
-          class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#5e5a7e] hover:text-[#a53a26] hover:bg-white transition-colors cursor-pointer"
+          class="w-11 h-11 rounded-2xl flex items-center justify-center text-[#a53a26] hover:bg-white transition-colors cursor-pointer"
           title="Sign Out"
           aria-label="Sign Out"
         >
@@ -177,6 +191,7 @@ export class CustomerSidebarComponent {
 
   readonly deliveries = output<void>();
   readonly newDelivery = output<void>();
+  readonly settings = output<void>();
   readonly signOut = output<void>();
 
   readonly logoutConfirmOpen = signal(false);

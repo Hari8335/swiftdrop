@@ -41,8 +41,10 @@ interface SidePanelPosition {
         type="button"
         id="notification-bell-btn"
         (click)="toggleDropdown()"
+        [class.text-[#6f6d85]]="tone() === 'muted'"
+        [class.text-[#a53a26]]="tone() === 'brand'"
         class="relative flex items-center justify-center w-11 h-11 rounded-2xl
-               text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf6f0]
+               hover:text-[#a53a26] hover:bg-[#faf6f0]
                transition-colors focus:outline-none focus-visible:ring-2
                focus-visible:ring-[#a53a26]/20 cursor-pointer"
         [attr.aria-label]="ariaLabel()"
@@ -227,6 +229,8 @@ export class NotificationBellComponent implements OnInit {
    * to the right edge would be pushed off the screen.
    */
   readonly placement = input<'below' | 'right'>('below');
+  /** Icon colour: 'muted' grey (default) or 'brand' terracotta. */
+  readonly tone = input<'muted' | 'brand'>('muted');
 
   protected readonly isOpen = signal(false);
 

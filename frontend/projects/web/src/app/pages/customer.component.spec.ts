@@ -477,7 +477,7 @@ describe('CustomerComponent', () => {
       expect(el().querySelector('#settings-profile-form')).not.toBeNull();
     });
 
-    it('Security section links to the password reset page', () => {
+    it('Security section changes the password inside the portal', () => {
       component.activeTab.set('settings');
       fixture.detectChanges();
 
@@ -485,7 +485,8 @@ describe('CustomerComponent', () => {
       fixture.detectChanges();
 
       expect(el().querySelector('#settings-profile-form')).toBeNull();
-      expect(el().querySelector('#settings-password-link')!.getAttribute('href')).toBe('/forgot-password');
+      expect(el().querySelector('#change-password')).not.toBeNull();
+      expect(el().querySelector('a[href="/forgot-password"]')).toBeNull();
     });
 
     it('Manage address book in settings switches to the address book', () => {
@@ -499,15 +500,52 @@ describe('CustomerComponent', () => {
       expect(component.activeTab()).toBe('addresses');
     });
 
-    it('Cancel discards unsaved profile edits', () => {
+    it('profile fields are read-only until Edit profile is clicked', () => {
+      component.openSettings();
+      fixture.detectChanges();
+      const nameInput = () => el().querySelector<HTMLInputElement>('#edit-profile-fullname')!;
+
+      expect(nameInput().readOnly).toBe(true);
+      expect(el().querySelector('#save-profile-btn')).toBeNull();
+
+      el().querySelector<HTMLButtonElement>('#customer-edit-profile-btn')!.click();
+      fixture.detectChanges();
+
+      expect(nameInput().readOnly).toBe(false);
+      expect(el().querySelector('#save-profile-btn')).not.toBeNull();
+      expect(el().querySelector('#customer-edit-profile-btn')).toBeNull();
+    });
+
+    it('Cancel discards unsaved profile edits and locks the form again', () => {
       component.openSettings();
       const savedName = component.editProfileFullName;
+      fixture.detectChanges();
+      el().querySelector<HTMLButtonElement>('#customer-edit-profile-btn')!.click();
       fixture.detectChanges();
 
       component.editProfileFullName = 'Someone Else';
       el().querySelector<HTMLButtonElement>('#cancel-profile-btn')!.click();
+      fixture.detectChanges();
 
       expect(component.editProfileFullName).toBe(savedName);
+      expect(el().querySelector<HTMLInputElement>('#edit-profile-fullname')!.readOnly).toBe(true);
+    });
+
+    it('sidebar Settings button opens the settings panel', () => {
+      fixture.detectChanges();
+      el().querySelector<HTMLButtonElement>('#nav-settings-btn')!.click();
+      fixture.detectChanges();
+
+      expect(component.activeTab()).toBe('settings');
+      expect(el().querySelector('#settings-panel')).not.toBeNull();
+      expect(el().querySelector('#nav-settings-btn')!.classList).toContain('rail-active');
+    });
+
+    it('settings menu no longer has a Sign out section', () => {
+      component.openSettings();
+      fixture.detectChanges();
+      expect(el().querySelector('#settings-nav-session')).toBeNull();
+      expect(el().querySelector('#settings-logout-btn')).toBeNull();
     });
 
     it('Log out closes the menu and asks for confirmation before signing out', () => {

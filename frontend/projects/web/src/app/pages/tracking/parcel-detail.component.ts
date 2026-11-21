@@ -56,6 +56,7 @@ import { CustomerTopbarComponent } from '../customer/customer-topbar.component';
         #sidebar
         active="deliveries"
         (newDelivery)="newDelivery()"
+        (settings)="openSettings()"
         (signOut)="signOut()"
       ></app-customer-sidebar>
 

@@ -54,6 +54,7 @@ const SUGGESTIONS = [
         #sidebar
         active="assistant"
         (newDelivery)="newDelivery()"
+        (settings)="openSettings()"
         (signOut)="logout()"
       ></app-customer-sidebar>
 
