@@ -1,9 +1,10 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
-import { catchError, finalize, Observable, tap, throwError } from 'rxjs';
+import { catchError, finalize, Observable, of, tap, throwError } from 'rxjs';
 import {
   AdminUserFilterParams,
   CreateStaffUserRequest,
+  DeliveryZoneOption,
   RoleCounts,
   UpdateUserStatusRequest,
   UserListPage,
@@ -160,6 +161,15 @@ export class AdminUsersService {
   public refresh(): Observable<UserListPage> {
     const { page = 0, size = 15, role, enabled } = this.lastFilterParams;
     return this.loadUsers(page, size, role, enabled);
+  }
+
+  /**
+   * Loads configured delivery zones from operations service.
+   */
+  public loadDeliveryZones(): Observable<DeliveryZoneOption[]> {
+    return this.http.get<DeliveryZoneOption[]>('/api/v1/admin/zones').pipe(
+      catchError(() => of([]))
+    );
   }
 
   /**

@@ -6,6 +6,7 @@ import { AuthService } from 'shared-auth';
 import { AdminSearchService } from './admin-search.service';
 import {
   CreateStaffUserRequest,
+  DeliveryZoneOption,
   UserSummary,
 } from './admin-users.model';
 import { AdminUsersService } from './admin-users.service';
@@ -198,6 +199,7 @@ import { AdminUsersService } from './admin-users.service';
                 <th class="px-5 py-3.5">User</th>
                 <th class="px-5 py-3.5">Phone Number</th>
                 <th class="px-5 py-3.5">Role</th>
+                <th class="px-5 py-3.5">Zone</th>
                 <th class="px-5 py-3.5">Status</th>
                 <th class="px-5 py-3.5 text-right">Actions</th>
               </tr>
@@ -238,6 +240,17 @@ import { AdminUsersService } from './admin-users.service';
                 </td>
                 <td class="px-5 py-4">
                   <span
+                    *ngIf="user.zone"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#fff5ef] text-[#9b432f] border border-[#efcfc3]"
+                  >
+                    {{ user.zone }}
+                  </span>
+                  <span *ngIf="!user.zone" class="text-xs text-slate-400 font-medium">
+                    —
+                  </span>
+                </td>
+                <td class="px-5 py-4">
+                  <span
                     class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold"
                     [class.bg-emerald-50]="user.enabled"
                     [class.text-emerald-700]="user.enabled"
@@ -257,46 +270,13 @@ import { AdminUsersService } from './admin-users.service';
                     Updating...
                   </span>
 
-                  <!-- Inline Confirmation State -->
-                  <div
-                    *ngIf="updatingUserId() !== user.id && pendingConfirmUserId() === user.id"
-                    class="inline-flex items-center justify-end gap-1.5"
-                  >
-                    <button
-                      *ngIf="user.enabled"
-                      type="button"
-                      [attr.id]="'confirm-toggle-user-' + user.id + '-btn'"
-                      (click)="confirmToggleUserStatus(user)"
-                      class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-colors"
-                    >
-                      Confirm Disable
-                    </button>
-                    <button
-                      *ngIf="!user.enabled"
-                      type="button"
-                      [attr.id]="'confirm-toggle-user-' + user.id + '-btn'"
-                      (click)="confirmToggleUserStatus(user)"
-                      class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-colors"
-                    >
-                      Confirm Enable
-                    </button>
-                    <button
-                      type="button"
-                      [attr.id]="'cancel-toggle-user-' + user.id + '-btn'"
-                      (click)="cancelConfirmToggle()"
-                      class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-
-                  <!-- Default Action Button (Triggers Confirmation) -->
+                  <!-- Action Button (Triggers Confirmation Modal) -->
                   <button
-                    *ngIf="updatingUserId() !== user.id && pendingConfirmUserId() !== user.id"
+                    *ngIf="updatingUserId() !== user.id"
                     type="button"
                     [attr.id]="'toggle-user-' + user.id + '-btn'"
-                    (click)="startConfirmToggle(user.id)"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+                    (click)="startConfirmToggle(user)"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer"
                     [class.border-rose-200]="user.enabled"
                     [class.text-rose-600]="user.enabled"
                     [class.hover:bg-rose-50]="user.enabled"
@@ -375,6 +355,77 @@ import { AdminUsersService } from './admin-users.service';
           </div>
         </div>
       </div>
+
+      <!-- ================================================================= -->
+      <!-- MODAL: CONFIRM TOGGLE USER STATUS (MATCHING LOGOUT DIALOG UI) -->
+      <!-- ================================================================= -->
+      @if (pendingConfirmUser(); as confirmUser) {
+        <div
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in"
+          (click)="cancelConfirmToggle()"
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-toggle-user-title"
+            aria-describedby="confirm-toggle-user-desc"
+            class="w-full max-w-sm rounded-3xl bg-white border border-[#eee7e0] shadow-xl p-6 space-y-5"
+            (click)="$event.stopPropagation()"
+          >
+            <div
+              class="w-12 h-12 rounded-2xl flex items-center justify-center"
+              [class.bg-[#faf6f0]]="confirmUser.enabled"
+              [class.text-[#9b432f]]="confirmUser.enabled"
+              [class.bg-emerald-50]="!confirmUser.enabled"
+              [class.text-emerald-600]="!confirmUser.enabled"
+            >
+              <!-- User Status Toggle Icon in rounded-2xl container like logout dialog -->
+              <svg *ngIf="confirmUser.enabled" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+              </svg>
+              <svg *ngIf="!confirmUser.enabled" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+
+            <div>
+              <h3 id="confirm-toggle-user-title" class="text-base font-black text-[#1d1b2c]">
+                {{ confirmUser.enabled ? 'Disable staff account?' : 'Enable staff account?' }}
+              </h3>
+              <p id="confirm-toggle-user-desc" class="text-xs text-[#6f6d85] font-medium mt-1">
+                {{ confirmUser.enabled
+                  ? 'Are you sure you want to disable ' + confirmUser.fullName + ' (' + confirmUser.email + ')? The user will no longer be able to sign in.'
+                  : 'Are you sure you want to enable ' + confirmUser.fullName + ' (' + confirmUser.email + ')? The user will regain access to the administration portal.' }}
+              </p>
+            </div>
+
+            <div class="flex justify-end gap-3">
+              <button
+                type="button"
+                [attr.id]="'cancel-toggle-user-' + confirmUser.id + '-btn'"
+                (click)="cancelConfirmToggle()"
+                class="px-5 py-2.5 bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#1d1b2c] text-xs font-bold rounded-full transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                [attr.id]="'confirm-toggle-user-' + confirmUser.id + '-btn'"
+                (click)="confirmToggleUserStatus(confirmUser)"
+                class="px-5 py-2.5 text-white text-xs font-bold rounded-full transition-all cursor-pointer"
+                [class.bg-[#9b432f]]="confirmUser.enabled"
+                [class.hover:bg-[#833724]]="confirmUser.enabled"
+                [class.bg-emerald-600]="!confirmUser.enabled"
+                [class.hover:bg-emerald-700]="!confirmUser.enabled"
+              >
+                {{ confirmUser.enabled ? 'Confirm Disable' : 'Confirm Enable' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
 
       <!-- ================================================================= -->
       <!-- MODAL: CREATE STAFF USER (COURIER / DISPATCHER) -->
@@ -480,6 +531,45 @@ import { AdminUsersService } from './admin-users.service';
               </select>
             </div>
 
+            <!-- Delivery Zone Selection & Autocomplete -->
+            <div class="relative">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-bold text-[#77748a]">
+                  Delivery Zone <span class="text-red-500 font-bold ml-0.5">*</span>
+                </label>
+                <span *ngIf="availableZones().length > 0" class="text-[11px] font-semibold text-[#9b432f]">
+                  {{ availableZones().length }} zones available
+                </span>
+              </div>
+              <input
+                type="text"
+                id="staff-zone-input"
+                [ngModel]="newUserZone()"
+                (ngModelChange)="onZoneInputChange($event)"
+                (focus)="showZoneDropdown.set(true)"
+                (blur)="onZoneBlur()"
+                name="zone"
+                required
+                autocomplete="off"
+                placeholder="e.g. COLOMBO_ZONE, GAMPAHA_ZONE"
+                class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none placeholder:text-[#aaa6b5] focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
+              />
+
+              <!-- Interactive Suggestion Dropdown as user types (Showing only zone) -->
+              <div
+                *ngIf="showZoneDropdown() && matchingZones().length > 0"
+                class="absolute left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-[#e9e3dd] bg-white p-1.5 shadow-[0_10px_25px_rgba(42,32,25,0.12)]"
+              >
+                <div
+                  *ngFor="let zone of matchingZones()"
+                  (mousedown)="selectZone(zone.name)"
+                  class="flex cursor-pointer items-center rounded-lg px-3 py-2 text-xs transition hover:bg-[#fff5ef] hover:text-[#9b432f]"
+                >
+                  <span class="font-bold text-[#211f32]">{{ zone.name }}</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Modal Action Buttons -->
             <div class="flex items-center justify-end gap-2 border-t border-[#e9e3dd] pt-4">
               <button
@@ -517,6 +607,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
   public isSubmitting = signal(false);
   public updatingUserId = signal<string | null>(null);
   public pendingConfirmUserId = signal<string | null>(null);
+  public pendingConfirmUser = signal<UserSummary | null>(null);
   public modalError = signal<string | null>(null);
   public emailAlreadyExistsError = signal(false);
 
@@ -552,6 +643,29 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
   public newUserEmail = '';
   public newUserPhone = '';
   public newUserRole: 'COURIER' | 'DISPATCHER' = 'COURIER';
+  public newUserZone = signal('');
+
+  // Zones State
+  public availableZones = signal<DeliveryZoneOption[]>([]);
+  public showZoneDropdown = signal(false);
+
+  public matchingZones = computed(() => {
+    const raw = this.newUserZone().trim().toLowerCase();
+    const zones = this.availableZones();
+    if (!raw) {
+      return zones;
+    }
+    const q = raw.replace(/\s+/g, '_');
+    const qSpaced = raw.replace(/_/g, ' ');
+
+    return zones.filter((z) => {
+      const name = (z.name || '').toLowerCase();
+      const nameSpaced = name.replace(/_/g, ' ');
+      const matchName = name.includes(q) || nameSpaced.includes(qSpaced) || name.includes(raw);
+      const matchDistrict = (z.districts || []).some((d) => (d || '').toLowerCase().includes(raw));
+      return matchName || matchDistrict;
+    });
+  });
 
   // Toast State
   public toastMessage = signal<string | null>(null);
@@ -561,6 +675,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.reloadUsers();
+    this.loadZones();
   }
 
   ngOnDestroy(): void {
@@ -598,12 +713,20 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     }
   }
 
-  public startConfirmToggle(userId: string): void {
-    this.pendingConfirmUserId.set(userId);
+  public startConfirmToggle(user: UserSummary | string): void {
+    if (typeof user === 'string') {
+      const found = this.adminUsersService.users().find((u) => u.id === user) || null;
+      this.pendingConfirmUser.set(found);
+      this.pendingConfirmUserId.set(user);
+    } else {
+      this.pendingConfirmUser.set(user);
+      this.pendingConfirmUserId.set(user.id);
+    }
   }
 
   public cancelConfirmToggle(): void {
     this.pendingConfirmUserId.set(null);
+    this.pendingConfirmUser.set(null);
   }
 
   public confirmToggleUserStatus(user: UserSummary): void {
@@ -616,6 +739,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     }
 
     this.pendingConfirmUserId.set(null);
+    this.pendingConfirmUser.set(null);
     this.updatingUserId.set(user.id);
     const targetStatus = !user.enabled;
 
@@ -657,7 +781,8 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
       this.newUserFullName.trim().length > 0 &&
       /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(this.newUserEmail.trim()) &&
       this.isPhoneValid() &&
-      (this.newUserRole === 'COURIER' || this.newUserRole === 'DISPATCHER')
+      (this.newUserRole === 'COURIER' || this.newUserRole === 'DISPATCHER') &&
+      this.newUserZone().trim().length > 0
     );
   }
 
@@ -670,9 +795,38 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     }
   }
 
+  public loadZones(): void {
+    this.adminUsersService.loadDeliveryZones().subscribe({
+      next: (zones) => {
+        this.availableZones.set(zones || []);
+      },
+      error: () => {
+        this.availableZones.set([]);
+      },
+    });
+  }
+
+  public selectZone(zoneName: string): void {
+    this.newUserZone.set(zoneName);
+    this.showZoneDropdown.set(false);
+  }
+
+  public onZoneInputChange(val: string): void {
+    this.newUserZone.set(val || '');
+    this.showZoneDropdown.set(true);
+  }
+
+  public onZoneBlur(): void {
+    setTimeout(() => {
+      this.showZoneDropdown.set(false);
+    }, 250);
+  }
+
   public openCreateUserModal(): void {
     this.modalError.set(null);
     this.emailAlreadyExistsError.set(false);
+    this.newUserZone.set('');
+    this.showZoneDropdown.set(false);
     this.isCreateUserModalOpen.set(true);
   }
 
@@ -680,6 +834,8 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     this.isCreateUserModalOpen.set(false);
     this.modalError.set(null);
     this.emailAlreadyExistsError.set(false);
+    this.newUserZone.set('');
+    this.showZoneDropdown.set(false);
   }
 
   public submitCreateStaffUser(): void {
@@ -691,11 +847,13 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     this.modalError.set(null);
     this.emailAlreadyExistsError.set(false);
 
+    const zoneVal = this.newUserZone().trim();
     const payload: CreateStaffUserRequest = {
       fullName: this.newUserFullName.trim(),
       email: this.newUserEmail.trim().toLowerCase(),
       phoneNumber: this.newUserPhone.trim(),
       role: this.newUserRole,
+      zone: zoneVal ? zoneVal : undefined,
     };
 
     this.adminUsersService.createStaffUser(payload).subscribe({
@@ -711,6 +869,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
         this.newUserFullName = '';
         this.newUserEmail = '';
         this.newUserPhone = '';
+        this.newUserZone.set('');
         this.closeCreateUserModal();
 
         // Refresh users to reconcile authoritative backend list

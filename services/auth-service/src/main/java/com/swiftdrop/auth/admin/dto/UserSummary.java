@@ -11,9 +11,14 @@ public record UserSummary(
     String phoneNumber,
     String role,
     boolean enabled,
+    String zone,
     Instant createdAt,
     Instant updatedAt
 ) {
+    public UserSummary(String id, String email, String fullName, String phoneNumber, String role, boolean enabled, Instant createdAt, Instant updatedAt) {
+        this(id, email, fullName, phoneNumber, role, enabled, null, createdAt, updatedAt);
+    }
+
     public static UserSummary from(User user) {
         return new UserSummary(
             user.getId(),
@@ -22,6 +27,7 @@ public record UserSummary(
             user.getPhoneNumber(),
             user.getRole(),
             user.isEnabled(),
+            user.getZone(),
             user.getCreatedAt(),
             user.getUpdatedAt()
         );

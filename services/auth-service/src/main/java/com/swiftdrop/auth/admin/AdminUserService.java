@@ -116,6 +116,10 @@ public class AdminUserService {
         String userId = UUID.randomUUID().toString();
         String passwordHash = passwordEncoder.encode(temporaryPassword);
 
+        String zone = (request.zone() != null && !request.zone().isBlank())
+            ? request.zone().trim()
+            : null;
+
         User user = new User(
             userId,
             email,
@@ -124,7 +128,8 @@ public class AdminUserService {
             request.phoneNumber().trim(),
             role,
             true,
-            null
+            null,
+            zone
         );
         user.setMustChangePassword(true);
 
@@ -150,17 +155,20 @@ public class AdminUserService {
         }
 
         if (auditService != null) {
+            Map<String, Object> auditDetails = new java.util.HashMap<>();
+            auditDetails.put("email", saved.getEmail());
+            auditDetails.put("role", saved.getRole());
+            auditDetails.put("fullName", saved.getFullName());
+            if (saved.getZone() != null) {
+                auditDetails.put("zone", saved.getZone());
+            }
             auditService.record(
                 saved.getId(),
                 saved.getRole(),
                 "STAFF_PROVISIONED",
                 "USER",
                 saved.getId(),
-                Map.of(
-                    "email", saved.getEmail(),
-                    "role", saved.getRole(),
-                    "fullName", saved.getFullName()
-                )
+                auditDetails
             );
         }
 
@@ -195,6 +203,9 @@ public class AdminUserService {
         }
         if (request.phoneNumber() != null) {
             user.setPhoneNumber(request.phoneNumber().trim());
+        }
+        if (request.zone() != null) {
+            user.setZone(request.zone().isBlank() ? null : request.zone().trim());
         }
         if (request.email() != null && !request.email().isBlank()) {
             String normalizedEmail = request.email().trim().toLowerCase();

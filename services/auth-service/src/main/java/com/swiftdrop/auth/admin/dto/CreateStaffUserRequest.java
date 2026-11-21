@@ -19,5 +19,11 @@ public record CreateStaffUserRequest(
     String phoneNumber,
 
     @NotBlank(message = "Role is required")
-    String role
-) {}
+    String role,
+
+    String zone
+) {
+    public CreateStaffUserRequest(String email, String password, String fullName, String phoneNumber, String role) {
+        this(email, password, fullName, phoneNumber, role, null);
+    }
+}

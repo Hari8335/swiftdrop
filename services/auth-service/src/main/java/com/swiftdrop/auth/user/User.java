@@ -39,6 +39,9 @@ public class User {
     @Column(name = "merchant_id", length = 64)
     private String merchantId;
 
+    @Column(name = "zone", length = 128)
+    private String zone;
+
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword;
 
@@ -53,6 +56,11 @@ public class User {
 
     public User(String id, String email, String passwordHash, String fullName,
                 String phoneNumber, String role, boolean enabled, String merchantId) {
+        this(id, email, passwordHash, fullName, phoneNumber, role, enabled, merchantId, null);
+    }
+
+    public User(String id, String email, String passwordHash, String fullName,
+                String phoneNumber, String role, boolean enabled, String merchantId, String zone) {
         this.id = id;
         this.email = email != null ? email.trim().toLowerCase() : null;
         this.passwordHash = passwordHash;
@@ -61,6 +69,7 @@ public class User {
         this.role = role;
         this.enabled = enabled;
         this.merchantId = merchantId;
+        this.zone = zone;
     }
 
     @PrePersist
@@ -147,6 +156,14 @@ public class User {
 
     public void setMerchantId(String merchantId) {
         this.merchantId = merchantId;
+    }
+
+    public String getZone() {
+        return zone;
+    }
+
+    public void setZone(String zone) {
+        this.zone = zone;
     }
 
     public boolean isMustChangePassword() {

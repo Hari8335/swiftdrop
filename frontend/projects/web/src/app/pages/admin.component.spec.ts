@@ -99,22 +99,24 @@ describe('AdminComponent', () => {
     expect(rows.length).toBe(3);
   });
 
-  it('supports pagination controls with previous and next navigation', () => {
+  it('renders all recent activities in a single view without pagination buttons and with clean subtitle', () => {
     auditService.activities.set(mockRecords);
     auditService.totalElements.set(25);
     auditService.totalPages.set(3);
     auditService.currentPage.set(0);
     fixture.detectChanges();
 
-    const prevBtn = fixture.nativeElement.querySelector('#admin-activity-prev-page') as HTMLButtonElement;
-    const nextBtn = fixture.nativeElement.querySelector('#admin-activity-next-page') as HTMLButtonElement;
+    const element = fixture.nativeElement as HTMLElement;
+    const prevBtn = element.querySelector('#admin-activity-prev-page');
+    const nextBtn = element.querySelector('#admin-activity-next-page');
 
-    expect(prevBtn.disabled).toBe(true);
-    expect(nextBtn.disabled).toBe(false);
+    // Pagination buttons are removed to display all activities directly
+    expect(prevBtn).toBeNull();
+    expect(nextBtn).toBeNull();
 
-    const loadSpy = jest.spyOn(component, 'loadActivities');
-    component.goToPage(1);
-    expect(loadSpy).toHaveBeenCalledWith(1);
+    // Verify cleaned subtitle
+    expect(element.textContent).toContain('Recent merchant registrations & approvals, and courier/dispatcher creation.');
+    expect(element.textContent).not.toContain('and admin password renewals (10 rows max).');
   });
 
   it('formats various actions into human readable metadata', () => {

@@ -66,6 +66,13 @@ describe('MerchantApprovalComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('PENDING');
   });
 
+  it('automatically defaults to approved merchants when there are no pending merchant requests', () => {
+    service.refresh.mockReturnValueOnce(of({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 20 }));
+    component.reload();
+    expect(component.listStatus()).toBe('APPROVED');
+    expect(service.loadMerchants).toHaveBeenCalledWith(0, 20, 'APPROVED');
+  });
+
   it('requires explicit recovery confirmation and preserves its key after a lost response', () => {
     const pending={...merchant,credentialRecoveryAvailable:true};
     service.recover=jest.fn().mockReturnValueOnce(throwError(()=>({status:502})))
