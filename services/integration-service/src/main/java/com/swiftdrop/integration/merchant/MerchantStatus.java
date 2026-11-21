@@ -19,7 +19,8 @@ public enum MerchantStatus {
         return switch (this) {
             case PENDING -> next == APPROVED || next == REJECTED;
             case APPROVED -> next == SUSPENDED;
-            case REJECTED, SUSPENDED -> false;
+            case SUSPENDED -> next == APPROVED;
+            case REJECTED -> false;
         };
     }
 

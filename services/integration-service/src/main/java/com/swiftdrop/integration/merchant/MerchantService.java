@@ -60,6 +60,14 @@ public class MerchantService {
         return recovery.reject(merchantId, reason);
     }
 
+    public MerchantSummary suspend(UUID merchantId) {
+        return recovery.suspend(merchantId);
+    }
+
+    public MerchantSummary reactivate(UUID merchantId) {
+        return recovery.reactivate(merchantId);
+    }
+
     public void sendCredentialsEmail(UUID merchantId, String clientId, String clientSecret) {
         Merchant merchant = merchantRepository.findById(merchantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Merchant not found"));

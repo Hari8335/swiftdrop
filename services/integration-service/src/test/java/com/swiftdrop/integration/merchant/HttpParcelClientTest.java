@@ -110,6 +110,31 @@ class HttpParcelClientTest {
     }
 
     @Test
+    void historyReadUsesAuthenticatedParcelHistoryApi() {
+        Jwt jwt = Jwt.withTokenValue("validated-merchant-token").header("alg", "RS256")
+                .subject("client-1").claim("merchantId", merchantId.toString()).build();
+        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt,
+                java.util.List.of(new SimpleGrantedAuthority("ROLE_MERCHANT"))));
+        server.expect(requestTo("http://parcel-service:8082/api/v1/parcels/" + parcelId + "/history"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("Authorization", "Bearer validated-merchant-token"))
+                .andRespond(withSuccess("""
+                        {"parcelId":"%s","trackingNumber":"SD-20261110-0001","currentStatus":"FAILED",
+                         "entries":[{"sequence":null,"fromStatus":"OUT_FOR_DELIVERY","toStatus":"FAILED",
+                           "occurredAt":"2026-11-10T00:05:00Z","reason":"Recipient absent"}]}
+                        """.formatted(parcelId), MediaType.APPLICATION_JSON));
+
+        var history = client.getHistory(parcelId);
+
+        assertThat(history.currentStatus()).isEqualTo("FAILED");
+        assertThat(history.entries()).singleElement().satisfies(entry -> {
+            assertThat(entry.toStatus()).isEqualTo("FAILED");
+            assertThat(entry.reason()).isEqualTo("Recipient absent");
+        });
+        server.verify();
+    }
+
+    @Test
     void neverTreatsOtherAuthenticationCredentialsAsABearerToken() {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
                 "user", "not-a-jwt", java.util.List.of(new SimpleGrantedAuthority("ROLE_MERCHANT"))));

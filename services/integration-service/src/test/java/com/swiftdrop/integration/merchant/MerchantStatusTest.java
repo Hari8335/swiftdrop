@@ -21,12 +21,13 @@ class MerchantStatusTest {
     }
 
     @Test
-    void rejectedAndSuspendedAreTerminalUntilTransitionsAreDefined() {
-        for (MerchantStatus terminal : new MerchantStatus[] {MerchantStatus.REJECTED, MerchantStatus.SUSPENDED}) {
-            for (MerchantStatus target : MerchantStatus.values()) {
-                assertFalse(terminal.canTransitionTo(target), terminal + " -> " + target);
-            }
+    void rejectedIsTerminalAndSuspendedCanBeReactivated() {
+        for (MerchantStatus target : MerchantStatus.values()) {
+            assertFalse(MerchantStatus.REJECTED.canTransitionTo(target), "REJECTED -> " + target);
         }
+        assertTrue(MerchantStatus.SUSPENDED.canTransitionTo(MerchantStatus.APPROVED));
+        assertFalse(MerchantStatus.SUSPENDED.canTransitionTo(MerchantStatus.PENDING));
+        assertFalse(MerchantStatus.SUSPENDED.canTransitionTo(MerchantStatus.REJECTED));
     }
 
     @Test

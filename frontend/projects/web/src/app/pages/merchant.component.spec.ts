@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Subject, of, throwError } from 'rxjs';
 import { MerchantComponent } from './merchant.component';
-import { MerchantOrderListPage, OrderCounts, WebhookSettings } from './merchant/merchant.model';
+import { MerchantOrderDetails, MerchantOrderListPage, OrderCounts, WebhookSettings } from './merchant/merchant.model';
 import { MerchantService } from './merchant/merchant.service';
 
 describe('MerchantComponent', () => {
@@ -50,10 +50,21 @@ describe('MerchantComponent', () => {
     cancelled: 0,
   };
 
+  const mockOrderDetails: MerchantOrderDetails = {
+    ...mockOrderPage.content[0],
+    externalReference: 'store-ref-101',
+    status: 'FAILED',
+    history: [
+      { fromStatus: null, toStatus: 'CREATED', occurredAt: '2026-10-28T12:00:00Z', reason: 'Order created' },
+      { fromStatus: 'OUT_FOR_DELIVERY', toStatus: 'FAILED', occurredAt: '2026-10-29T10:00:00Z', reason: 'Recipient absent' },
+    ],
+  };
+
   beforeEach(async () => {
     const serviceMock: Partial<jest.Mocked<MerchantService>> = {
       getOrders: jest.fn().mockReturnValue(of(mockOrderPage)),
       getOrderCounts: jest.fn().mockReturnValue(of(mockCounts)),
+      getOrderDetails: jest.fn().mockReturnValue(of(mockOrderDetails)),
       getWebhookSettings: jest.fn().mockReturnValue(
         of({
           merchantId: 'merchant-test-id',
@@ -129,6 +140,63 @@ describe('MerchantComponent', () => {
     expect(component.orders()).toHaveLength(2);
     expect(component.counts().total).toBe(10);
     expect(component.isLoadingOrders()).toBe(false);
+  });
+
+  it('loads and displays the selected order actual details and failed history', () => {
+    component.viewOrderDetails(mockOrderPage.content[0]);
+    fixture.detectChanges();
+
+    expect(merchantService.getOrderDetails).toHaveBeenCalledWith('ord-101');
+    expect(component.orderDetails()?.externalReference).toBe('store-ref-101');
+    expect(fixture.nativeElement.textContent).toContain('store-ref-101');
+    expect(fixture.nativeElement.textContent).toContain('FAILED');
+    expect(fixture.nativeElement.textContent).toContain('Recipient absent');
+  });
+
+  it('shows cancellation reason and recorded timestamp in the timeline', () => {
+    const cancelled = {
+      ...mockOrderDetails,
+      status: 'CANCELLED' as const,
+      history: [{ fromStatus: 'CREATED', toStatus: 'CANCELLED' as const,
+        occurredAt: '2026-10-28T12:15:00Z', reason: 'Duplicate order' }],
+    };
+    merchantService.getOrderDetails.mockReturnValueOnce(of(cancelled));
+
+    component.viewOrderDetails(mockOrderPage.content[0]);
+    fixture.detectChanges();
+
+    expect(component.orderDetails()?.status).toBe('CANCELLED');
+    expect(fixture.nativeElement.textContent).toContain('CANCELLED');
+    expect(fixture.nativeElement.textContent).toContain('Duplicate order');
+    expect(fixture.nativeElement.textContent).toContain('Oct 28, 2026');
+  });
+
+  it('does not retain old details when switching orders and closing the modal', () => {
+    const first = new Subject<MerchantOrderDetails>();
+    merchantService.getOrderDetails
+      .mockReturnValueOnce(first.asObservable())
+      .mockReturnValueOnce(of({ ...mockOrderDetails, ...mockOrderPage.content[1], externalReference: 'store-ref-102', history: [] }));
+
+    component.viewOrderDetails(mockOrderPage.content[0]);
+    expect(component.isLoadingOrderDetails()).toBe(true);
+    component.viewOrderDetails(mockOrderPage.content[1]);
+    expect(component.orderDetails()?.externalReference).toBe('store-ref-102');
+    expect(component.orderDetails()?.trackingNumber).toBe('SD-20261028-102');
+    component.closeOrderDetails();
+    expect(component.orderDetails()).toBeNull();
+    expect(component.selectedOrder()).toBeNull();
+  });
+
+  it('renders an API error and can retry order details', () => {
+    merchantService.getOrderDetails
+      .mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 404, statusText: 'Not Found' })))
+      .mockReturnValueOnce(of(mockOrderDetails));
+
+    component.viewOrderDetails(mockOrderPage.content[0]);
+    expect(component.orderDetailsError()).toBeTruthy();
+    component.retryOrderDetails();
+    expect(component.orderDetails()?.status).toBe('FAILED');
+    expect(component.orderDetailsError()).toBeNull();
   });
 
   it('should switch tabs between orders, settings, and deliveries', () => {

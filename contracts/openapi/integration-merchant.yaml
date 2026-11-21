@@ -149,6 +149,78 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/v1/admin/merchants/{merchantId}/suspend:
+    post:
+      summary: Suspend an approved merchant
+      description: Restricted to ADMIN. Preserves merchant orders, history, and already queued webhook deliveries while denying merchant write operations and new OAuth tokens.
+      operationId: suspendMerchant
+      tags: [Merchant Administration]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MerchantId'
+      responses:
+        '200':
+          description: Merchant suspended.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Merchant is not approved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Merchant status was saved, but auth-service synchronization failed. Retry the action.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/merchants/{merchantId}/reactivate:
+    post:
+      summary: Reactivate a suspended merchant
+      description: Restricted to ADMIN. Restores approved merchant access while preserving existing records.
+      operationId: reactivateMerchant
+      tags: [Merchant Administration]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MerchantId'
+      responses:
+        '200':
+          description: Merchant reactivated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Merchant is not suspended.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Merchant status was saved, but auth-service synchronization failed. Retry the action.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/merchant/orders:
     post:
       summary: Create a merchant parcel order
@@ -202,6 +274,36 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '502':
           description: Downstream parcel or pricing service rejected the request or was unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/merchant/orders/{orderId}:
+    get:
+      summary: Get merchant-owned order details and parcel status history
+      description: Uses the authenticated merchant identity to scope the order. Parcel history is fetched from parcel-service, which independently verifies that the JWT merchantId owns the parcel.
+      operationId: getMerchantOrderDetails
+      tags: [Merchant Orders]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Merchant order details and actual recorded parcel status events, oldest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantOrderDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: Parcel history service is unavailable or returned an invalid response.
           content:
             application/json:
               schema:
@@ -538,6 +640,59 @@ components:
         createdAt:
           type: string
           format: date-time
+    MerchantOrderDetails:
+      type: object
+      required: [orderId, parcelId, externalReference, trackingNumber, status, createdAt, history]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        parcelId:
+          type: string
+          format: uuid
+        externalReference:
+          type: string
+        trackingNumber:
+          type: string
+        status:
+          type: string
+          description: Current parcel status returned by parcel-service.
+        fee:
+          type: number
+          format: double
+        recipientName:
+          type: string
+          nullable: true
+        recipientAddress:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        history:
+          type: array
+          description: Actual status changes in chronological order; includes failure/requeue cycles and reasons when recorded.
+          items:
+            $ref: '#/components/schemas/MerchantParcelStatusEntry'
+    MerchantParcelStatusEntry:
+      type: object
+      required: [toStatus, occurredAt]
+      properties:
+        fromStatus:
+          type: string
+          nullable: true
+        toStatus:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          nullable: true
     BulkMerchantOrderResponse:
       type: object
       required: [totalRows, acceptedRows, rejectedRows, results]

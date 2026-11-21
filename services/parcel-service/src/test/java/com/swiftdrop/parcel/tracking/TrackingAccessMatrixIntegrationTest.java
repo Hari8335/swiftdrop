@@ -66,6 +66,7 @@ class TrackingAccessMatrixIntegrationTest {
     private static final String OTHER_CUSTOMER = "c1a2b3c4-0000-4000-8000-0000000000f2";
     private static final String COURIER = "c1a2b3c4-0000-4000-8000-0000000000f3";
     private static final String OTHER_COURIER = "c1a2b3c4-0000-4000-8000-0000000000f4";
+    private static final String MERCHANT_ID = "merchant-1";
 
     @Autowired
     private MockMvc mockMvc;
@@ -100,6 +101,7 @@ class TrackingAccessMatrixIntegrationTest {
         p.setStatus(ParcelStatus.DELIVERED);
         p.setCustomerId(OWNER);
         p.setCourierId(COURIER);
+        p.setMerchantId(MERCHANT_ID);
         p.setPickupAddress(new AddressSnapshot("45 Galle Road", null, "Colombo 03", "Colombo", "00300"));
         p.setDropoffAddress(new AddressSnapshot("12 Temple Road", null, "Kandy", "Kandy", "20000"));
         p.setWeightKg(new BigDecimal("2.50"));
@@ -123,7 +125,8 @@ class TrackingAccessMatrixIntegrationTest {
         callers.put("other courier", tokens.mintCourierToken(OTHER_COURIER));
         callers.put("dispatcher", tokens.mintDispatcherToken("dispatcher-1"));
         callers.put("admin", tokens.mintAdminToken("admin-1"));
-        callers.put("merchant", tokens.mintMerchantToken("merchant-1", "merchant-user-1"));
+        callers.put("merchant", tokens.mintMerchantToken(MERCHANT_ID, "merchant-user-1"));
+        callers.put("other merchant", tokens.mintMerchantToken("merchant-2", "merchant-user-2"));
         callers.put("no token", null);
         callers.put("expired token", tokens.mintToken(OWNER, OWNER + "@example.com", "CUSTOMER", null, Duration.ofMinutes(-5)));
         callers.put("wrong signature", otherKey.mintCustomerToken(OWNER));
@@ -162,7 +165,16 @@ class TrackingAccessMatrixIntegrationTest {
     void history() throws Exception {
         assertMatrix("GET /history", () -> get("/api/v1/parcels/" + parcel.getId() + "/history"), expect(
                 "owner customer", 200, "other customer", 403, "assigned courier", 200, "other courier", 403,
-                "dispatcher", 200, "admin", 200, "merchant", 403,
+                "dispatcher", 200, "admin", 200, "merchant", 200, "other merchant", 403,
+                "no token", 401, "expired token", 401, "wrong signature", 401, "not a JWT", 401));
+    }
+
+    @Test
+    @DisplayName("Assignment history remains restricted from merchants")
+    void assignments() throws Exception {
+        assertMatrix("GET /assignments", () -> get("/api/v1/parcels/" + parcel.getId() + "/assignments"), expect(
+                "owner customer", 200, "other customer", 403, "assigned courier", 200, "other courier", 403,
+                "dispatcher", 200, "admin", 200, "merchant", 403, "other merchant", 403,
                 "no token", 401, "expired token", 401, "wrong signature", 401, "not a JWT", 401));
     }
 
