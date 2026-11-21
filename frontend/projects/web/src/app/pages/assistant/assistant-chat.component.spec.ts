@@ -40,32 +40,29 @@ describe('AssistantChatComponent', () => {
     httpMock.verify();
   });
 
-  describe('profile menu', () => {
+  describe('profile badge', () => {
     const el = () => fixture.nativeElement as HTMLElement;
-    const openMenu = () => {
-      el().querySelector<HTMLButtonElement>('#profile-menu-btn')!.click();
-      fixture.detectChanges();
-    };
 
-    it('clicking the name opens a menu with Settings and Log out', () => {
-      expect(el().querySelector('#profile-menu-panel')).toBeNull();
-      openMenu();
-      expect(el().querySelector('#profile-menu-settings')!.textContent).toContain('Settings');
-      expect(el().querySelector('#profile-menu-logout')!.textContent).toContain('Log out');
+    it('clicking the name does not open a dropdown menu', () => {
+      const badge = el().querySelector<HTMLElement>('#profile-badge')!;
+      expect(badge.textContent).toContain(component['customerName']());
+
+      badge.click();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[role="menu"]')).toBeNull();
+      expect(el().querySelector('#logout-confirm-modal')).toBeNull();
     });
 
-    it('Settings navigates to the customer settings tab', () => {
+    it('sidebar Settings navigates to the customer settings tab', () => {
       const navigate = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-      openMenu();
-      el().querySelector<HTMLButtonElement>('#profile-menu-settings')!.click();
+      el().querySelector<HTMLButtonElement>('#nav-settings-btn')!.click();
       expect(navigate).toHaveBeenCalledWith(['/customer'], { queryParams: { tab: 'settings' } });
     });
 
-    it('Log out asks for confirmation first', () => {
-      openMenu();
-      el().querySelector<HTMLButtonElement>('#profile-menu-logout')!.click();
+    it('sidebar Log out asks for confirmation first', () => {
+      el().querySelector<HTMLButtonElement>('#sidebar-logout-btn')!.click();
       fixture.detectChanges();
-      expect(el().querySelector('#profile-menu-panel')).toBeNull();
       expect(el().querySelector('#logout-confirm-modal')).not.toBeNull();
     });
   });

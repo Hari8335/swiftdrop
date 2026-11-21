@@ -448,31 +448,27 @@ describe('CustomerComponent', () => {
 
   describe('profile menu', () => {
     const el = () => fixture.nativeElement as HTMLElement;
-    const openMenu = () => {
-      el().querySelector<HTMLButtonElement>('#profile-menu-btn')!.click();
+
+    it('clicking the name shows no dropdown menu', () => {
       fixture.detectChanges();
-    };
+      const badge = el().querySelector<HTMLElement>('#profile-badge')!;
+      expect(badge.textContent).toContain(component.customerName());
 
-    it('clicking the name opens a menu with Settings and Log out', () => {
+      badge.click();
       fixture.detectChanges();
-      expect(el().querySelector('#profile-menu-panel')).toBeNull();
 
-      openMenu();
-
-      expect(el().querySelector('#profile-menu-btn')!.getAttribute('aria-expanded')).toBe('true');
-      expect(el().querySelector('#profile-menu-settings')!.textContent).toContain('Settings');
-      expect(el().querySelector('#profile-menu-logout')!.textContent).toContain('Log out');
+      expect(el().querySelector('[role="menu"]')).toBeNull();
+      expect(component.activeTab()).not.toBe('settings');
+      expect(el().querySelector('#logout-confirm-modal')).toBeNull();
     });
 
-    it('Settings opens the settings panel and closes the menu', () => {
+    it('sidebar Settings opens the settings profile form', () => {
       fixture.detectChanges();
-      openMenu();
 
-      el().querySelector<HTMLButtonElement>('#profile-menu-settings')!.click();
+      el().querySelector<HTMLButtonElement>('#nav-settings-btn')!.click();
       fixture.detectChanges();
 
       expect(component.activeTab()).toBe('settings');
-      expect(el().querySelector('#profile-menu-panel')).toBeNull();
       expect(el().querySelector('#settings-panel')).not.toBeNull();
       expect(el().querySelector('#settings-profile-form')).not.toBeNull();
     });
@@ -548,15 +544,13 @@ describe('CustomerComponent', () => {
       expect(el().querySelector('#settings-logout-btn')).toBeNull();
     });
 
-    it('Log out closes the menu and asks for confirmation before signing out', () => {
+    it('sidebar Log out asks for confirmation before signing out', () => {
       fixture.detectChanges();
       const signOut = jest.spyOn(component, 'signOut');
-      openMenu();
 
-      el().querySelector<HTMLButtonElement>('#profile-menu-logout')!.click();
+      el().querySelector<HTMLButtonElement>('#sidebar-logout-btn')!.click();
       fixture.detectChanges();
 
-      expect(el().querySelector('#profile-menu-panel')).toBeNull();
       expect(signOut).not.toHaveBeenCalled();
       expect(el().querySelector('#logout-confirm-modal')).not.toBeNull();
 
@@ -578,19 +572,6 @@ describe('CustomerComponent', () => {
 
       expect(signOut).not.toHaveBeenCalled();
       expect(el().querySelector('#logout-confirm-modal')).toBeNull();
-    });
-
-    it('closes on an outside click and on Escape', () => {
-      fixture.detectChanges();
-      openMenu();
-      document.body.click();
-      fixture.detectChanges();
-      expect(el().querySelector('#profile-menu-panel')).toBeNull();
-
-      openMenu();
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-      fixture.detectChanges();
-      expect(el().querySelector('#profile-menu-panel')).toBeNull();
     });
 
     it('opens the new delivery wizard when navigated with ?tab=wizard', async () => {
