@@ -1,15 +1,37 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
+import { of } from 'rxjs';
 import { CourierSummaryComponent } from './courier-summary.component';
+import { NotificationService } from '../notification/notification.service';
 
 describe('CourierSummaryComponent', () => {
   let component: CourierSummaryComponent;
   let fixture: ComponentFixture<CourierSummaryComponent>;
   let http: HttpTestingController;
 
+  const mockNotificationService = {
+    unreadCount: signal(0),
+    totalElements: signal(0),
+    notifications: signal([]),
+    isLoading: signal(false),
+    error: signal(null),
+    refreshUnreadCount: () => of(0),
+    loadNotifications: () => of([]),
+    markAsRead: () => of(void 0),
+    markAllAsRead: () => of(void 0),
+  };
+
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [CourierSummaryComponent], providers: [provideHttpClient(), provideHttpClientTesting()] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [CourierSummaryComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: NotificationService, useValue: mockNotificationService },
+      ],
+    }).compileComponents();
     fixture = TestBed.createComponent(CourierSummaryComponent);
     component = fixture.componentInstance;
     http = TestBed.inject(HttpTestingController);
@@ -40,5 +62,13 @@ describe('CourierSummaryComponent', () => {
     http.expectOne('/api/v1/courier/summary').flush({ date: '2026-10-29', totalDeliveries: 0, pendingCount: 0, completedCount: 0, deliveries: [] });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No deliveries');
+  });
+
+  it('navigates with query parameters properly', () => {
+    http.expectOne('/api/v1/courier/summary').flush({ date: '2026-10-29', totalDeliveries: 0, pendingCount: 0, completedCount: 0, deliveries: [] });
+    const router = (component as any).router;
+    const navigateSpy = jest.spyOn(router, 'navigate');
+    component.navigateTo('/courier?tab=tracking');
+    expect(navigateSpy).toHaveBeenCalledWith(['/courier'], { queryParams: { tab: 'tracking' } });
   });
 });
