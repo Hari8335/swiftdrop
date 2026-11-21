@@ -1,9 +1,12 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
+import { of } from 'rxjs';
 import { CourierComponent } from './courier.component';
 import { CourierService } from './courier/courier.service';
 import { CourierDeliveriesResponse } from './courier/courier.model';
+import { NotificationService } from '../notification/notification.service';
 
 describe('CourierComponent', () => {
   let component: CourierComponent;
@@ -67,10 +70,27 @@ describe('CourierComponent', () => {
     vehicle: 'MOTORBIKE',
   };
 
+  const mockNotificationService = {
+    unreadCount: signal(0),
+    totalElements: signal(0),
+    notifications: signal([]),
+    isLoading: signal(false),
+    error: signal(null),
+    refreshUnreadCount: () => of(0),
+    loadNotifications: () => of([]),
+    markAsRead: () => of(void 0),
+    markAllAsRead: () => of(void 0),
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [CourierComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), CourierService],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        CourierService,
+        { provide: NotificationService, useValue: mockNotificationService },
+      ],
     }).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
@@ -381,4 +401,125 @@ describe('CourierComponent', () => {
     todayReq.flush(mockDeliveriesResponse);
     tick();
   }));
+
+  it('switches between runsheet, settings, and tracking tabs', () => {
+    expect(component.activeTab()).toBe('runsheet');
+    component.activeTab.set('settings');
+    fixture.detectChanges();
+    expect(component.activeTab()).toBe('settings');
+    expect(fixture.nativeElement.querySelector('#settings-panel')).toBeTruthy();
+
+    component.activeTab.set('tracking');
+    fixture.detectChanges();
+    expect(component.activeTab()).toBe('tracking');
+    expect(fixture.nativeElement.querySelector('#courier-tracking-panel')).toBeTruthy();
+
+    component.activeTab.set('runsheet');
+    fixture.detectChanges();
+    expect(component.activeTab()).toBe('runsheet');
+    expect(fixture.nativeElement.querySelector('#settings-panel')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('#courier-tracking-panel')).toBeFalsy();
+  });
+
+  it('selects and tracks parcel in tracking tab', () => {
+    component.activeTab.set('tracking');
+    fixture.detectChanges();
+
+    const delivery = mockDeliveriesResponse.deliveries[0];
+    component.selectTrackingParcel(delivery);
+    expect(component.selectedTrackingDelivery()?.trackingNumber).toBe(delivery.trackingNumber);
+    expect(component.trackingSearchNumber()).toBe(delivery.trackingNumber);
+
+    component.performTrackingSearch('SD-20261028-002');
+    expect(component.selectedTrackingDelivery()?.trackingNumber).toBe('SD-20261028-002');
+
+    component.jumpToRunSheet('SD-20261028-002');
+    expect(component.activeTab()).toBe('runsheet');
+    expect(component.searchQuery()).toBe('SD-20261028-002');
+  });
+
+  it('controls the logout confirmation modal', () => {
+    expect(component.showLogoutModal()).toBe(false);
+    expect(fixture.nativeElement.querySelector('#logout-confirmation-modal')).toBeFalsy();
+
+    component.openLogoutModal();
+    fixture.detectChanges();
+    expect(component.showLogoutModal()).toBe(true);
+    expect(fixture.nativeElement.querySelector('#logout-confirmation-modal')).toBeTruthy();
+
+    component.closeLogoutModal();
+    fixture.detectChanges();
+    expect(component.showLogoutModal()).toBe(false);
+    expect(fixture.nativeElement.querySelector('#logout-confirmation-modal')).toBeFalsy();
+  });
+
+  it('toggles courier availability and displays toast notification', () => {
+    component.toggleAvailability();
+    const req = httpMock.expectOne('/api/v1/courier/availability');
+    expect(req.request.method).toBe('PUT');
+    req.flush({ ...mockProfile, availability: false });
+    fixture.detectChanges();
+
+    expect(component.toastMessage()).toContain('Unavailable');
+    expect(component.availabilityPending()).toBe(false);
+  });
+
+  it('controls the stage action confirmation modal', () => {
+    const delivery = mockDeliveriesResponse.deliveries[0];
+    expect(component.pendingStageAction()).toBeNull();
+    expect(fixture.nativeElement.querySelector('#stage-confirmation-modal')).toBeFalsy();
+
+    component.requestStageConfirmation(delivery, 'PICKED_UP');
+    fixture.detectChanges();
+    expect(component.pendingStageAction()).toEqual({ delivery, nextStatus: 'PICKED_UP' });
+    expect(fixture.nativeElement.querySelector('#stage-confirmation-modal')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#stage-confirm-title')?.textContent).toContain('Confirm Parcel Pickup?');
+
+    component.cancelStageConfirmation();
+    fixture.detectChanges();
+    expect(component.pendingStageAction()).toBeNull();
+    expect(fixture.nativeElement.querySelector('#stage-confirmation-modal')).toBeFalsy();
+
+    const advanceSpy = jest.spyOn(component, 'advanceStatus').mockImplementation(() => {});
+    component.requestStageConfirmation(delivery, 'OUT_FOR_DELIVERY');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#stage-confirm-title')?.textContent).toContain('Mark Out for Final Delivery?');
+
+    component.confirmStageAction();
+    expect(advanceSpy).toHaveBeenCalledWith(delivery, 'OUT_FOR_DELIVERY');
+    expect(component.pendingStageAction()).toBeNull();
+  });
+
+  it('switches between settings sections and supports profile editing in settings tab', () => {
+    component.activeTab.set('settings');
+    fixture.detectChanges();
+
+    expect(component.settingsSection()).toBe('profile');
+    expect(fixture.nativeElement.querySelector('#settings-profile-form')).toBeTruthy();
+
+    // Inline edit profile
+    const editBtn = fixture.nativeElement.querySelector('#courier-edit-profile-btn') as HTMLButtonElement;
+    editBtn.click();
+    fixture.detectChanges();
+    expect(component.isEditingProfile()).toBe(true);
+
+    const cancelBtn = fixture.nativeElement.querySelector('#cancel-profile-btn') as HTMLButtonElement;
+    cancelBtn.click();
+    fixture.detectChanges();
+    expect(component.isEditingProfile()).toBe(false);
+
+    // Switch to duty section
+    const dutyBtn = fixture.nativeElement.querySelector('#settings-nav-duty') as HTMLButtonElement;
+    dutyBtn.click();
+    fixture.detectChanges();
+    expect(component.settingsSection()).toBe('duty');
+    expect(fixture.nativeElement.querySelector('#courier-duty-badge')).toBeTruthy();
+
+    // Switch to security section
+    const secBtn = fixture.nativeElement.querySelector('#settings-nav-security') as HTMLButtonElement;
+    secBtn.click();
+    fixture.detectChanges();
+    expect(component.settingsSection()).toBe('security');
+    expect(fixture.nativeElement.querySelector('app-customer-change-password')).toBeTruthy();
+  });
 });
