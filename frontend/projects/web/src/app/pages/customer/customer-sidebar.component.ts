@@ -1,5 +1,6 @@
 import { Component, HostListener, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { CustomerToastsComponent } from './customer-toasts.component';
 
 export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'settings' | null;
 
@@ -11,7 +12,7 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
 @Component({
   selector: 'app-customer-sidebar',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, CustomerToastsComponent],
   template: `
     <!-- Reserves the rail's width in the page layout; the rail itself is fixed. -->
     <div class="hidden md:block w-20 flex-shrink-0" aria-hidden="true"></div>
@@ -30,7 +31,7 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
         routerLink="/customer"
         id="customer-home-link"
         (click)="deliveries.emit()"
-        class="md:mx-1 flex items-center gap-3 shrink-0 no-underline cursor-pointer"
+        class="md:mx-2 flex items-center gap-3 shrink-0 no-underline cursor-pointer"
         title="SwiftDrop Home"
         aria-label="SwiftDrop Home"
       >
@@ -142,6 +143,9 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
       </div>
     </aside>
 
+    <!-- Toast confirmations for every customer page -->
+    <app-customer-toasts></app-customer-toasts>
+
     @if (logoutConfirmOpen()) {
     <div
       id="logout-confirm-modal"
@@ -206,7 +210,8 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
         color: #6f6d85;
         cursor: pointer;
         text-decoration: none;
-        transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+        transition: background-color 0.2s, color 0.2s, box-shadow 0.2s, width 0.3s ease-in-out,
+          margin 0.3s ease-in-out, padding 0.3s ease-in-out;
       }
       .rail-item:hover {
         background: #fbf7f5;
@@ -240,10 +245,19 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
         color: #211f32;
       }
       @media (min-width: 768px) {
+        /* Collapsed rail: a centred 44px square with the icon centred in it. */
         .rail-item {
-          width: 100%;
+          width: 2.75rem;
+          margin-left: 0.375rem;
           justify-content: flex-start;
           padding: 0 0.75rem;
+        }
+        /* Expanded rail: full-width row; the icon stays in exactly the same place. */
+        aside:hover .rail-item,
+        aside:focus-within .rail-item {
+          width: 100%;
+          margin-left: 0;
+          padding-left: 1.125rem;
         }
         .rail-label {
           display: inline;

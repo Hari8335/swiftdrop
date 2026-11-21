@@ -86,6 +86,15 @@ describe('DispatchLayoutComponent', () => {
     expect(href('tab-settings-link')).toBe('/dispatch/settings');
   });
 
+  it('keeps collapsed sidebar items as centred squares, not full-width rows', () => {
+    const items = Array.from(el().querySelectorAll('aside .rail-link'));
+    expect(items).toHaveLength(8); // 6 pages + Settings + Log out
+    items.forEach((item) => {
+      expect(item.classList).toContain('rail-row');
+      expect(item.classList).not.toContain('w-full');
+    });
+  });
+
   it('uses the admin-style sidebar: a fixed icon rail that widens on hover or focus', () => {
     const aside = el().querySelector('aside') as HTMLElement;
     expect(aside.className).toContain('fixed');

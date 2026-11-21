@@ -1,14 +1,14 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ParcelBox3dComponent } from './parcel-box-3d.component';
+import { ScooterCourier3dComponent } from './scooter-courier-3d.component';
 
 type Audience = 'customer' | 'merchant';
 
-/** Landing hero: top bar, customer/merchant toggle, chat-style booking box and the 3D parcel visual. */
+/** Landing hero: top bar, customer/merchant toggle, chat-style booking box and the 3D scooter courier. */
 @Component({
   selector: 'app-landing-hero',
   standalone: true,
-  imports: [RouterLink, ParcelBox3dComponent],
+  imports: [RouterLink, ScooterCourier3dComponent],
   template: `
     <section class="hero">
       <svg class="hero-bg" aria-hidden="true" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
@@ -84,8 +84,8 @@ type Audience = 'customer' | 'merchant';
 
         <div class="hero-visual">
           <div class="hero-glow" aria-hidden="true"></div>
-          <div class="hero-box">
-            <app-parcel-box-3d></app-parcel-box-3d>
+          <div class="hero-scooter">
+            <app-scooter-courier-3d></app-scooter-courier-3d>
           </div>
         </div>
       </div>
@@ -103,7 +103,6 @@ type Audience = 'customer' | 'merchant';
     .brand-text { font-family: var(--disp); font-weight: 800; font-size: 26px; letter-spacing: -.02em; }
     .nav-links { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 6px 6px 6px 24px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); }
     .nav-link { color: #fff; text-decoration: none; font-weight: 500; font-size: 15px; }
-    .nav-link:hover { color: var(--amber); }
     .nav-pill { text-decoration: none; font-weight: 600; font-size: 15px; background: var(--ink); color: #fff; padding: 12px 22px; border-radius: 999px; }
     .hero-body { position: relative; max-width: 1240px; margin: 0 auto; padding-top: 56px; display: flex; flex-wrap: wrap; gap: 56px; align-items: center; }
     .hero-copy { flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 28px; }
@@ -122,16 +121,17 @@ type Audience = 'customer' | 'merchant';
     .prompt-pills li { padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.3); }
     .hero-visual { flex: 1 1 440px; min-width: 0; position: relative; min-height: 520px; display: flex; align-items: center; justify-content: center; }
     .hero-glow { position: absolute; left: 50%; top: 52%; width: 420px; height: 420px; transform: translate(-50%,-50%); border-radius: 50%; background: radial-gradient(circle, rgba(242,162,58,.45), rgba(242,162,58,0) 70%); }
-    .hero-box { position: relative; width: 100%; max-width: 500px; }
+    .hero-scooter { position: relative; width: 100%; max-width: 680px; height: 560px; }
     a:focus-visible, button:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
     @keyframes sdBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
     @media (max-width: 960px) {
       .hero-visual { min-height: 0; }
       .hero-glow { display: none; }
-      .hero-box { max-width: 360px; }
+      .hero-scooter { height: 420px; }
     }
     @media (max-width: 700px) {
+      .hero-scooter { height: 340px; }
       .top-bar { justify-content: center; }
       .nav-links { justify-content: center; padding: 6px 6px 6px 18px; gap: 16px; }
       .hero { padding-bottom: 64px; }

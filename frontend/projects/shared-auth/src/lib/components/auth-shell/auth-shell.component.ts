@@ -16,11 +16,13 @@ export type AuthShellActive = 'customer' | 'merchant' | 'signin';
     <div class="auth-page">
       <header class="top-bar">
         <a routerLink="/" class="brand" aria-label="SwiftDrop home">
-          <svg class="brand-icon" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <rect width="32" height="32" rx="10" fill="#ffffff" />
-            <path d="M8 12L16 7L24 12V22L16 27L8 22V12Z" fill="#a53a26" />
-            <path d="M16 7V27M8 12L24 22M24 12L8 22" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
-          </svg>
+          <span class="brand-mark">
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7E2A1C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </span>
           <span class="brand-text">SwiftDrop</span>
         </a>
 
@@ -70,9 +72,10 @@ export type AuthShellActive = 'customer' | 'merchant' | 'signin';
       background: radial-gradient(55% 65% at 75% 45%, #b8432f 0%, #98311e 65%, #882b1a 100%), #98311e;
     }
     .top-bar { max-width: 1200px; margin: 0 auto 3rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
-    .brand { display: inline-flex; align-items: center; gap: .75rem; color: #fff; text-decoration: none; }
-    .brand-icon { width: 34px; height: 34px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
-    .brand-text { font-family: var(--disp); font-size: 1.5rem; font-weight: 900; letter-spacing: -.03em; }
+    /* Same logo as the landing page: white rounded tile with the parcel mark, then the wordmark. */
+    .brand { display: inline-flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; }
+    .brand-mark { width: 44px; height: 44px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .brand-text { font-family: var(--disp); font-weight: 800; font-size: 26px; letter-spacing: -.02em; }
     .nav-links { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
     .nav-link { color: rgba(255,255,255,.85); text-decoration: none; font-size: .95rem; font-weight: 600; transition: color .2s; }
     .nav-link:hover { color: #fff; }

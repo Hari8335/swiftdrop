@@ -32,7 +32,6 @@ import { RouterLink } from '@angular/router';
           <p class="tagline">Parcel delivery for people and businesses, across all 25 districts of Sri Lanka.</p>
           <ul class="facts" aria-label="SwiftDrop at a glance">
             <li><span class="num">25</span> districts</li>
-            <li><span class="num">5</span> delivery zones</li>
             <li>Live status updates</li>
           </ul>
         </div>

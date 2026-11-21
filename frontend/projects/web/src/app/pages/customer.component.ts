@@ -19,6 +19,10 @@ import {
   SRI_LANKA_DISTRICTS,
 } from './customer/customer.model';
 import { CustomerService } from './customer/customer.service';
+import { CustomerToastService } from './customer/customer-toast.service';
+
+/** Rows per page in the "Your recent deliveries" table. */
+const RECENT_DELIVERIES_PAGE_SIZE = 10;
 
 type CustomerTab = 'deliveries' | 'wizard' | 'addresses' | 'settings';
 type SettingsSection = 'profile' | 'addresses' | 'security';
@@ -82,33 +86,6 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
         </app-customer-topbar>
 
         <div class="flex-1 p-6 sm:p-8 lg:p-10 space-y-7">
-          <!-- Toast Notification -->
-          @if (notification()) {
-          <div
-            id="toast-notification"
-            class="toast-alert bg-[#faf6f0] border border-[#a53a26]/20 text-[#1d1b2c] px-5 py-3.5 rounded-2xl flex items-center justify-between text-sm shadow-sm transition-all"
-          >
-            <div class="flex items-center gap-3 font-semibold">
-              <div class="w-7 h-7 rounded-full bg-[#a53a26]/10 text-[#a53a26] flex items-center justify-center flex-shrink-0">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              </div>
-              <span>{{ notification() }}</span>
-            </div>
-            <button
-              type="button"
-              (click)="notification.set(null)"
-              class="text-[#6f6d85] hover:text-[#1d1b2c] font-bold p-1 rounded-lg transition-colors cursor-pointer"
-              aria-label="Dismiss notification"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-          }
 
           <!-- ================================================================= -->
           <!-- VIEW 1: MY DELIVERIES (Matching Reference Screenshot)              -->
@@ -321,37 +298,61 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                 </table>
               </div>
 
-              <!-- Pagination / Show all -->
-              <div class="flex items-center justify-between pt-2 border-t border-[#f0ebe5] text-xs font-bold text-[#6f6d85]">
-                <button
-                  type="button"
-                  (click)="selectedStatusFilter.set(null); loadParcels()"
-                  class="text-[#a53a26] hover:text-[#7e2615] hover:underline cursor-pointer"
-                >
-                  Show all &gt;
-                </button>
+              <!-- Pagination -->
+              @if (parcelPage().totalElements > 0) {
+              <nav
+                id="recent-deliveries-pagination"
+                aria-label="Recent deliveries pages"
+                class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-[#f0ebe5] text-xs font-semibold text-[#6f6d85]"
+              >
+                <p id="recent-deliveries-range">
+                  Showing <span class="font-bold text-[#1d1b2c]">{{ pageRangeStart() }}–{{ pageRangeEnd() }}</span>
+                  of <span class="font-bold text-[#1d1b2c]">{{ parcelPage().totalElements }}</span>
+                  {{ parcelPage().totalElements === 1 ? 'delivery' : 'deliveries' }}
+                </p>
                 @if (parcelPage().totalPages > 1) {
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1.5">
                   <button
                     type="button"
+                    id="parcel-page-prev"
                     (click)="changeParcelPage(parcelPage().page - 1)"
                     [disabled]="parcelPage().page === 0"
-                    class="px-3 py-1 rounded-full border border-[#e2e8f0] bg-white text-[#1d1b2c] hover:bg-[#f1f5f9] disabled:opacity-40 cursor-pointer"
+                    aria-label="Previous page"
+                    class="page-btn"
                   >
-                    Previous
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
-                  <span>{{ parcelPage().page + 1 }} / {{ parcelPage().totalPages }}</span>
+                  @for (p of pageNumbers(); track $index) {
+                    @if (p === null) {
+                      <span class="w-6 text-center text-[#a09eaf]" aria-hidden="true">…</span>
+                    } @else {
+                      <button
+                        type="button"
+                        [attr.id]="'parcel-page-' + (p + 1)"
+                        (click)="changeParcelPage(p)"
+                        [attr.aria-current]="p === parcelPage().page ? 'page' : null"
+                        [attr.aria-label]="'Page ' + (p + 1)"
+                        class="page-btn"
+                        [class.page-btn-active]="p === parcelPage().page"
+                      >
+                        {{ p + 1 }}
+                      </button>
+                    }
+                  }
                   <button
                     type="button"
+                    id="parcel-page-next"
                     (click)="changeParcelPage(parcelPage().page + 1)"
                     [disabled]="parcelPage().page >= parcelPage().totalPages - 1"
-                    class="px-3 py-1 rounded-full border border-[#e2e8f0] bg-white text-[#1d1b2c] hover:bg-[#f1f5f9] disabled:opacity-40 cursor-pointer"
+                    aria-label="Next page"
+                    class="page-btn"
                   >
-                    Next
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                   </button>
                 </div>
                 }
-              </div>
+              </nav>
+              }
             </div>
           </div>
           }
@@ -591,29 +592,29 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <!-- Package Spec -->
-                <div class="space-y-5">
+                <div class="space-y-6">
                   <div>
-                    <label class="block text-xs font-bold text-[#1d1b2c] mb-2.5">Package Size Tier *</label>
-                    <div class="grid grid-cols-3 gap-3">
+                    <label class="block text-sm font-bold text-[#1d1b2c] mb-3">Package Size Tier *</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       @for (tier of sizeTiers; track tier.size) {
                       <button
                         type="button"
                         (click)="wizardData.size = tier.size; updateFeePreview()"
                         [class.size-tier-active]="wizardData.size === tier.size"
-                        class="size-tier-card p-3.5 text-left border border-[#e2e8f0] rounded-2xl bg-white hover:border-[#a53a26]/50 transition-all cursor-pointer"
+                        class="size-tier-card min-h-[132px] p-5 flex flex-col text-left border border-[#e2e8f0] rounded-2xl bg-white hover:border-[#a53a26]/50 transition-all cursor-pointer"
                       >
-                        <div class="font-black text-xs text-[#1d1b2c]">{{ tier.label }}</div>
-                        <div class="text-[10px] text-[#6f6d85] mt-1 leading-snug">{{ tier.desc }}</div>
-                        <div class="text-[10px] font-bold text-[#a53a26] mt-2.5">{{ tier.surcharge }}</div>
+                        <div class="font-black text-base text-[#1d1b2c]">{{ tier.label }}</div>
+                        <div class="text-xs text-[#6f6d85] mt-1.5 leading-relaxed">{{ tier.desc }}</div>
+                        <div class="text-sm font-bold text-[#a53a26] mt-auto pt-3">{{ tier.surcharge }}</div>
                       </button>
                       }
                     </div>
                   </div>
 
-                  <div class="p-4 rounded-2xl bg-[#faf8f6] border border-[#eee7e0] space-y-2">
-                    <div class="flex items-center justify-between text-xs font-bold text-[#1d1b2c]">
-                      <span>Package Weight:</span>
-                      <span class="text-[#a53a26] font-mono text-sm">{{ wizardData.weightKg }} kg</span>
+                  <div class="p-6 rounded-2xl bg-[#faf8f6] border border-[#eee7e0] space-y-4">
+                    <div class="flex items-center justify-between text-sm font-bold text-[#1d1b2c]">
+                      <span>Package Weight</span>
+                      <span class="text-[#a53a26] font-mono text-lg">{{ wizardData.weightKg }} kg</span>
                     </div>
                     <input
                       type="range"
@@ -622,9 +623,9 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                       step="0.1"
                       [(ngModel)]="wizardData.weightKg"
                       (input)="updateFeePreview()"
-                      class="w-full accent-[#a53a26] cursor-pointer"
+                      class="w-full h-2 accent-[#a53a26] cursor-pointer"
                     />
-                    <div class="flex justify-between text-[10px] text-[#6f6d85] font-bold">
+                    <div class="flex justify-between text-xs text-[#6f6d85] font-bold">
                       <span>0.1 kg</span>
                       <span>25 kg</span>
                       <span>50 kg</span>
@@ -1440,11 +1441,6 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                     {{ editProfileError() }}
                   </div>
                   }
-                  @if (profileSaved()) {
-                  <div id="settings-profile-saved" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700">
-                    Your profile has been updated.
-                  </div>
-                  }
 
                   @if (isEditingProfile()) {
                   <div class="flex items-center justify-end gap-3 border-t border-[#f0ebe5] pt-6">
@@ -1518,6 +1514,34 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
         display: block;
         font-family: var(--disp);
         background-color: #ffffff;
+      }
+      .page-btn {
+        min-width: 2rem;
+        height: 2rem;
+        padding: 0 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        border: 1px solid #e8e2dc;
+        background: #fff;
+        color: #1d1b2c;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+      }
+      .page-btn:hover:not(:disabled) {
+        border-color: #a53a26;
+        color: #a53a26;
+      }
+      .page-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .page-btn.page-btn-active {
+        background: #a53a26;
+        border-color: #a53a26;
+        color: #fff;
       }
       .filter-pill {
         background: #f1f5f9;
@@ -1601,8 +1625,40 @@ export class CustomerComponent implements OnInit {
   });
   addresses = signal<CustomerAddress[]>([]);
   selectedParcelPage = signal(0);
+
+  /** "Showing 11–20 of 42" range for the recent deliveries table. */
+  pageRangeStart = computed(() => {
+    const p = this.parcelPage();
+    return p.totalElements === 0 ? 0 : p.page * p.size + 1;
+  });
+  pageRangeEnd = computed(() => {
+    const p = this.parcelPage();
+    return Math.min(p.page * p.size + p.content.length, p.totalElements);
+  });
+
+  /** Page indexes to show (0-based), with null for a gap: 1 … 4 5 6 … 10. */
+  pageNumbers = computed<(number | null)[]>(() => {
+    const total = this.parcelPage().totalPages;
+    const current = this.parcelPage().page;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i);
+    const pages = new Set([0, total - 1, current - 1, current, current + 1].filter((p) => p >= 0 && p < total));
+    const sorted = [...pages].sort((a, b) => a - b);
+    const out: (number | null)[] = [];
+    sorted.forEach((p, i) => {
+      if (i > 0 && p - sorted[i - 1] > 1) out.push(null);
+      out.push(p);
+    });
+    return out;
+  });
   selectedStatusFilter = signal<ParcelStatus | null>(null);
   notification = signal<string | null>(null);
+  private readonly toast = inject(CustomerToastService);
+
+  /** Shows a confirmation or error as a toast (and keeps the latest text in `notification`). */
+  notify(kind: 'success' | 'error', title: string, message: string): void {
+    this.notification.set(message);
+    this.toast.show(kind, title, message);
+  }
 
   // Search & Filter state
   searchQuery = signal<string>('');
@@ -1685,6 +1741,7 @@ export class CustomerComponent implements OnInit {
         this.isSavingProfile.set(false);
         this.isEditingProfile.set(false);
         this.profileSaved.set(true);
+        this.toast.success('Profile updated', 'Your personal information has been saved.');
       },
       error: (err) => {
         this.isSavingProfile.set(false);
@@ -1794,13 +1851,13 @@ export class CustomerComponent implements OnInit {
 
   loadParcels(): void {
     this.customerService
-      .listParcels(this.selectedStatusFilter() || undefined, this.selectedParcelPage())
+      .listParcels(this.selectedStatusFilter() || undefined, this.selectedParcelPage(), RECENT_DELIVERIES_PAGE_SIZE)
       .subscribe({
         next: (page) => {
           this.parcelPage.set(page);
           this.parcels.set(page.content);
         },
-        error: (err) => this.notification.set(this.apiErrorMessage(err, 'Unable to load parcels.')),
+        error: (err) => this.notify('error', "Couldn't load your parcels", this.apiErrorMessage(err, 'Unable to load parcels.')),
       });
   }
 
@@ -1813,7 +1870,7 @@ export class CustomerComponent implements OnInit {
   loadAddresses(): void {
     this.customerService.listAddresses().subscribe({
       next: (addrs) => this.addresses.set(addrs),
-      error: (err) => this.notification.set(this.apiErrorMessage(err, 'Unable to load addresses.')),
+      error: (err) => this.notify('error', "Couldn't load your addresses", this.apiErrorMessage(err, 'Unable to load addresses.')),
     });
   }
 
@@ -1921,6 +1978,7 @@ export class CustomerComponent implements OnInit {
         this.confirmedParcel.set(created);
         this.orderConfirmed.set(true);
         this.loadParcels();
+        // No toast here: the wizard's confirmation step already shows the booking.
         this.notification.set(`Parcel booked successfully! Tracking: ${created.trackingNumber}`);
       },
       error: (err) => {
@@ -1929,7 +1987,7 @@ export class CustomerComponent implements OnInit {
           err?.error?.message ||
           err?.message ||
           'Failed to place delivery order. Please try again.';
-        this.notification.set(message);
+        this.notify('error', 'Booking failed', message);
       },
     });
   }
@@ -1957,11 +2015,11 @@ export class CustomerComponent implements OnInit {
         this.isCancelling.set(false);
         this.parcelToCancel.set(null);
         this.loadParcels();
-        this.notification.set(`Delivery order ${cancelled.trackingNumber} has been cancelled.`);
+        this.notify('success', 'Delivery cancelled', `Delivery order ${cancelled.trackingNumber} has been cancelled.`);
       },
       error: (err) => {
         this.isCancelling.set(false);
-        this.notification.set(this.apiErrorMessage(err, 'Failed to cancel parcel.'));
+        this.notify('error', 'Cancellation failed', this.apiErrorMessage(err, 'Failed to cancel parcel.'));
       },
     });
   }
@@ -1970,10 +2028,10 @@ export class CustomerComponent implements OnInit {
     this.customerService.cancelParcel(id, reason || 'Cancelled by customer').subscribe({
       next: (cancelled) => {
         this.loadParcels();
-        this.notification.set(`Delivery order ${cancelled.trackingNumber} has been cancelled.`);
+        this.notify('success', 'Delivery cancelled', `Delivery order ${cancelled.trackingNumber} has been cancelled.`);
       },
       error: (err) => {
-        this.notification.set(this.apiErrorMessage(err, 'Failed to cancel parcel.'));
+        this.notify('error', 'Cancellation failed', this.apiErrorMessage(err, 'Failed to cancel parcel.'));
       },
     });
   }
@@ -2053,11 +2111,13 @@ export class CustomerComponent implements OnInit {
         this.loadAddresses();
         this.showAddressModal.set(false);
         this.editingAddressId.set(null);
-        this.notification.set(
+        this.notify(
+          'success',
+          isEditing ? 'Address updated' : 'Address added',
           `Address '${saved.label}' ${isEditing ? 'updated' : 'added to address book'}.`
         );
       },
-      error: (err) => this.notification.set(this.apiErrorMessage(err, 'Unable to save address.')),
+      error: (err) => this.notify('error', 'Address not saved', this.apiErrorMessage(err, 'Unable to save address.')),
     });
   }
 
@@ -2069,9 +2129,9 @@ export class CustomerComponent implements OnInit {
     this.customerService.setDefaultAddress(id).subscribe({
       next: (updated) => {
         this.loadAddresses();
-        this.notification.set(`'${updated.label}' is now your default address.`);
+        this.notify('success', 'Default address updated', `'${updated.label}' is now your default address.`);
       },
-      error: (err) => this.notification.set(this.apiErrorMessage(err, 'Unable to set default address.')),
+      error: (err) => this.notify('error', "Couldn't set default address", this.apiErrorMessage(err, 'Unable to set default address.')),
     });
   }
 
@@ -2079,9 +2139,9 @@ export class CustomerComponent implements OnInit {
     this.customerService.deleteAddress(id).subscribe({
       next: () => {
         this.loadAddresses();
-        this.notification.set('Address deleted.');
+        this.notify('success', 'Address deleted', 'The address was removed from your address book.');
       },
-      error: (err) => this.notification.set(this.apiErrorMessage(err, 'Unable to delete address.')),
+      error: (err) => this.notify('error', "Couldn't delete address", this.apiErrorMessage(err, 'Unable to delete address.')),
     });
   }
 

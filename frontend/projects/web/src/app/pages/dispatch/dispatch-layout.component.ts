@@ -81,7 +81,7 @@ interface NavItem {
       >
         <div>
           <!-- Brand -->
-          <div class="flex items-center px-1">
+          <div class="flex items-center px-2">
             <a routerLink="/dispatch" id="dispatch-brand-link" aria-label="SwiftDrop Dispatch home" class="flex items-center gap-3">
               <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#a53a26] text-white shadow-[0_8px_18px_rgba(165,58,38,0.25)]">
                 <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
@@ -105,7 +105,7 @@ interface NavItem {
                 [attr.id]="'tab-' + item.page + '-link'"
                 [attr.aria-current]="portal.page() === item.page ? 'page' : null"
                 [attr.aria-label]="item.title"
-                class="rail-link relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
+                class="rail-link rail-row relative flex h-11 items-center rounded-2xl"
                 [class.rail-active]="portal.page() === item.page"
               >
                 <span class="relative grid h-5 w-5 shrink-0 place-items-center">
@@ -130,7 +130,7 @@ interface NavItem {
             id="tab-settings-link"
             [attr.aria-current]="portal.page() === 'settings' ? 'page' : null"
             aria-label="Settings"
-            class="rail-link relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
+            class="rail-link rail-row relative flex h-11 items-center rounded-2xl"
             [class.rail-active]="portal.page() === 'settings'"
           >
             <span class="grid h-5 w-5 shrink-0 place-items-center">
@@ -138,7 +138,7 @@ interface NavItem {
             </span>
             <span class="rail-label ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">Settings</span>
           </a>
-          <button type="button" id="sidebar-logout-btn" (click)="logoutConfirmOpen.set(true)" aria-label="Log out" class="rail-link relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200 cursor-pointer">
+          <button type="button" id="sidebar-logout-btn" (click)="logoutConfirmOpen.set(true)" aria-label="Log out" class="rail-link rail-row relative flex h-11 items-center rounded-2xl cursor-pointer">
             <span class="grid h-5 w-5 shrink-0 place-items-center">
               <ng-container *ngTemplateOutlet="navIcon; context: { $implicit: 'logout' }"></ng-container>
             </span>
@@ -380,6 +380,21 @@ interface NavItem {
       .rail-link {
         color: #6f6d85;
         text-decoration: none;
+      }
+      /* Collapsed rail: a centred 44px square with the icon centred in it. */
+      .rail-row {
+        width: 2.75rem;
+        margin-left: 0.375rem;
+        padding: 0 0.75rem;
+        transition: background-color 0.2s, color 0.2s, box-shadow 0.2s, width 0.3s ease-in-out,
+          margin 0.3s ease-in-out, padding 0.3s ease-in-out;
+      }
+      /* Expanded rail: full-width row; the icon stays in exactly the same place. */
+      aside:hover .rail-row,
+      aside:focus-within .rail-row {
+        width: 100%;
+        margin-left: 0;
+        padding-left: 1.125rem;
       }
       .rail-link:hover {
         background: #fbf7f5;

@@ -7,7 +7,9 @@ import {
   passwordMatchValidator,
 } from 'shared-auth';
 
-type Step = 'start' | 'code' | 'password' | 'done';
+import { CustomerToastService } from './customer-toast.service';
+
+type Step = 'start' | 'code' | 'password';
 
 /**
  * In-portal password change for a signed-in customer.
@@ -21,7 +23,7 @@ type Step = 'start' | 'code' | 'password' | 'done';
   template: `
     <div id="change-password" class="space-y-6">
       <!-- Step indicator -->
-      @if (step() !== 'start' && step() !== 'done') {
+      @if (step() !== 'start') {
       <ol class="flex items-center gap-2 text-[11px] font-bold" aria-label="Password change progress">
         <li class="flex items-center gap-2 text-[#a53a26]">
           <span class="w-5 h-5 rounded-full bg-[#a53a26] text-white flex items-center justify-center">1</span>
@@ -42,9 +44,6 @@ type Step = 'start' | 'code' | 'password' | 'done';
 
       @if (error()) {
       <div role="alert" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">{{ error() }}</div>
-      }
-      @if (info()) {
-      <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700">{{ info() }}</div>
       }
 
       @switch (step()) {
@@ -172,20 +171,6 @@ type Step = 'start' | 'code' | 'password' | 'done';
         </form>
         }
 
-        @case ('done') {
-        <div id="password-changed" class="rounded-3xl border border-[#eee7e0] bg-[#faf8f6] p-6 flex items-start gap-4">
-          <span class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </span>
-          <div class="flex-1">
-            <h3 class="text-sm font-black text-[#1d1b2c]">Password updated</h3>
-            <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Use your new password the next time you sign in.</p>
-          </div>
-          <button type="button" (click)="reset()" class="px-4 py-2 bg-white border border-[#eee7e0] hover:bg-white text-[#1d1b2c] text-xs font-bold rounded-full cursor-pointer">
-            Done
-          </button>
-        </div>
-        }
       }
     </div>
   `,
@@ -193,6 +178,7 @@ type Step = 'start' | 'code' | 'password' | 'done';
 export class CustomerChangePasswordComponent {
   private readonly auth = inject(AuthService, { optional: true });
   private readonly fb = inject(FormBuilder);
+  private readonly toast = inject(CustomerToastService);
 
   readonly email = input('');
 
@@ -233,6 +219,7 @@ export class CustomerChangePasswordComponent {
         this.busy.set(false);
         this.step.set('code');
         this.info.set(resend ? 'A new code is on its way to your inbox.' : null);
+        this.toast.success(resend ? 'New code sent' : 'Verification code sent', `Check ${email} for your 6-digit code.`);
       },
       error: (err) => {
         this.busy.set(false);
@@ -283,8 +270,8 @@ export class CustomerChangePasswordComponent {
           if (response?.accessToken && response.user) {
             this.auth!.setSession(response.accessToken, response.user);
           }
-          this.clearForms();
-          this.step.set('done');
+          this.reset();
+          this.toast.success('Password updated', 'Use your new password the next time you sign in.');
         },
         error: (err) => {
           this.busy.set(false);
