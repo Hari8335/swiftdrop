@@ -92,37 +92,9 @@ import { MerchantApiCredentials } from './merchant.model';
                     <p class="text-[11px] text-slate-600 leading-normal">
                       Copy and store this secret securely. It will not be shown again after you hide it or leave this page.
                     </p>
-                    <div class="pt-1 flex flex-wrap items-center gap-2.5">
-                      <ui-button variant="primary" [disabled]="isSendingSecret()" (click)="onSendSecret()">
-                        @if (isSendingSecret()) {
-                          <span class="inline-flex items-center gap-2">
-                            <span class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
-                            <span>Sending secret…</span>
-                          </span>
-                        } @else if (secretSent()) {
-                          <span class="inline-flex items-center gap-1.5 font-bold">
-                            <svg class="w-4 h-4 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            <span>Secret sent to email</span>
-                          </span>
-                        } @else {
-                          <span class="inline-flex items-center gap-1.5">
-                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                            <span>Send secret</span>
-                          </span>
-                        }
-                      </ui-button>
-                      <ui-button variant="secondary" (click)="hideSecret()">Dismiss</ui-button>
+                    <div class="pt-1">
+                      <ui-button variant="secondary" (click)="hideSecret()">Done</ui-button>
                     </div>
-                    @if (sendSuccessMessage()) {
-                      <p class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 mt-2">
-                        {{ sendSuccessMessage() }}
-                      </p>
-                    }
-                    @if (sendErrorMessage()) {
-                      <p class="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5 mt-2">
-                        {{ sendErrorMessage() }}
-                      </p>
-                    }
                   </div>
                 } @else {
                   <p class="rounded-xl bg-white border border-[#e8e2dc] px-4 py-3 text-xs text-[#6f6d85] leading-relaxed">
@@ -170,7 +142,7 @@ import { MerchantApiCredentials } from './merchant.model';
               }
 
               <p class="text-xs text-slate-500 font-medium">
-                Hand over these credentials securely to the merchant, or click "Send secret" to email them directly.
+                Hand over these credentials securely to the merchant. The secret cannot be retrieved again from this page.
               </p>
             </div>
           }
@@ -226,17 +198,8 @@ import { MerchantApiCredentials } from './merchant.model';
 export class MerchantCredentialsComponent {
   readonly credentials = input<MerchantApiCredentials | null>(null);
   readonly showTokenRequest = input<boolean>(false);
-  readonly isSendingSecret = input<boolean>(false);
-  readonly secretSent = input<boolean>(false);
-  readonly sendSuccessMessage = input<string | null>(null);
-  readonly sendErrorMessage = input<string | null>(null);
-  readonly sendSecret = output<void>();
   readonly secretSaved = output<void>();
   readonly copiedField = signal<string | null>(null);
-
-  onSendSecret(): void {
-    this.sendSecret.emit();
-  }
 
   hideSecret(): void {
     this.secretSaved.emit();

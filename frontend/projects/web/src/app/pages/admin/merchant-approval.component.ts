@@ -53,11 +53,6 @@ type Action = 'approve' | 'reject' | 'recover';
           <app-merchant-credentials
             [credentials]="credentials"
             [showTokenRequest]="false"
-            [isSendingSecret]="isSendingSecret()"
-            [secretSent]="secretSent()"
-            [sendSuccessMessage]="sendSuccessMessage()"
-            [sendErrorMessage]="sendErrorMessage()"
-            (sendSecret)="dispatchCredentialsEmail(credentials)"
             (secretSaved)="clearHandoff()"
           />
           @if (!credentials.clientSecret) {
@@ -239,10 +234,6 @@ export class MerchantApprovalComponent implements OnInit, OnDestroy {
   readonly feedback = signal<string | null>(null);
   readonly handoff = signal<MerchantApiCredentials | null>(null);
   readonly handoffBusinessName = signal('');
-  readonly isSendingSecret = signal(false);
-  readonly secretSent = signal(false);
-  readonly sendSuccessMessage = signal<string | null>(null);
-  readonly sendErrorMessage = signal<string | null>(null);
 
   ngOnInit(): void {
     const qParam = this.route?.snapshot?.queryParamMap?.get('status')?.toUpperCase();
@@ -261,33 +252,6 @@ export class MerchantApprovalComponent implements OnInit, OnDestroy {
   clearHandoff(): void {
     this.handoff.set(null);
     this.handoffBusinessName.set('');
-    this.isSendingSecret.set(false);
-    this.secretSent.set(false);
-    this.sendSuccessMessage.set(null);
-    this.sendErrorMessage.set(null);
-  }
-
-  dispatchCredentialsEmail(credentials: MerchantApiCredentials): void {
-    if (!credentials.merchantId || !credentials.clientId || !credentials.clientSecret || this.isSendingSecret()) {
-      return;
-    }
-    this.isSendingSecret.set(true);
-    this.sendSuccessMessage.set(null);
-    this.sendErrorMessage.set(null);
-
-    this.merchantService.sendCredentialsEmail(credentials.merchantId, credentials.clientId, credentials.clientSecret)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.isSendingSecret.set(false);
-          this.secretSent.set(true);
-          this.sendSuccessMessage.set(`API credentials and integration specifications successfully sent to merchant's registered email.`);
-        },
-        error: (err: unknown) => {
-          this.isSendingSecret.set(false);
-          this.sendErrorMessage.set(this.merchantService.messageFor(err, 'Failed to send credentials email. Please try again.'));
-        }
-      });
   }
 
   reload(): void {
