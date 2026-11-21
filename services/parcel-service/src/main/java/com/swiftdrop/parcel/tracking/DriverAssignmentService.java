@@ -3,6 +3,7 @@ package com.swiftdrop.parcel.tracking;
 import com.swiftdrop.common.security.CurrentUser;
 import com.swiftdrop.parcel.parcel.ParcelQueryService;
 import com.swiftdrop.parcel.parcel.ParcelResponse;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
@@ -23,6 +24,9 @@ class DriverAssignmentService {
 
     /** 404 and 403 come from ParcelQueryService (owner customer, assigned courier, DISPATCHER, ADMIN). */
     DriverAssignmentHistoryResponse history(String parcelId, CurrentUser caller) {
+        if (caller != null && caller.isMerchant()) {
+            throw new AccessDeniedException("Merchants may view status history but not courier assignment history");
+        }
         ParcelResponse parcel = parcelQueryService.getAccessibleParcel(parcelId, caller);
         List<DriverAssignments.Assignment> assignments =
                 DriverAssignments.from(parcelQueryService.findStatusHistory(parcel.id()), parcel.courierId());

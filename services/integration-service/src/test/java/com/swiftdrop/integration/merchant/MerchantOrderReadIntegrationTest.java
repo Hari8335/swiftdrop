@@ -4,6 +4,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -45,6 +48,7 @@ class MerchantOrderReadIntegrationTest {
     @Autowired private JdbcTemplate jdbcTemplate;
 
     @MockitoBean private JwtDecoder jwtDecoder;
+    @MockitoBean private ParcelClient parcelClient;
 
     private UUID merchantA;
     private UUID merchantB;
@@ -265,6 +269,35 @@ class MerchantOrderReadIntegrationTest {
                 .andExpect(jsonPath("$.total").value(2))
                 .andExpect(jsonPath("$.created").value(0))
                 .andExpect(jsonPath("$.delivered").value(2));
+    }
+
+    @Test
+    @DisplayName("GET order details returns status history only for the owning merchant")
+    void orderDetails_areMerchantScopedAndIncludeParcelHistory() throws Exception {
+        MerchantOrderEntity order = createOrder(merchantA, "SD-DETAIL-001", MerchantOrderStatus.FAILED,
+                new BigDecimal("350.00"), now, "Nimal Silva", "Kandy");
+        when(parcelClient.getHistory(order.getParcelId())).thenReturn(new ParcelClient.ParcelHistoryResponse(
+                order.getParcelId().toString(), order.getTrackingNumber(), "FAILED", List.of(
+                new ParcelClient.ParcelHistoryEntry(null, "OUT_FOR_DELIVERY", "FAILED", now, "Recipient absent"))));
+
+        mockMvc.perform(merchantGet("/api/v1/merchant/orders/" + order.getOrderId(), merchantA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.externalReference").value(order.getExternalReference()))
+                .andExpect(jsonPath("$.status").value("FAILED"))
+                .andExpect(jsonPath("$.history[0].fromStatus").value("OUT_FOR_DELIVERY"))
+                .andExpect(jsonPath("$.history[0].toStatus").value("FAILED"))
+                .andExpect(jsonPath("$.history[0].reason").value("Recipient absent"));
+
+        mockMvc.perform(merchantGet("/api/v1/merchant/orders/" + order.getOrderId(), merchantB))
+                .andExpect(status().isNotFound());
+        verify(parcelClient).getHistory(order.getParcelId());
+    }
+
+    @Test
+    @DisplayName("Order details requires authenticated merchant identity")
+    void orderDetails_requiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/merchant/orders/" + UUID.randomUUID()))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

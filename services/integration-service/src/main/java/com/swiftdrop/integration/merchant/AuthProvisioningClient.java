@@ -11,6 +11,7 @@ public interface AuthProvisioningClient {
     AuthUserResponse createMerchantUser(AuthCreateUserRequest request);
     AuthUserResponse activateUser(String userId);
     AuthClientCredentialsResponse createClient(AuthCreateClientRequest request);
+    void setMerchantClientSuspended(UUID merchantId, boolean suspended);
 
     record RejectionAuditRequest(String businessName, String email, String reason, String actorId) {}
 

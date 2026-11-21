@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
-import { MerchantOrderListPage, OrderCounts, WebhookSettings } from './merchant.model';
+import { MerchantOrderDetails, MerchantOrderListPage, OrderCounts, WebhookSettings } from './merchant.model';
 import { MerchantService } from './merchant.service';
 
 describe('MerchantService', () => {
@@ -116,6 +116,19 @@ describe('MerchantService', () => {
     expect(result.total).toBe(15);
     expect(result.delivered).toBe(4);
     expect(result.inTransit).toBe(4);
+  });
+
+  it('fetches details by merchant order ID', async () => {
+    const details: MerchantOrderDetails = {
+      orderId: 'order-1', parcelId: 'parcel-1', externalReference: 'shop-1',
+      trackingNumber: 'SD-20261120-ABC123', status: 'CANCELLED', createdAt: '2026-11-20T10:00:00Z',
+      history: [{ fromStatus: 'CREATED', toStatus: 'CANCELLED', occurredAt: '2026-11-20T10:10:00Z', reason: 'Duplicate' }],
+    };
+    const promise = firstValueFrom(service.getOrderDetails('order-1'));
+    const req = httpMock.expectOne('/api/v1/merchant/orders/order-1');
+    expect(req.request.method).toBe('GET');
+    req.flush(details);
+    expect(await promise).toEqual(details);
   });
 
   const webhookSettings: WebhookSettings = {

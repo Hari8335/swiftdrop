@@ -178,6 +178,18 @@ class ClientTokenServiceTest {
     }
 
     @Test
+    @DisplayName("Suspended merchant client cannot obtain a token")
+    void suspendedClient_throws403() {
+        activeClient.setStatus("SUSPENDED");
+        stubActiveClient();
+        ClientTokenRequest request = new ClientTokenRequest(CLIENT_ID, RAW_SECRET);
+
+        assertThatThrownBy(() -> clientTokenService.exchangeToken(request, null))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+    }
+
+    @Test
     @DisplayName("Pending/disabled merchant user returns 403 Forbidden")
     void pendingMerchantUser_throws403() {
         activeMerchantUser.setEnabled(false);
