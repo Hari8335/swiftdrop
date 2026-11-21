@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AuthService } from 'shared-auth';
 import {
   AssignParcelRequest,
   BulkAssignResponse,
@@ -12,254 +11,25 @@ import {
   Zone,
 } from './dispatch.model';
 import { DispatchService } from './dispatch.service';
+import { DispatchPortalState, matchesQuery } from './dispatch-portal.state';
 
 type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
+
+/** Queue pages are fetched in one go (backend max page size) so zone/search filtering sees everything. */
+const QUEUE_FETCH_SIZE = 100;
+
+interface HomeResults {
+  queue: DispatchParcelSummary[];
+  failed: DispatchParcelSummary[];
+  couriers: CourierWorkloadItem[];
+}
 
 @Component({
   selector: 'app-dispatch',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <!-- Full-Screen Dispatcher Dashboard Layout (Matching Customer Portal Design) -->
-    <div class="w-full min-h-screen flex flex-col md:flex-row bg-white">
-      <!-- Slim Left Sidebar Navigation Rail (Docked & Sticky) -->
-      <aside
-        class="w-full md:w-20 flex-shrink-0 flex md:flex-col items-center justify-between md:justify-start py-4 md:py-7 px-4 md:px-0 border-b md:border-b-0 md:border-r border-[#f0ebe5] bg-[#faf8f6] md:sticky md:top-0 md:h-screen md:space-y-7 z-20"
-      >
-        <!-- Brand Logo Mark (Static Brand Header, Not a Button) -->
-        <div
-          class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 shrink-0 select-none"
-          title="SwiftDrop"
-        >
-          <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-        </div>
-
-        <!-- Navigation Icons Stack -->
-        <nav class="flex md:flex-col items-center gap-3 sm:gap-4" aria-label="Dispatcher Navigation">
-          <!-- 0. Dispatcher Home / Dashboard -->
-          <button
-            type="button"
-            id="tab-home-btn"
-            (click)="setTab('home')"
-            [class.rail-active]="activeTab() === 'home'"
-            [class.text-[#a53a26]]="activeTab() === 'home'"
-            [class.bg-white]="activeTab() === 'home'"
-            [class.shadow-xs]="activeTab() === 'home'"
-            [class.text-[#6f6d85]]="activeTab() !== 'home'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Dispatcher Home"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
-            <span *ngIf="activeTab() === 'home'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-          </button>
-
-          <!-- 1. Unassigned Queue -->
-          <button
-            type="button"
-            id="tab-queue-btn"
-            (click)="setTab('queue')"
-            [class.rail-active]="activeTab() === 'queue'"
-            [class.text-[#a53a26]]="activeTab() === 'queue'"
-            [class.bg-white]="activeTab() === 'queue'"
-            [class.shadow-xs]="activeTab() === 'queue'"
-            [class.text-[#6f6d85]]="activeTab() !== 'queue'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Unassigned Queue"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-              <path d="M9 12h6"></path>
-              <path d="M9 16h6"></path>
-            </svg>
-            <span *ngIf="activeTab() === 'queue'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-            <span
-              *ngIf="dispatchService.unassignedCount() > 0"
-              class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#a53a26] text-white text-[9px] font-bold flex items-center justify-center shadow-xs"
-            >
-              {{ dispatchService.unassignedCount() }}
-            </span>
-          </button>
-
-          <!-- 2. Failed Deliveries -->
-          <button
-            type="button"
-            id="tab-failed-btn"
-            (click)="setTab('failed')"
-            [class.rail-active]="activeTab() === 'failed'"
-            [class.text-[#a53a26]]="activeTab() === 'failed'"
-            [class.bg-white]="activeTab() === 'failed'"
-            [class.shadow-xs]="activeTab() === 'failed'"
-            [class.text-[#6f6d85]]="activeTab() !== 'failed'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Failed Deliveries"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-            <span *ngIf="activeTab() === 'failed'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-            <span
-              *ngIf="dispatchService.totalFailedCount() > 0"
-              class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[9px] font-bold flex items-center justify-center shadow-xs"
-            >
-              {{ dispatchService.totalFailedCount() }}
-            </span>
-          </button>
-
-          <!-- 3. Courier Workload Board -->
-          <button
-            type="button"
-            id="tab-workload-btn"
-            (click)="setTab('workload')"
-            [class.rail-active]="activeTab() === 'workload'"
-            [class.text-[#a53a26]]="activeTab() === 'workload'"
-            [class.bg-white]="activeTab() === 'workload'"
-            [class.shadow-xs]="activeTab() === 'workload'"
-            [class.text-[#6f6d85]]="activeTab() !== 'workload'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Courier Workload Board"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <rect x="3" y="3" width="7" height="7" rx="2"></rect>
-              <rect x="14" y="3" width="7" height="7" rx="2"></rect>
-              <rect x="14" y="14" width="7" height="7" rx="2"></rect>
-              <rect x="3" y="14" width="7" height="7" rx="2"></rect>
-            </svg>
-            <span *ngIf="activeTab() === 'workload'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-          </button>
-
-          <!-- 4. Delivery Zones -->
-          <a
-            routerLink="/dispatch/zones"
-            id="tab-zones-link"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
-            title="Delivery Zones"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
-              <line x1="8" y1="2" x2="8" y2="18"></line>
-              <line x1="16" y1="6" x2="16" y2="22"></line>
-            </svg>
-          </a>
-
-          <!-- 5. Pricing Rules -->
-          <a
-            routerLink="/dispatch/pricing"
-            id="tab-pricing-link"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer no-underline"
-            title="Pricing Rules"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-              <line x1="7" y1="7" x2="7.01" y2="7"></line>
-            </svg>
-          </a>
-        </nav>
-
-        <!-- Sidebar Footer Utilities -->
-        <div class="hidden md:flex flex-col items-center gap-3 pt-4 md:!mt-auto pb-4 border-t border-[#f0ebe5]/60">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Live Sync Active"></span>
-        </div>
-      </aside>
-
-      <!-- Main Content Area (Edge-to-Edge Full Screen) -->
-      <main class="flex-1 min-h-screen p-6 sm:p-8 lg:p-10 space-y-7 min-w-0 bg-white">
-        <!-- Top Header: Search Bar & User Profile Dropdown -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#f4efe9]">
-          <!-- Search Input -->
-          <div class="relative flex-1 max-w-lg">
-            <svg
-              class="w-4 h-4 text-[#a09eaf] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input
-              type="text"
-              id="top-quick-search-input"
-              [ngModel]="searchQuery()"
-              (ngModelChange)="searchQuery.set($event)"
-              (keyup.enter)="searchQuery() ? setTab('queue') : null"
-              placeholder="Search for parcel numbers, tracking ID, address... (Press Enter to search queue)"
-              class="w-full pl-11 pr-4 py-2.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
-            />
-          </div>
-
-          <!-- User Profile & Sign Out Dropdown -->
-          <div class="flex items-center gap-3 self-end sm:self-auto">
-            <div class="relative">
-              <button
-                type="button"
-                id="profile-menu-btn"
-                (click)="toggleProfileMenu()"
-                class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] hover:border-[#a53a26]/40 transition-colors cursor-pointer"
-              >
-                <span
-                  class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm"
-                >
-                  DP
-                </span>
-                <span class="text-xs font-bold text-[#1d1b2c]">{{ dispatcherDisplayName() }}</span>
-                <svg
-                  class="w-3.5 h-3.5 text-[#6f6d85] transition-transform"
-                  [class.rotate-180]="profileMenuOpen()"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
-
-              <div
-                *ngIf="profileMenuOpen()"
-                role="menu"
-                class="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-[#e8e2dc] shadow-lg shadow-[#1d1b2c]/5 py-2 z-30"
-              >
-                <div class="px-4 py-2 border-b border-[#f0ebe5]">
-                  <p class="text-xs font-bold text-[#1d1b2c] truncate">{{ dispatcherDisplayName() }}</p>
-                  <p class="text-[11px] text-[#6f6d85] truncate">Role: DISPATCHER</p>
-                </div>
-                <a
-                  routerLink="/admin/users"
-                  class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer no-underline"
-                >
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                  </svg>
-                  <span>Staff User Administration</span>
-                </a>
-                <button
-                  type="button"
-                  (click)="logout()"
-                  class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-[#a53a26] hover:bg-[#faf8f6] transition-colors cursor-pointer"
-                >
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                  </svg>
-                  <span>Log out</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div class="space-y-7">
 
         <!-- ================================================================= -->
         <!-- TAB 0: HOME PAGE (Interactive Hero Cards & Operations Launchpad) -->
@@ -275,14 +45,56 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                 SwiftDrop Live Queue Management & Courier Workload Board • Port 8083
               </p>
             </div>
-            <div class="flex items-center gap-2">
-              <span
-                id="live-sync-indicator"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+          </div>
+
+          <!-- Home search results (driven by the top search bar) -->
+          <div *ngIf="homeSearchQuery().trim()" id="home-search-results" class="bg-white rounded-3xl border border-[#f0ebe5] p-6 shadow-xs space-y-5">
+            <div class="flex items-center justify-between gap-3 border-b border-[#f4efe9] pb-3">
+              <h2 class="text-base font-black text-[#1d1b2c]">Search results for “{{ homeSearchQuery().trim() }}”</h2>
+              <span class="text-xs font-bold text-[#6f6d85]">{{ homeResultCount() }} matches</span>
+            </div>
+
+            <p *ngIf="homeResultCount() === 0" class="text-sm text-[#6f6d85]">
+              No parcels or couriers match your search.
+            </p>
+
+            <div *ngIf="homeResults().queue.length" class="space-y-2">
+              <h3 class="text-[11px] font-black uppercase tracking-widest text-[#a53a26]">Unassigned queue ({{ homeResults().queue.length }})</h3>
+              <button
+                type="button"
+                *ngFor="let p of homeResults().queue.slice(0, 5)"
+                (click)="openSearchResult('queue', p.trackingNumber)"
+                class="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[#faf8f6] border border-[#f0ebe5] hover:border-[#a53a26]/40 text-left cursor-pointer transition-colors"
               >
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Live Sync (10s)
-              </span>
+                <span class="font-mono text-xs font-black text-[#a53a26]">{{ p.trackingNumber }}</span>
+                <span class="text-xs text-[#6f6d85] truncate">{{ p.pickupZone }} → {{ p.dropoffZone }}<span *ngIf="p.recipientName"> • {{ p.recipientName }}</span></span>
+              </button>
+            </div>
+
+            <div *ngIf="homeResults().failed.length" class="space-y-2">
+              <h3 class="text-[11px] font-black uppercase tracking-widest text-rose-600">Failed deliveries ({{ homeResults().failed.length }})</h3>
+              <button
+                type="button"
+                *ngFor="let p of homeResults().failed.slice(0, 5)"
+                (click)="openSearchResult('failed', p.trackingNumber)"
+                class="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-rose-50/60 border border-rose-200/70 hover:border-rose-300 text-left cursor-pointer transition-colors"
+              >
+                <span class="font-mono text-xs font-black text-rose-700">{{ p.trackingNumber }}</span>
+                <span class="text-xs text-[#6f6d85] truncate">{{ p.failureReason || 'Failed' }} • {{ p.dropoffZone }}</span>
+              </button>
+            </div>
+
+            <div *ngIf="homeResults().couriers.length" class="space-y-2">
+              <h3 class="text-[11px] font-black uppercase tracking-widest text-emerald-700">Couriers ({{ homeResults().couriers.length }})</h3>
+              <button
+                type="button"
+                *ngFor="let c of homeResults().couriers.slice(0, 5)"
+                (click)="openSearchResult('workload', c.name)"
+                class="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[#faf8f6] border border-[#f0ebe5] hover:border-emerald-300 text-left cursor-pointer transition-colors"
+              >
+                <span class="text-xs font-bold text-[#1d1b2c]">{{ c.name }}</span>
+                <span class="text-xs text-[#6f6d85] truncate">{{ c.zone || 'No zone' }} • {{ c.available ? 'Online' : 'Offline' }} • {{ c.activeCount }} active</span>
+              </button>
             </div>
           </div>
 
@@ -516,33 +328,43 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                 </p>
               </div>
 
-              <!-- Contextual Tools: Search + Zone Filter + Select All + Refresh -->
-              <div class="flex flex-wrap items-center gap-2.5">
-                <div class="relative min-w-[200px]">
+              <!-- Queue tools: search + zone + select all + refresh -->
+              <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
+                <div class="relative w-full sm:w-60">
+                  <svg class="w-4 h-4 text-[#a09eaf] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
                   <input
-                    type="text"
+                    type="search"
                     id="queue-search-input"
                     [ngModel]="searchQuery()"
                     (ngModelChange)="searchQuery.set($event)"
-                    placeholder="Search tracking # or address..."
-                    class="w-full pl-8 pr-3 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] text-[#1d1b2c]"
+                    placeholder="Search tracking #, address, recipient..."
+                    aria-label="Search tracking #, address, recipient..."
+                    class="w-full pl-10 pr-4 h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
                   />
-                  <span class="absolute left-2.5 top-2 text-[#a09eaf] text-xs">🔍</span>
                 </div>
 
-                <select
-                  id="queue-zone-filter"
-                  [ngModel]="selectedZone()"
-                  (ngModelChange)="onQueueZoneChange($event)"
-                  class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] text-[#1d1b2c] cursor-pointer"
-                >
-                  <option value="">All Delivery Zones</option>
-                  <option *ngFor="let z of availableZones()" [value]="z.name">
-                    {{ z.name }}{{ z.districts && z.districts.length > 0 ? ' (' + z.districts.join(', ') + ')' : '' }}
-                  </option>
-                </select>
+                <div class="relative w-full sm:w-56">
+                  <select
+                    id="queue-zone-filter"
+                    [ngModel]="selectedZone()"
+                    (ngModelChange)="onQueueZoneChange($event)"
+                    aria-label="Filter by delivery zone"
+                    class="w-full appearance-none pl-4 pr-10 truncate cursor-pointer h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
+                  >
+                    <option value="">All Delivery Zones</option>
+                    <option *ngFor="let z of availableZones()" [value]="z.name">
+                      {{ z.name }}{{ z.districts.length ? ' (' + z.districts.join(', ') + ')' : '' }}
+                    </option>
+                  </select>
+                  <svg class="w-4 h-4 text-[#6f6d85] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
 
-                <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold text-[#6f6d85] cursor-pointer hover:bg-[#f3eee9] transition-colors">
+                <label class="inline-flex items-center gap-2 px-4 cursor-pointer hover:bg-[#f3eee9] h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors">
                   <input
                     type="checkbox"
                     id="select-all-queue-checkbox"
@@ -557,9 +379,12 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                   type="button"
                   id="refresh-queue-btn"
                   (click)="retryLoadQueue()"
-                  class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#f3eee9] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  class="inline-flex items-center justify-center gap-2 px-4 text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#f3eee9] cursor-pointer h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
                 >
-                  <span>🔄</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
                   <span>Refresh</span>
                 </button>
               </div>
@@ -614,13 +439,12 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
             <!-- Loading State -->
             <div *ngIf="dispatchService.isLoadingParcels()" class="bg-white rounded-2xl border border-[#f0ebe5] p-12 text-center space-y-3">
-              <div class="inline-block animate-spin text-3xl">⏳</div>
+              <div class="mx-auto w-7 h-7 rounded-full border-2 border-[#e8e2dc] border-t-[#a53a26] animate-spin" aria-hidden="true"></div>
               <p class="text-sm font-semibold text-[#6f6d85]">Loading unassigned dispatch queue...</p>
             </div>
 
             <!-- Error State with Retry -->
             <div *ngIf="!dispatchService.isLoadingParcels() && dispatchService.parcelsError()" class="bg-rose-50 rounded-2xl border border-rose-200 p-6 text-center space-y-3">
-              <div class="text-3xl">⚠️</div>
               <h3 class="text-sm font-bold text-rose-800">Failed to Load Dispatch Queue</h3>
               <p class="text-xs text-rose-600 max-w-md mx-auto">{{ dispatchService.parcelsError() }}</p>
               <button
@@ -711,14 +535,12 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
               <ng-template #emptyQueueTemplate>
                 <div class="bg-white rounded-2xl border border-[#f0ebe5] p-12 text-center space-y-3">
                   <div *ngIf="searchQuery() || selectedZone()">
-                    <div class="text-4xl">🔍</div>
                     <h3 class="text-base font-bold text-[#1d1b2c]">No matching parcels found</h3>
                     <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
                       No unassigned parcels matched your current search query or zone filter. Try clearing your filters.
                     </p>
                   </div>
                   <div *ngIf="!searchQuery() && !selectedZone()">
-                    <div class="text-4xl">🎉</div>
                     <h3 class="text-base font-bold text-[#1d1b2c]">No Unassigned Parcels / All caught up!</h3>
                     <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
                       All parcels have been dispatched. There are currently no parcels in the unassigned queue awaiting courier assignment.
@@ -767,21 +589,43 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                 </p>
               </div>
 
-              <!-- Contextual Tools: Zone Filter + Online Only + Refresh -->
-              <div class="flex flex-wrap items-center gap-2.5">
-                <select
-                  id="workload-zone-filter"
-                  [ngModel]="workloadZone()"
-                  (ngModelChange)="onWorkloadZoneChange($event)"
-                  class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] text-[#1d1b2c] cursor-pointer"
-                >
-                  <option value="">All Delivery Zones</option>
-                  <option *ngFor="let z of availableZones()" [value]="z.name">
-                    {{ z.name }}{{ z.districts && z.districts.length > 0 ? ' (' + z.districts.join(', ') + ')' : '' }}
-                  </option>
-                </select>
+              <!-- Workload tools: search + zone + online only + refresh -->
+              <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
+                <div class="relative w-full sm:w-60">
+                  <svg class="w-4 h-4 text-[#a09eaf] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                  <input
+                    type="search"
+                    id="workload-search-input"
+                    [ngModel]="workloadSearchQuery()"
+                    (ngModelChange)="workloadSearchQuery.set($event)"
+                    placeholder="Search courier name, phone, vehicle..."
+                    aria-label="Search courier name, phone, vehicle..."
+                    class="w-full pl-10 pr-4 h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
+                  />
+                </div>
 
-                <label class="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold text-[#1d1b2c] cursor-pointer hover:bg-[#f3eee9] transition-colors">
+                <div class="relative w-full sm:w-56">
+                  <select
+                    id="workload-zone-filter"
+                    [ngModel]="workloadZone()"
+                    (ngModelChange)="onWorkloadZoneChange($event)"
+                    aria-label="Filter by delivery zone"
+                    class="w-full appearance-none pl-4 pr-10 truncate cursor-pointer h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
+                  >
+                    <option value="">All Delivery Zones</option>
+                    <option *ngFor="let z of availableZones()" [value]="z.name">
+                      {{ z.name }}{{ z.districts.length ? ' (' + z.districts.join(', ') + ')' : '' }}
+                    </option>
+                  </select>
+                  <svg class="w-4 h-4 text-[#6f6d85] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+
+                <label class="inline-flex items-center gap-2 px-4 cursor-pointer hover:bg-[#f3eee9] h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors">
                   <input
                     type="checkbox"
                     id="available-only-toggle"
@@ -796,9 +640,12 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                   type="button"
                   id="refresh-workload-btn"
                   (click)="retryLoadWorkload()"
-                  class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#f3eee9] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  class="inline-flex items-center justify-center gap-2 px-4 text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#f3eee9] cursor-pointer h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
                 >
-                  <span>🔄</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
                   <span>Refresh</span>
                 </button>
               </div>
@@ -806,13 +653,12 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
             <!-- Workload Loading State -->
             <div *ngIf="dispatchService.isLoadingCouriers()" class="bg-[#faf8f6] rounded-2xl border border-[#f0ebe5] p-12 text-center space-y-3">
-              <div class="inline-block animate-spin text-3xl">⏳</div>
+              <div class="mx-auto w-7 h-7 rounded-full border-2 border-[#e8e2dc] border-t-[#a53a26] animate-spin" aria-hidden="true"></div>
               <p class="text-sm font-semibold text-[#6f6d85]">Loading courier workload board...</p>
             </div>
 
             <!-- Workload Error State -->
             <div *ngIf="!dispatchService.isLoadingCouriers() && dispatchService.couriersError()" class="bg-rose-50 rounded-2xl border border-rose-200 p-6 text-center space-y-3">
-              <div class="text-3xl">⚠️</div>
               <h3 class="text-sm font-bold text-rose-800">Failed to Load Workload Board</h3>
               <p class="text-xs text-rose-600 max-w-md mx-auto">{{ dispatchService.couriersError() }}</p>
               <button
@@ -913,10 +759,9 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
               <ng-template #emptyWorkloadTemplate>
                 <div class="bg-white rounded-2xl border border-[#f0ebe5] p-12 text-center space-y-3">
-                  <div class="text-4xl">👷</div>
                   <h3 class="text-base font-bold text-[#1d1b2c]">No Couriers Found</h3>
                   <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
-                    No active couriers match the selected zone or availability criteria.
+                    No couriers match your search, zone, or availability filters.
                   </p>
                 </div>
               </ng-template>
@@ -961,39 +806,52 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
                 </p>
               </div>
 
-              <!-- Contextual Tools: Search + Zone Filter + Refresh -->
-              <div class="flex flex-wrap items-center gap-2.5">
-                <div class="relative min-w-[200px]">
+              <!-- Failed tools: search + zone + refresh -->
+              <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
+                <div class="relative w-full sm:w-60">
+                  <svg class="w-4 h-4 text-[#a09eaf] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
                   <input
-                    type="text"
+                    type="search"
                     id="failed-search-input"
                     [ngModel]="failedSearchQuery()"
                     (ngModelChange)="failedSearchQuery.set($event)"
-                    placeholder="Search failed tracking #, reason..."
-                    class="w-full pl-8 pr-3 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-[#1d1b2c]"
+                    placeholder="Search tracking #, reason, address..."
+                    aria-label="Search tracking #, reason, address..."
+                    class="w-full pl-10 pr-4 h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
                   />
-                  <span class="absolute left-2.5 top-2 text-[#a09eaf] text-xs">🔍</span>
                 </div>
 
-                <select
-                  id="failed-zone-filter"
-                  [ngModel]="failedSelectedZone()"
-                  (ngModelChange)="onFailedZoneChange($event)"
-                  class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 text-[#1d1b2c] cursor-pointer"
-                >
-                  <option value="">All Delivery Zones</option>
-                  <option *ngFor="let z of availableZones()" [value]="z.name">
-                    {{ z.name }}{{ z.districts && z.districts.length > 0 ? ' (' + z.districts.join(', ') + ')' : '' }}
-                  </option>
-                </select>
+                <div class="relative w-full sm:w-56">
+                  <select
+                    id="failed-zone-filter"
+                    [ngModel]="failedSelectedZone()"
+                    (ngModelChange)="onFailedZoneChange($event)"
+                    aria-label="Filter by delivery zone"
+                    class="w-full appearance-none pl-4 pr-10 truncate cursor-pointer h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
+                  >
+                    <option value="">All Delivery Zones</option>
+                    <option *ngFor="let z of availableZones()" [value]="z.name">
+                      {{ z.name }}{{ z.districts.length ? ' (' + z.districts.join(', ') + ')' : '' }}
+                    </option>
+                  </select>
+                  <svg class="w-4 h-4 text-[#6f6d85] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
 
                 <button
                   type="button"
                   id="refresh-failed-btn"
                   (click)="retryLoadFailed()"
-                  class="px-3.5 py-2 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-[#6f6d85] hover:text-rose-600 hover:bg-[#f3eee9] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  class="inline-flex items-center justify-center gap-2 px-4 text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#f3eee9] cursor-pointer h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
                 >
-                  <span>🔄</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
                   <span>Refresh</span>
                 </button>
               </div>
@@ -1001,13 +859,12 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
             <!-- Loading State -->
             <div *ngIf="dispatchService.isLoadingFailed()" class="bg-[#faf8f6] rounded-2xl border border-[#f0ebe5] p-12 text-center space-y-3">
-              <div class="inline-block animate-spin text-3xl">⏳</div>
+              <div class="mx-auto w-7 h-7 rounded-full border-2 border-[#e8e2dc] border-t-[#a53a26] animate-spin" aria-hidden="true"></div>
               <p class="text-sm font-semibold text-[#6f6d85]">Loading failed delivery parcels...</p>
             </div>
 
             <!-- Error State with Retry -->
             <div *ngIf="!dispatchService.isLoadingFailed() && dispatchService.failedError()" class="bg-rose-50 rounded-2xl border border-rose-200 p-6 text-center space-y-3">
-              <div class="text-3xl">⚠️</div>
               <h3 class="text-sm font-bold text-rose-800">Failed to Load Failed Deliveries</h3>
               <p class="text-xs text-rose-600 max-w-md mx-auto">{{ dispatchService.failedError() }}</p>
               <button
@@ -1092,7 +949,6 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
 
               <ng-template #emptyFailedTemplate>
                 <div class="bg-white rounded-2xl border border-[#f0ebe5] p-12 text-center space-y-3">
-                  <div class="text-4xl">✨</div>
                   <h3 class="text-base font-bold text-[#1d1b2c]">No Failed Deliveries</h3>
                   <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
                     There are no failed parcels requiring dispatcher attention at this time.
@@ -1385,46 +1241,33 @@ type DispatchTab = 'home' | 'queue' | 'workload' | 'failed';
           </div>
         </div>
       </div>
-    </main>
-  </div>
+    </div>
   `,
 })
 export class DispatchComponent implements OnInit, OnDestroy {
   public dispatchService = inject(DispatchService);
   private readonly route = inject(ActivatedRoute, { optional: true });
-  public authService = inject(AuthService, { optional: true });
   private readonly router = inject(Router, { optional: true });
 
+  private readonly portal = inject(DispatchPortalState);
+
   public activeTab = signal<DispatchTab>('home');
-  public profileMenuOpen = signal(false);
   private pollIntervalId: any = null;
 
-  public toggleProfileMenu(): void {
-    this.profileMenuOpen.update((open) => !open);
-  }
 
-  public logout(): void {
-    if (this.authService) {
-      this.authService.logout().subscribe({
-        next: () => this.router?.navigate(['/login']),
-        error: () => this.router?.navigate(['/login']),
-      });
-    } else {
-      this.router?.navigate(['/login']);
-    }
-  }
+  // Search signals are shared with the portal's top search bar (one query per page), so the
+  // header search and the in-page search box on the same page always show the same text.
+  public homeSearchQuery = this.portal.queries.home;
+  public searchQuery = this.portal.queries.queue;
+  public failedSearchQuery = this.portal.queries.failed;
+  public workloadSearchQuery = this.portal.queries.workload;
 
-  public dispatcherDisplayName(): string {
-    return 'Sample Dispatcher';
-  }
-
-  // Search & Filter Signals
-  public searchQuery = signal('');
+  // Zone filters
   public selectedZone = signal('');
   public workloadZone = signal('');
   public availableOnly = signal(false);
-  public failedSearchQuery = signal('');
   public failedSelectedZone = signal('');
+  /** Zones configured on the Delivery Zones page (GET /api/v1/admin/zones). */
   public availableZones = signal<Zone[]>([]);
 
   // Modals & Submitting state
@@ -1485,116 +1328,67 @@ export class DispatchComponent implements OnInit, OnDestroy {
     this.startLiveQueuePolling();
   }
 
+  /**
+   * Loads the zone dropdowns from the Delivery Zones page's data. This component is re-created
+   * whenever you come back from the zones page, so newly created/edited zones show up here.
+   */
   public loadAvailableZones(): void {
-    if (typeof this.dispatchService?.listZones === 'function') {
-      this.dispatchService.listZones().subscribe({
-        next: (zones) => {
-          if (zones && zones.length > 0) {
-            this.availableZones.set(zones);
-          } else {
-            this.availableZones.set(this.defaultZones());
+    this.dispatchService.listZones().subscribe({
+      next: (zones) => {
+        this.availableZones.set(zones ?? []);
+        // A zone deleted on the zones page can no longer be a filter.
+        for (const filter of [this.selectedZone, this.workloadZone, this.failedSelectedZone]) {
+          if (filter() && this.availableZones().length > 0 && !this.findZone(filter())) {
+            filter.set('');
           }
-        },
-        error: () => {
-          this.availableZones.set(this.defaultZones());
-        },
-      });
-    } else {
-      this.availableZones.set(this.defaultZones());
-    }
+        }
+      },
+      error: () => this.availableZones.set([]),
+    });
   }
 
-  public defaultZones(): Zone[] {
-    return [
-      {
-        id: 'z-western',
-        name: 'E2E western',
-        districts: ['Colombo'],
-        served: true,
-        baseFeeLkr: 350,
-        createdAt: '',
-        updatedAt: '',
-      },
-      {
-        id: 'z-central',
-        name: 'E2E central',
-        districts: ['Kandy'],
-        served: true,
-        baseFeeLkr: 450,
-        createdAt: '',
-        updatedAt: '',
-      },
-    ];
+  /** Configured zone with exactly this name (case-insensitive), if any. */
+  public findZone(name: string): Zone | undefined {
+    const n = name?.trim().toLowerCase();
+    if (!n) return undefined;
+    return this.availableZones().find((z) => z.name.trim().toLowerCase() === n);
   }
 
+  /**
+   * Value sent as the backend `zone` query param. The backend matches a single district, but a
+   * configured zone can cover several districts, so for those we fetch everything and filter by
+   * all of the zone's districts on the client instead.
+   */
   public resolveBackendDistrict(zone: string): string | undefined {
     if (!zone || !zone.trim()) return undefined;
-    if (zone.startsWith('ZONE-')) return zone;
-
-    const zLower = zone.trim().toLowerCase();
-    const zoneObj = this.availableZones().find(
-      (z) =>
-        z.name.toLowerCase() === zLower ||
-        zLower.includes(z.name.toLowerCase()) ||
-        z.name.toLowerCase().includes(zLower)
-    );
-    if (zoneObj && zoneObj.districts && zoneObj.districts.length > 0) {
-      return zoneObj.districts[0];
-    }
-
-    if (zLower.includes('colombo') || zLower.includes('western')) return 'Colombo';
-    if (zLower.includes('kandy') || zLower.includes('central')) return 'Kandy';
-
-    return zone;
+    if (this.findZone(zone)) return undefined;
+    return zone.trim();
   }
 
+  /** True when a district (parcel or courier zone) belongs to the selected zone filter. */
   public matchesZone(targetZone: string | undefined | null, filterZone: string): boolean {
     if (!filterZone || !filterZone.trim()) return true;
     if (!targetZone || !targetZone.trim()) return false;
 
-    const filterNorm = filterZone.trim().toLowerCase();
-    const targetNorm = targetZone.trim().toLowerCase();
+    const target = targetZone.trim().toLowerCase();
+    const filter = filterZone.trim().toLowerCase();
+    if (target === filter) return true;
 
-    if (filterNorm === targetNorm) return true;
-
-    if (filterZone.startsWith('ZONE-') || targetZone.startsWith('ZONE-')) {
-      return filterNorm === targetNorm;
+    const zone = this.findZone(filterZone);
+    if (zone) {
+      return zone.districts.some((d) => d.trim().toLowerCase() === target);
     }
-
-    const zoneObj = this.availableZones().find(
-      (z) =>
-        z.name.toLowerCase() === filterNorm ||
-        filterNorm.includes(z.name.toLowerCase()) ||
-        z.name.toLowerCase().includes(filterNorm)
-    );
-    if (zoneObj) {
-      if (zoneObj.name.toLowerCase() === targetNorm) return true;
-      if (
-        zoneObj.districts?.some(
-          (d) => d.toLowerCase() === targetNorm || targetNorm.includes(d.toLowerCase())
-        )
-      ) {
-        return true;
-      }
-    }
-
-    const isFilterColombo = filterNorm.includes('colombo') || filterNorm.includes('western');
-    const isTargetColombo = targetNorm.includes('colombo') || targetNorm.includes('western');
-    if (isFilterColombo && isTargetColombo) return true;
-
-    const isFilterKandy = filterNorm.includes('kandy') || filterNorm.includes('central');
-    const isTargetKandy = targetNorm.includes('kandy') || targetNorm.includes('central');
-    if (isFilterKandy && isTargetKandy) return true;
-
-    return false;
+    // Not a configured zone (raw district/code): same "contains" rule as the backend.
+    return target.includes(filter);
   }
 
+  /** A configured zone matches on the parcel's delivery (dropoff) district. */
   public matchesParcelZone(p: DispatchParcelSummary, filterZone: string): boolean {
     if (!filterZone || !filterZone.trim()) return true;
-    if (filterZone.startsWith('ZONE-')) {
-      return this.matchesZone(p.dropoffZone, filterZone) || this.matchesZone(p.pickupZone, filterZone);
+    if (this.findZone(filterZone)) {
+      return this.matchesZone(p.dropoffZone, filterZone);
     }
-    return this.matchesZone(p.dropoffZone || p.pickupZone, filterZone);
+    return this.matchesZone(p.dropoffZone, filterZone) || this.matchesZone(p.pickupZone, filterZone);
   }
 
   public ngOnDestroy(): void {
@@ -1635,7 +1429,7 @@ export class DispatchComponent implements OnInit, OnDestroy {
 
   public retryLoadQueue(): void {
     const backendZone = this.resolveBackendDistrict(this.selectedZone());
-    this.dispatchService.loadUnassignedParcels(backendZone).subscribe({
+    this.dispatchService.loadUnassignedParcels(backendZone, undefined, 0, QUEUE_FETCH_SIZE).subscribe({
       error: () => {},
     });
   }
@@ -1649,13 +1443,14 @@ export class DispatchComponent implements OnInit, OnDestroy {
 
   public retryLoadFailed(): void {
     const backendZone = this.resolveBackendDistrict(this.failedSelectedZone());
-    this.dispatchService.loadFailedParcels(backendZone).subscribe({
+    this.dispatchService.loadFailedParcels(backendZone, undefined, 0, QUEUE_FETCH_SIZE).subscribe({
       error: () => {},
     });
   }
 
   public onQueueZoneChange(zone: string): void {
     this.selectedZone.set(zone);
+    this.clearSelection();
     this.retryLoadQueue();
   }
 
@@ -1674,56 +1469,70 @@ export class DispatchComponent implements OnInit, OnDestroy {
     this.retryLoadWorkload();
   }
 
+  private parcelMatchesSearch(p: DispatchParcelSummary, query: string): boolean {
+    return matchesQuery(
+      query,
+      p.trackingNumber,
+      p.pickupAddress,
+      p.dropoffAddress,
+      p.pickupZone,
+      p.dropoffZone,
+      p.recipientName,
+      p.recipientPhone,
+      p.failureReason
+    );
+  }
+
+  private courierMatchesSearch(c: CourierWorkloadItem, query: string): boolean {
+    return matchesQuery(query, c.name, c.phoneNumber, c.zone, c.vehicleType, c.available ? 'online' : 'offline');
+  }
+
   public filteredParcels = computed(() => {
-    let list = this.dispatchService.unassignedParcels();
     const zone = this.selectedZone();
-    if (zone) {
-      list = list.filter((p) => this.matchesParcelZone(p, zone));
-    }
-    const q = this.searchQuery().trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (p) =>
-          p.trackingNumber.toLowerCase().includes(q) ||
-          (p.pickupAddress && p.pickupAddress.toLowerCase().includes(q)) ||
-          (p.dropoffAddress && p.dropoffAddress.toLowerCase().includes(q)) ||
-          (p.recipientName && p.recipientName.toLowerCase().includes(q))
-      );
-    }
-    return list;
+    const q = this.searchQuery();
+    return this.dispatchService
+      .unassignedParcels()
+      .filter((p) => this.matchesParcelZone(p, zone) && this.parcelMatchesSearch(p, q));
   });
 
   public filteredCouriers = computed(() => {
-    let list = this.dispatchService.couriers();
     const zone = this.workloadZone();
-    if (zone) {
-      list = list.filter((c) => this.matchesZone(c.zone, zone));
-    }
-    if (this.availableOnly()) {
-      list = list.filter((c) => c.available);
-    }
-    return list;
+    const q = this.workloadSearchQuery();
+    const onlineOnly = this.availableOnly();
+    return this.dispatchService
+      .couriers()
+      .filter((c) => this.matchesZone(c.zone, zone) && (!onlineOnly || c.available) && this.courierMatchesSearch(c, q));
   });
 
   public filteredFailedParcels = computed(() => {
-    let list = this.dispatchService.failedParcels();
     const zone = this.failedSelectedZone();
-    if (zone) {
-      list = list.filter((p) => this.matchesParcelZone(p, zone));
-    }
-    const q = this.failedSearchQuery().trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (p) =>
-          p.trackingNumber.toLowerCase().includes(q) ||
-          (p.failureReason && p.failureReason.toLowerCase().includes(q)) ||
-          (p.pickupAddress && p.pickupAddress.toLowerCase().includes(q)) ||
-          (p.dropoffAddress && p.dropoffAddress.toLowerCase().includes(q)) ||
-          (p.recipientName && p.recipientName.toLowerCase().includes(q))
-      );
-    }
-    return list;
+    const q = this.failedSearchQuery();
+    return this.dispatchService
+      .failedParcels()
+      .filter((p) => this.matchesParcelZone(p, zone) && this.parcelMatchesSearch(p, q));
   });
+
+  /** Home page search: looks across the queue, failed deliveries and couriers. */
+  public homeResults = computed(() => {
+    const q = this.homeSearchQuery();
+    if (!q.trim()) return { queue: [], failed: [], couriers: [] } as HomeResults;
+    return {
+      queue: this.dispatchService.unassignedParcels().filter((p) => this.parcelMatchesSearch(p, q)),
+      failed: this.dispatchService.failedParcels().filter((p) => this.parcelMatchesSearch(p, q)),
+      couriers: this.dispatchService.couriers().filter((c) => this.courierMatchesSearch(c, q)),
+    } as HomeResults;
+  });
+
+  public homeResultCount = computed(() => {
+    const r = this.homeResults();
+    return r.queue.length + r.failed.length + r.couriers.length;
+  });
+
+  /** Opens a home search result on its own page, pre-filled with that page's search. */
+  public openSearchResult(tab: 'queue' | 'failed' | 'workload', term: string): void {
+    this.portal.queries[tab].set(term);
+    this.setTab(tab);
+  }
 
   // -------------------------------------------------------------------------
   // Bulk Assignment Logic
