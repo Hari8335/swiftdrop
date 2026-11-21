@@ -40,6 +40,36 @@ describe('AssistantChatComponent', () => {
     httpMock.verify();
   });
 
+  describe('profile menu', () => {
+    const el = () => fixture.nativeElement as HTMLElement;
+    const openMenu = () => {
+      el().querySelector<HTMLButtonElement>('#profile-menu-btn')!.click();
+      fixture.detectChanges();
+    };
+
+    it('clicking the name opens a menu with Settings and Log out', () => {
+      expect(el().querySelector('#profile-menu-panel')).toBeNull();
+      openMenu();
+      expect(el().querySelector('#profile-menu-settings')!.textContent).toContain('Settings');
+      expect(el().querySelector('#profile-menu-logout')!.textContent).toContain('Log out');
+    });
+
+    it('Settings navigates to the customer settings tab', () => {
+      const navigate = jest.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      openMenu();
+      el().querySelector<HTMLButtonElement>('#profile-menu-settings')!.click();
+      expect(navigate).toHaveBeenCalledWith(['/customer'], { queryParams: { tab: 'settings' } });
+    });
+
+    it('Log out asks for confirmation first', () => {
+      openMenu();
+      el().querySelector<HTMLButtonElement>('#profile-menu-logout')!.click();
+      fixture.detectChanges();
+      expect(el().querySelector('#profile-menu-panel')).toBeNull();
+      expect(el().querySelector('#logout-confirm-modal')).not.toBeNull();
+    });
+  });
+
   it('should render welcome state when no messages', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('#assistant-suggestions')).toBeTruthy();
