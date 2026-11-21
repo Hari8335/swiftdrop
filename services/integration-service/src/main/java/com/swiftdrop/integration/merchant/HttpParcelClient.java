@@ -50,6 +50,15 @@ public class HttpParcelClient implements ParcelClient {
                 .body(InternalParcelResponse.class);
     }
 
+    @Override
+    public ParcelHistoryResponse getHistory(UUID parcelId) {
+        return restClient.get()
+                .uri("/api/v1/parcels/{id}/history", parcelId)
+                .headers(HttpParcelClient::relayAuthentication)
+                .retrieve()
+                .body(ParcelHistoryResponse.class);
+    }
+
     private static void relayAuthentication(HttpHeaders headers) {
         if (SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken jwt
                 && jwt.isAuthenticated()) {

@@ -279,7 +279,9 @@ public interface ParcelQueryService {
 
     /**
      * History, receipt and rating. Applies the same access rule as GET /api/v1/parcels/{id}
-     * (owner customer, assigned courier, DISPATCHER, ADMIN).
+     * (owner customer, assigned courier, DISPATCHER, ADMIN, or a MERCHANT whose
+     * authenticated merchantId matches the parcel). Courier assignment history
+     * remains restricted to customers, assigned couriers, DISPATCHER and ADMIN.
      * Throws the common not-found / access-denied exceptions, mapped to 404 / 403 by the
      * shared GlobalExceptionHandler.
      */

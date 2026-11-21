@@ -13,6 +13,7 @@ import {
 } from 'ui';
 import {
   MerchantOrder,
+  MerchantOrderDetails,
   MerchantOrderFilterParams,
   OrderCounts,
   ParcelLifecycleStatus,
@@ -1201,7 +1202,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
       <!-- Order Detail Modal for Dashboard -->
       @if (selectedOrder()) {
         <div class="fixed inset-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-white rounded-3xl shadow-xl max-w-lg w-full overflow-hidden border border-[#eee7e0]">
+          <div class="bg-white rounded-3xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-[#eee7e0]">
             <div class="p-6 border-b border-[#f4efe9] flex justify-between items-center bg-[#faf8f6]">
               <div>
                 <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Parcel Order Details</span>
@@ -1209,7 +1210,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               </div>
               <button
                 type="button"
-                (click)="selectedOrder.set(null)"
+                (click)="closeOrderDetails()"
                 class="w-8 h-8 rounded-full bg-white border border-[#eee7e0] text-[#6f6d85] hover:text-[#1d1b2c] flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
               >
                 &times;
@@ -1217,18 +1218,31 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             </div>
 
             <div class="p-6 space-y-4 text-xs">
+              @if (isLoadingOrderDetails()) {
+                <div role="status" aria-live="polite" class="rounded-xl bg-[#faf8f6] p-4 text-sm text-[#6f6d85]">Loading current delivery details and history…</div>
+              }
+              @if (orderDetailsError(); as detailError) {
+                <div role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+                  <p>{{ detailError }}</p>
+                  <button type="button" class="mt-2 font-bold underline" (click)="retryOrderDetails()">Retry</button>
+                </div>
+              }
               <div class="grid grid-cols-2 gap-4 p-4 bg-[#faf8f6] rounded-2xl border border-[#e8e2dc]">
                 <div>
                   <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Status</span>
-                  <span [ngClass]="getStatusBadgeClass(selectedOrder()!.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mt-1">
-                    {{ selectedOrder()?.status }}
+                  <span [ngClass]="getStatusBadgeClass(orderDetails()?.status || selectedOrder()!.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mt-1">
+                    {{ orderDetails()?.status || selectedOrder()?.status }}
                   </span>
                 </div>
                 <div>
                   <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Delivery Fee</span>
                   <span class="font-mono font-bold text-sm text-[#1d1b2c] mt-1 block">
-                    {{ selectedOrder()?.fee != null ? 'LKR ' + (selectedOrder()?.fee | number:'1.2-2') : '—' }}
+                    {{ (orderDetails()?.fee ?? selectedOrder()?.fee) != null ? 'LKR ' + ((orderDetails()?.fee ?? selectedOrder()?.fee) | number:'1.2-2') : '—' }}
                   </span>
+                </div>
+                <div class="col-span-2">
+                  <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Merchant Order Reference</span>
+                  <p class="font-mono text-[#1d1b2c] mt-0.5">{{ orderDetails()?.externalReference || selectedOrder()?.externalReference || '—' }}</p>
                 </div>
                 <div class="col-span-2">
                   <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Recipient</span>
@@ -1241,21 +1255,41 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                 </div>
               </div>
 
-              <div class="rounded-2xl border border-[#eee7e0] p-4 flex items-center justify-between">
-                <div>
-                  <p class="font-bold text-[#1d1b2c]">Carrier Delivery Service</p>
-                  <p class="text-[11px] text-[#6f6d85]">SwiftDrop Express Logistics Network</p>
-                </div>
-                <span class="w-8 h-8 rounded-full bg-[#a53a26]/10 text-[#a53a26] flex items-center justify-center font-bold text-xs">
-                  SD
-                </span>
-              </div>
+              @if (orderDetails(); as details) {
+                <section aria-label="Delivery status timeline" class="rounded-2xl border border-[#eee7e0] p-4">
+                  <h4 class="font-bold text-sm text-[#1d1b2c]">Delivery status timeline</h4>
+                  @if (details.history.length === 0) {
+                    <p class="mt-3 text-[#6f6d85]">No status history is available yet.</p>
+                  } @else {
+                    <ol class="mt-4 space-y-4">
+                      @for (entry of details.history; track $index) {
+                        <li class="relative border-l-2 pl-4 pb-1" [class.border-emerald-500]="isCurrentHistoryEntry($index)" [class.border-slate-200]="!isCurrentHistoryEntry($index)">
+                          <span class="absolute -left-[5px] top-0 h-2 w-2 rounded-full" [class.bg-emerald-500]="isCurrentHistoryEntry($index)" [class.bg-slate-300]="!isCurrentHistoryEntry($index)"></span>
+                          <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-black text-[#1d1b2c]">{{ entry.toStatus }}</span>
+                            @if (isCurrentHistoryEntry($index)) { <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700">CURRENT</span> }
+                            @else { <span class="text-[9px] font-bold text-slate-500">RECORDED</span> }
+                          </div>
+                          <time class="mt-1 block text-[11px] text-[#6f6d85]">{{ entry.occurredAt | date:'medium' }}</time>
+                          @if (entry.reason) { <p class="mt-1 text-[11px] text-[#6f6d85]">{{ entry.reason }}</p> }
+                        </li>
+                      }
+                    </ol>
+                  }
+                  @if (pendingDeliveryStages().length > 0) {
+                    <div class="mt-4 border-t border-slate-100 pt-3">
+                      <p class="text-[10px] font-bold uppercase tracking-wide text-slate-400">Not reached yet</p>
+                      <p class="mt-1 text-[#6f6d85]">{{ pendingDeliveryStages().join(' · ') }}</p>
+                    </div>
+                  }
+                </section>
+              }
             </div>
 
             <div class="p-4 border-t border-[#f4efe9] bg-[#faf8f6] flex justify-end">
               <button
                 type="button"
-                (click)="selectedOrder.set(null)"
+                (click)="closeOrderDetails()"
                 class="px-5 py-2.5 rounded-full bg-[#1d1b2c] hover:bg-black text-white font-bold text-xs transition-all cursor-pointer"
               >
                 Close
@@ -1388,11 +1422,15 @@ export class MerchantComponent implements OnInit, OnDestroy {
   private countsSubscription?: Subscription;
   private deliverySubscription?: Subscription;
   private detailSubscription?: Subscription;
+  private orderDetailsSubscription?: Subscription;
 
   activeTab = signal<ActiveTab>('orders');
   notification = signal<string | null>(null);
   profileMenuOpen = signal<boolean>(false);
   selectedOrder = signal<MerchantOrder | null>(null);
+  orderDetails = signal<MerchantOrderDetails | null>(null);
+  isLoadingOrderDetails = signal(false);
+  orderDetailsError = signal<string | null>(null);
   diagnosticTab = signal<'overview' | 'headers' | 'payload' | 'response'>('overview');
 
   readonly merchantName = computed(() => this.authService?.currentUser()?.fullName || 'Merchant Partner');
@@ -1536,6 +1574,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
     this.countsSubscription?.unsubscribe();
     this.deliverySubscription?.unsubscribe();
     this.detailSubscription?.unsubscribe();
+    this.orderDetailsSubscription?.unsubscribe();
   }
 
   toggleProfileMenu(): void {
@@ -1577,6 +1616,61 @@ export class MerchantComponent implements OnInit, OnDestroy {
 
   viewOrderDetails(order: MerchantOrder): void {
     this.selectedOrder.set(order);
+    this.loadOrderDetails(order.orderId);
+  }
+
+  closeOrderDetails(): void {
+    this.orderDetailsSubscription?.unsubscribe();
+    this.selectedOrder.set(null);
+    this.orderDetails.set(null);
+    this.orderDetailsError.set(null);
+    this.isLoadingOrderDetails.set(false);
+  }
+
+  retryOrderDetails(): void {
+    const order = this.selectedOrder();
+    if (order) this.loadOrderDetails(order.orderId);
+  }
+
+  private loadOrderDetails(orderId: string): void {
+    this.orderDetailsSubscription?.unsubscribe();
+    this.orderDetails.set(null);
+    this.orderDetailsError.set(null);
+    this.isLoadingOrderDetails.set(true);
+    this.orderDetailsSubscription = this.merchantService.getOrderDetails(orderId).pipe(
+      finalize(() => this.isLoadingOrderDetails.set(false)),
+    ).subscribe({
+      next: (details) => {
+        if (this.selectedOrder()?.orderId === orderId) {
+          this.orderDetails.set(details);
+          this.selectedOrder.update((order) => order?.orderId === orderId
+            ? { ...order, status: details.status, updatedAt: details.updatedAt }
+            : order);
+          this.orders.update((orders) => orders.map((order) => order.orderId === orderId
+            ? { ...order, status: details.status, updatedAt: details.updatedAt }
+            : order));
+        }
+      },
+      error: (error: HttpErrorResponse) => {
+        if (this.selectedOrder()?.orderId === orderId) {
+          this.orderDetailsError.set(this.apiErrorMessage(error, 'Unable to load order details.'));
+        }
+      },
+    });
+  }
+
+  isCurrentHistoryEntry(index: number): boolean {
+    const details = this.orderDetails();
+    return !!details && index === details.history.length - 1
+      && details.history[index]?.toStatus === details.status;
+  }
+
+  pendingDeliveryStages(): string[] {
+    const details = this.orderDetails();
+    if (!details || ['DELIVERED', 'FAILED', 'CANCELLED'].includes(details.status)) return [];
+    const stages = ['CREATED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+    const currentIndex = stages.indexOf(details.status);
+    return currentIndex < 0 ? [] : stages.slice(currentIndex + 1);
   }
 
   loadOrders(page: number = this.currentPage()): void {

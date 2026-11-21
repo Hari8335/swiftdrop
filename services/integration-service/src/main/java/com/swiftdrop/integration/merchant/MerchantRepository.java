@@ -15,5 +15,6 @@ public interface MerchantRepository extends JpaRepository<Merchant, UUID> {
     @Query("select merchant from Merchant merchant where merchant.id=:id")
     Optional<Merchant> findForOrder(@Param("id") UUID id);
     boolean existsByEmailIgnoreCase(String email);
+    Optional<Merchant> findByEmailIgnoreCase(String email);
     Page<Merchant> findAllByStatus(MerchantStatus status, Pageable pageable);
 }
