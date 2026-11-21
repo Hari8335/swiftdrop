@@ -14,15 +14,23 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
   standalone: true,
   imports: [RouterLink, NotificationBellComponent],
   template: `
+    <!-- Reserves the rail's width in the page layout; the rail itself is fixed. -->
+    <div class="hidden md:block w-20 flex-shrink-0" aria-hidden="true"></div>
+
     <aside
-      class="w-full md:w-20 flex-shrink-0 flex md:flex-col items-center justify-between md:justify-start gap-6 py-4 md:py-7 px-4 md:px-0 border-b md:border-b-0 md:border-r border-[#f0ebe5] bg-[#faf8f6] md:sticky md:top-0 md:h-screen z-20"
+      id="customer-sidebar"
+      aria-label="Customer sidebar"
+      class="w-full flex items-center justify-between gap-4 px-4 py-3 border-b border-[#ece9e4] bg-white z-40
+             md:fixed md:inset-y-0 md:left-0 md:h-screen md:w-20 md:flex-col md:items-stretch md:justify-between
+             md:py-5 md:px-3 md:border-b-0 md:border-r md:overflow-y-auto md:overflow-x-hidden"
     >
+      <div class="flex md:flex-col items-center md:items-stretch gap-3 md:gap-8">
       <!-- Brand Logo -->
       <a
         routerLink="/customer"
         id="customer-home-link"
         (click)="deliveries.emit()"
-        class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 cursor-pointer hover:scale-105 transition-transform"
+        class="md:mx-1 w-10 h-10 shrink-0 rounded-2xl bg-[#9b432f] text-white flex items-center justify-center shadow-[0_8px_18px_rgba(155,67,47,0.25)] cursor-pointer"
         title="SwiftDrop Home"
         aria-label="SwiftDrop Home"
       >
@@ -32,8 +40,6 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
           <line x1="12" y1="22.08" x2="12" y2="12"/>
         </svg>
       </a>
-
-      <span class="hidden md:block w-10 h-px bg-[#e8e2dc]" aria-hidden="true"></span>
 
       <nav class="flex md:flex-col items-center gap-3 sm:gap-5" aria-label="Customer Navigation">
         <!-- My Deliveries (dashboard) -->
@@ -90,8 +96,7 @@ export type CustomerSidebarItem = 'deliveries' | 'assistant' | 'wizard' | 'setti
           </svg>
         </button>
       </nav>
-
-      <span class="hidden md:block w-10 h-px bg-[#e8e2dc]" aria-hidden="true"></span>
+      </div>
 
       <!-- Footer Utilities -->
       <div class="hidden md:flex flex-col items-center gap-4">
