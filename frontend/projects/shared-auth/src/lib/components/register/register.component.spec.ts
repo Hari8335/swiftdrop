@@ -126,8 +126,10 @@ describe('RegisterComponent', () => {
   it('should render top bar with Customer, Merchant, and Sign In navigation links', () => {
     const navLinks = fixture.nativeElement.querySelectorAll('.nav-links a');
     expect(navLinks.length).toBe(3);
-    expect(navLinks[0].textContent.trim()).toBe('Customer');
-    expect(navLinks[1].textContent.trim()).toBe('Merchant');
+    expect(navLinks[0].textContent.trim()).toBe('Join as Customer');
+    expect(navLinks[1].textContent.trim()).toBe('Join as Merchant');
+    expect(fixture.nativeElement.querySelectorAll('.said-chip').length).toBe(0);
+    expect(fixture.nativeElement.querySelector('.store-badge')).toBeNull();
     expect(navLinks[2].textContent.trim()).toBe('Sign In');
   });
 
@@ -142,5 +144,18 @@ describe('RegisterComponent', () => {
     const merchantLink = fixture.nativeElement.querySelector('.auth-footer a[href="/merchant-registration"]');
     expect(merchantLink).toBeTruthy();
     expect(merchantLink.textContent.trim()).toContain('Register business');
+  });
+
+  it('explains the customer sign-up steps beside the form, with no approval step', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('lib-auth-shell .nav-pill')?.textContent?.trim()).toBe('Join as Customer');
+    const steps = Array.from(el.querySelectorAll('.hero-steps li')).map((li) => li.lastElementChild?.textContent?.trim());
+    expect(steps).toEqual([
+      'Enter your name, email and a password',
+      'You are signed in straight away',
+      'Book a parcel and see the price before you confirm',
+      'Follow every status update until delivery',
+    ]);
+    expect(el.querySelector('.hero-lede')?.textContent).not.toContain('doorstep collections');
   });
 });
