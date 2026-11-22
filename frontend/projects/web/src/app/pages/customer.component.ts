@@ -14,6 +14,7 @@ import {
   CustomerParcelPage,
   District,
   FeePreview,
+  ParcelDateRange,
   ParcelSize,
   ParcelStatus,
   SRI_LANKA_DISTRICTS,
@@ -21,6 +22,7 @@ import {
 import { CustomerService } from './customer/customer.service';
 import { CustomerToastService } from './customer/customer-toast.service';
 import { CoordinatePickerComponent } from './customer/coordinate-picker.component';
+import { ReceiptButtonComponent } from './tracking/receipt-button.component';
 
 /** Rows per page in the "Your recent deliveries" table. */
 const RECENT_DELIVERIES_PAGE_SIZE = 10;
@@ -31,7 +33,7 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
 @Component({
   selector: 'app-customer',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent, CustomerChangePasswordComponent, CoordinatePickerComponent],
+  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent, CustomerChangePasswordComponent, CoordinatePickerComponent, ReceiptButtonComponent],
   template: `
     <!-- Full-Screen Customer Dashboard Layout -->
     <div class="w-full min-h-screen flex flex-col md:flex-row bg-white">
@@ -224,6 +226,47 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                 </div>
               </div>
 
+              <!-- Booking Date Range Filter -->
+              <div id="history-date-filter" class="flex flex-wrap items-end gap-3">
+                <label class="flex flex-col gap-1 text-[11px] font-bold text-[#6f6d85]">
+                  From
+                  <input
+                    type="date"
+                    id="history-date-from"
+                    [value]="dateFrom()"
+                    [attr.max]="dateTo() || null"
+                    (change)="setDateFrom($any($event.target).value)"
+                    class="h-9 rounded-xl border border-[#e4e0db] bg-white px-3 text-xs font-semibold text-[#1d1b2c] outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
+                  />
+                </label>
+                <label class="flex flex-col gap-1 text-[11px] font-bold text-[#6f6d85]">
+                  To
+                  <input
+                    type="date"
+                    id="history-date-to"
+                    [value]="dateTo()"
+                    [attr.min]="dateFrom() || null"
+                    (change)="setDateTo($any($event.target).value)"
+                    class="h-9 rounded-xl border border-[#e4e0db] bg-white px-3 text-xs font-semibold text-[#1d1b2c] outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
+                  />
+                </label>
+                @if (dateFrom() || dateTo()) {
+                <button
+                  type="button"
+                  id="history-date-clear"
+                  (click)="clearDateRange()"
+                  class="h-9 px-3 rounded-xl text-xs font-bold text-[#9b432f] hover:bg-[#faf0ec] transition-colors cursor-pointer"
+                >
+                  Clear dates
+                </button>
+                }
+                @if (dateRangeInvalid()) {
+                <p id="history-date-error" role="alert" class="w-full text-xs font-semibold text-rose-600">
+                  "From" must be on or before "To".
+                </p>
+                }
+              </div>
+
               <!-- Deliveries Table Matching Reference Format -->
               <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs text-[#1d1b2c]">
@@ -241,8 +284,13 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                     @if (filteredParcels().length === 0) {
                     <tr>
                       <td colspan="6" class="py-12 text-center text-[#6f6d85]">
+                        @if (dateFrom() || dateTo()) {
+                        <p id="history-empty-date" class="text-sm font-bold text-[#1d1b2c]">No deliveries in this date range</p>
+                        <p class="text-xs text-[#a09eaf] mt-1">Try different dates, or clear them to see all your deliveries.</p>
+                        } @else {
                         <p class="text-sm font-bold text-[#1d1b2c]">No deliveries found</p>
                         <p class="text-xs text-[#a09eaf] mt-1">Book your first parcel delivery using the plus button!</p>
+                        }
                       </td>
                     </tr>
                     } @for (parcel of filteredParcels(); track parcel.id) {
@@ -280,6 +328,16 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                           >
                             Cancel
                           </button>
+                          }
+                          @if (parcel.status === 'DELIVERED') {
+                          <app-receipt-button
+                            class="history-receipt"
+                            [attr.data-parcel-id]="parcel.id"
+                            [parcelId]="parcel.id"
+                            [trackingNumber]="parcel.trackingNumber"
+                            variant="secondary"
+                            size="sm"
+                          />
                           }
                           <button
                             type="button"
@@ -1668,6 +1726,9 @@ export class CustomerComponent implements OnInit {
     return out;
   });
   selectedStatusFilter = signal<ParcelStatus | null>(null);
+  /** Booking-date range for the history table, as YYYY-MM-DD ('' = no bound). */
+  dateFrom = signal('');
+  dateTo = signal('');
   notification = signal<string | null>(null);
   private readonly toast = inject(CustomerToastService);
 
@@ -1866,9 +1927,52 @@ export class CustomerComponent implements OnInit {
     this.loadAddresses();
   }
 
+  /** True when both dates are set and From is after To (YYYY-MM-DD compares as text). */
+  dateRangeInvalid = computed(() => {
+    const from = this.dateFrom();
+    const to = this.dateTo();
+    return !!from && !!to && from > to;
+  });
+
+  setDateFrom(value: string): void {
+    this.dateFrom.set(value ?? '');
+    this.reloadForDateChange();
+  }
+
+  setDateTo(value: string): void {
+    this.dateTo.set(value ?? '');
+    this.reloadForDateChange();
+  }
+
+  clearDateRange(): void {
+    this.dateFrom.set('');
+    this.dateTo.set('');
+    this.reloadForDateChange();
+  }
+
+  /** Back to the first page; an impossible range is shown as an error instead of being sent. */
+  private reloadForDateChange(): void {
+    if (this.dateRangeInvalid()) return;
+    this.selectedParcelPage.set(0);
+    this.loadParcels();
+  }
+
+  /** The date range to send, or undefined when no date is picked. */
+  private activeDateRange(): ParcelDateRange | undefined {
+    const from = this.dateFrom();
+    const to = this.dateTo();
+    if (!from && !to) return undefined;
+    return { ...(from ? { from } : {}), ...(to ? { to } : {}) };
+  }
+
   loadParcels(): void {
-    this.customerService
-      .listParcels(this.selectedStatusFilter() || undefined, this.selectedParcelPage(), RECENT_DELIVERIES_PAGE_SIZE)
+    const status = this.selectedStatusFilter() || undefined;
+    const page = this.selectedParcelPage();
+    const range = this.activeDateRange();
+    const request$ = range
+      ? this.customerService.listParcels(status, page, RECENT_DELIVERIES_PAGE_SIZE, range)
+      : this.customerService.listParcels(status, page, RECENT_DELIVERIES_PAGE_SIZE);
+    request$
       .subscribe({
         next: (page) => {
           this.parcelPage.set(page);

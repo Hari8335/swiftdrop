@@ -7,6 +7,7 @@ import {
   CustomerParcel,
   CustomerParcelPage,
   District,
+  ParcelDateRange,
   ParcelSize,
   ParcelStatus,
   QuoteResponse,
@@ -90,14 +91,25 @@ export class CustomerService {
   // Parcel Operations (Real Backend via parcel-service)
   // =========================================================================
 
+  /**
+   * Lists the customer's own parcels. `dateRange` filters on the booking date (inclusive,
+   * YYYY-MM-DD); each bound is sent only when set.
+   */
   listParcels(
     statusFilter?: ParcelStatus,
     page = 0,
-    size = 20
+    size = 20,
+    dateRange?: ParcelDateRange
   ): Observable<CustomerParcelPage> {
     let params = new HttpParams().set('page', page.toString()).set('size', size.toString());
     if (statusFilter) {
       params = params.set('status', statusFilter);
+    }
+    if (dateRange?.from) {
+      params = params.set('from', dateRange.from);
+    }
+    if (dateRange?.to) {
+      params = params.set('to', dateRange.to);
     }
     return this.http.get<CustomerParcelPage>('/api/v1/parcels', { params });
   }

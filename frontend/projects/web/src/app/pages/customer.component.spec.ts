@@ -7,6 +7,7 @@ import { CustomerComponent } from './customer.component';
 import { CustomerAddress, CustomerParcel, QuoteResponse } from './customer/customer.model';
 import { CustomerService } from './customer/customer.service';
 import { CustomerToastService } from './customer/customer-toast.service';
+import { ReceiptService } from './tracking/receipt.service';
 
 describe('CustomerComponent', () => {
   let component: CustomerComponent;
@@ -190,6 +191,125 @@ describe('CustomerComponent', () => {
     expect(root.querySelector('#recent-deliveries-range')?.textContent?.replace(/\s+/g, ' ')).toContain('Showing 11–11 of 11');
     expect((root.querySelector('#parcel-page-next') as HTMLButtonElement).disabled).toBe(true);
   }));
+
+  describe('history receipt download', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+
+    it('shows a Download receipt button only on DELIVERED rows', fakeAsync(() => {
+      component.loadParcels();
+      tick(100);
+      fixture.detectChanges();
+
+      const buttons = root().querySelectorAll('app-receipt-button.history-receipt');
+      expect(buttons.length).toBe(1);
+      expect(buttons[0].getAttribute('data-parcel-id')).toBe('delivered-1');
+      expect(buttons[0].textContent).toContain('Download receipt');
+    }));
+
+    it('downloads the receipt for that parcel without opening its details', fakeAsync(() => {
+      const receipts = TestBed.inject(ReceiptService);
+      const download = jest.spyOn(receipts, 'download').mockReturnValue(of('receipt.pdf'));
+      const viewDetails = jest.spyOn(component, 'viewParcelDetails');
+      component.loadParcels();
+      tick(100);
+      fixture.detectChanges();
+
+      root().querySelector<HTMLElement>('app-receipt-button.history-receipt [data-testid="receipt-button"] button')!.click();
+      tick(100);
+
+      expect(download).toHaveBeenCalledWith('delivered-1');
+      expect(viewDetails).not.toHaveBeenCalled();
+    }));
+  });
+
+  describe('history date filter', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const pick = (id: string, value: string) => {
+      const input = root().querySelector<HTMLInputElement>(id)!;
+      input.value = value;
+      input.dispatchEvent(new Event('change'));
+    };
+
+    it('reloads the table from the first page with the picked booking dates', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedParcelPage.set(1);
+      fixture.detectChanges();
+
+      pick('#history-date-from', '2026-11-01');
+      tick(100);
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10, { from: '2026-11-01' });
+
+      pick('#history-date-to', '2026-11-15');
+      tick(100);
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10, { from: '2026-11-01', to: '2026-11-15' });
+      expect(component.selectedParcelPage()).toBe(0);
+    }));
+
+    it('combines the date range with the status filter', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedStatusFilter.set('DELIVERED');
+      fixture.detectChanges();
+
+      pick('#history-date-to', '2026-11-15');
+      tick(100);
+
+      expect(listParcels).toHaveBeenLastCalledWith('DELIVERED', 0, 10, { to: '2026-11-15' });
+    }));
+
+    it('Clear dates removes the range and reloads all deliveries', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      fixture.detectChanges();
+      expect(root().querySelector('#history-date-clear')).toBeNull();
+
+      pick('#history-date-from', '2026-11-01');
+      tick(100);
+      fixture.detectChanges();
+      root().querySelector<HTMLButtonElement>('#history-date-clear')!.click();
+      tick(100);
+      fixture.detectChanges();
+
+      expect(component.dateFrom()).toBe('');
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10);
+      expect(root().querySelector('#history-date-clear')).toBeNull();
+    }));
+
+    it('shows an error and does not reload when From is typed after To', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      fixture.detectChanges();
+      pick('#history-date-to', '2026-11-01');
+      tick(100);
+      const callsBefore = listParcels.mock.calls.length;
+
+      pick('#history-date-from', '2026-11-20');
+      tick(100);
+      fixture.detectChanges();
+
+      expect(listParcels.mock.calls.length).toBe(callsBefore);
+      expect(root().querySelector('#history-date-error')?.textContent).toContain('must be on or before');
+    }));
+
+    it('says no deliveries match when a date range returns nothing', fakeAsync(() => {
+      (customerService.listParcels as jest.Mock).mockReturnValue(
+        of({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 10 })
+      );
+      fixture.detectChanges();
+
+      pick('#history-date-from', '2030-01-01');
+      tick(100);
+      fixture.detectChanges();
+
+      expect(root().querySelector('#history-empty-date')?.textContent).toContain('No deliveries in this date range');
+    }));
+
+    it('limits each picker so From cannot be after To', () => {
+      component.dateFrom.set('2026-11-01');
+      component.dateTo.set('2026-11-15');
+      fixture.detectChanges();
+
+      expect(root().querySelector('#history-date-from')!.getAttribute('max')).toBe('2026-11-15');
+      expect(root().querySelector('#history-date-to')!.getAttribute('min')).toBe('2026-11-01');
+    });
+  });
 
   it('collapses long page lists with gaps', () => {
     component.parcelPage.set({ content: [], totalElements: 200, totalPages: 20, page: 9, size: 10 });

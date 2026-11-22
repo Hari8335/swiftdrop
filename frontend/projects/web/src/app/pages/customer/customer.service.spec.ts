@@ -126,7 +126,29 @@ describe('CustomerService', () => {
       request.params.get('size') === '10'
     );
     expect(req.request.method).toBe('GET');
+    expect(req.request.params.has('from')).toBe(false);
+    expect(req.request.params.has('to')).toBe(false);
     req.flush(page);
+  });
+
+  it('should send the booking date range when filtering parcels by date', () => {
+    service.listParcels(undefined, 0, 10, { from: '2026-11-01', to: '2026-11-15' }).subscribe();
+
+    const req = httpMock.expectOne((request) => request.url === '/api/v1/parcels');
+    expect(req.request.params.get('from')).toBe('2026-11-01');
+    expect(req.request.params.get('to')).toBe('2026-11-15');
+    expect(req.request.params.has('status')).toBe(false);
+    req.flush({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 10 });
+  });
+
+  it('should send only the date bound that is set', () => {
+    service.listParcels('DELIVERED', 0, 10, { from: '2026-11-01' }).subscribe();
+
+    const req = httpMock.expectOne((request) => request.url === '/api/v1/parcels');
+    expect(req.request.params.get('from')).toBe('2026-11-01');
+    expect(req.request.params.has('to')).toBe(false);
+    expect(req.request.params.get('status')).toBe('DELIVERED');
+    req.flush({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 10 });
   });
 
   it('should manage addresses through the authenticated address endpoint', () => {
