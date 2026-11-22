@@ -65,6 +65,7 @@ describe('MerchantComponent', () => {
 
   beforeEach(async () => {
     const serviceMock: Partial<jest.Mocked<MerchantService>> = {
+      getMerchantProfile: jest.fn().mockReturnValue(of({ businessName: 'North Star Stores' })),
       getOrders: jest.fn().mockReturnValue(of(mockOrderPage)),
       getOrderCounts: jest.fn().mockReturnValue(of(mockCounts)),
       getOrderDetails: jest.fn().mockReturnValue(of(mockOrderDetails)),
@@ -145,9 +146,9 @@ describe('MerchantComponent', () => {
     expect(component.isLoadingOrders()).toBe(false);
   });
 
-  it('shows a static Sample Merchant label, the notification bell, and sidebar logout without a profile dropdown', () => {
+  it('uses a neutral merchant label without a session and keeps the notification and logout controls', () => {
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('#merchant-profile-chip')?.textContent).toContain('Sample Merchant');
+    expect(fixture.nativeElement.querySelector('#merchant-profile-chip')?.textContent?.trim()).toBe('Merchant');
     expect(fixture.nativeElement.querySelector('#profile-menu-btn')).toBeNull();
     expect(fixture.nativeElement.querySelector('#merchant-notification-bell-btn')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#merchant-sidebar-logout-btn')).toBeTruthy();
@@ -223,17 +224,21 @@ describe('MerchantComponent', () => {
     expect(component.activeTab()).toBe('deliveries');
   });
 
-  it('groups webhook settings, delivery logs, and API credentials under Integrations', () => {
+  it('shows the three integration links only when the chevron dropdown is open', () => {
     const integrationsButton = fixture.nativeElement.querySelector('[aria-label="Integrations"]') as HTMLButtonElement;
-    const menu = fixture.nativeElement.querySelector('#merchant-integrations-menu') as HTMLElement;
-    expect(integrationsButton.getAttribute('aria-expanded')).toBe('true');
-    expect(menu).toBeTruthy();
-    expect(menu.textContent).toContain('Webhook Settings');
-    expect(menu.textContent).toContain('Webhook Delivery Logs');
-    expect(menu.textContent).toContain('API Credentials');
+    const chevron = integrationsButton.querySelector('svg:last-child');
+    expect(chevron?.querySelector('path')?.getAttribute('d')).toBe('m6 9 6 6 6-6');
+    expect(integrationsButton.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.nativeElement.querySelector('#merchant-integrations-menu')).toBeNull();
 
     integrationsButton.click();
     fixture.detectChanges();
+    const menu = fixture.nativeElement.querySelector('#merchant-integrations-menu') as HTMLElement;
+    expect(integrationsButton.getAttribute('aria-expanded')).toBe('true');
+    expect(chevron?.classList.contains('rotate-180')).toBe(true);
+    expect(Array.from(menu.querySelectorAll('button'), (button) => button.textContent?.trim())).toEqual([
+      'Webhook Settings', 'Webhook Delivery Logs', 'API Credentials',
+    ]);
 
     const deliveryLogsButton = Array.from(menu.querySelectorAll('button'))
       .find((button) => button.textContent?.includes('Webhook Delivery Logs')) as HTMLButtonElement;
@@ -243,6 +248,11 @@ describe('MerchantComponent', () => {
     expect(component.activeTab()).toBe('deliveries');
     expect(integrationsButton.getAttribute('aria-expanded')).toBe('true');
     expect(menu.querySelector('[aria-current="page"]')?.textContent).toContain('Webhook Delivery Logs');
+
+    integrationsButton.click();
+    fixture.detectChanges();
+    expect(integrationsButton.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.nativeElement.querySelector('#merchant-integrations-menu')).toBeNull();
   });
 
   it('updates the mobile Integrations submenu state when navigating back to orders', () => {

@@ -30,15 +30,21 @@ describe('MerchantCredentialsComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('one-time-test-secret');
   });
 
-  it('does not retrieve or redisplay secrets when reopened without an approval response', () => {
+  it('shows a compact merchant guide without redisplaying an approval secret', () => {
     fixture.componentRef.setInput('credentials', credentials);
     fixture.detectChanges();
     fixture.destroy();
     fixture = TestBed.createComponent(MerchantCredentialsComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain('one-time-test-secret');
-    expect(fixture.nativeElement.textContent).not.toContain('APPROVED');
-    expect(fixture.nativeElement.textContent).toContain('administrator will securely hand over');
+    const page: HTMLElement = fixture.nativeElement;
+    expect(page.textContent).not.toContain('one-time-test-secret');
+    expect(page.textContent).not.toContain('APPROVED');
+    expect(page.querySelectorAll('ui-card')).toHaveLength(1);
+    expect(page.querySelector('h1')?.textContent?.trim()).toBe('API Credentials');
+    expect(page.textContent).toContain('POST /api/v1/auth/token');
+    expect(page.textContent).toContain('grant_type=client_credentials');
+    expect(page.textContent).toContain('Authorization: Bearer <access-token>');
+    expect(page.textContent).toContain('notification bell within 24 hours');
   });
 
   it('renders the public UI kit components with the approved status', () => {
