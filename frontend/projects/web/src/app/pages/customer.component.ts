@@ -249,6 +249,21 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                     class="h-9 rounded-xl border border-[#e4e0db] bg-white px-3 text-xs font-semibold text-[#1d1b2c] outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
                   />
                 </label>
+                @if (dateFrom() || dateTo()) {
+                <button
+                  type="button"
+                  id="history-date-clear"
+                  (click)="clearDateRange()"
+                  class="h-9 px-3 rounded-xl text-xs font-bold text-[#9b432f] hover:bg-[#faf0ec] transition-colors cursor-pointer"
+                >
+                  Clear dates
+                </button>
+                }
+                @if (dateRangeInvalid()) {
+                <p id="history-date-error" role="alert" class="w-full text-xs font-semibold text-rose-600">
+                  "From" must be on or before "To".
+                </p>
+                }
               </div>
 
               <!-- Deliveries Table Matching Reference Format -->
@@ -268,8 +283,13 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                     @if (filteredParcels().length === 0) {
                     <tr>
                       <td colspan="6" class="py-12 text-center text-[#6f6d85]">
+                        @if (dateFrom() || dateTo()) {
+                        <p id="history-empty-date" class="text-sm font-bold text-[#1d1b2c]">No deliveries in this date range</p>
+                        <p class="text-xs text-[#a09eaf] mt-1">Try different dates, or clear them to see all your deliveries.</p>
+                        } @else {
                         <p class="text-sm font-bold text-[#1d1b2c]">No deliveries found</p>
                         <p class="text-xs text-[#a09eaf] mt-1">Book your first parcel delivery using the plus button!</p>
+                        }
                       </td>
                     </tr>
                     } @for (parcel of filteredParcels(); track parcel.id) {
@@ -1896,14 +1916,32 @@ export class CustomerComponent implements OnInit {
     this.loadAddresses();
   }
 
+  /** True when both dates are set and From is after To (YYYY-MM-DD compares as text). */
+  dateRangeInvalid = computed(() => {
+    const from = this.dateFrom();
+    const to = this.dateTo();
+    return !!from && !!to && from > to;
+  });
+
   setDateFrom(value: string): void {
     this.dateFrom.set(value ?? '');
-    this.selectedParcelPage.set(0);
-    this.loadParcels();
+    this.reloadForDateChange();
   }
 
   setDateTo(value: string): void {
     this.dateTo.set(value ?? '');
+    this.reloadForDateChange();
+  }
+
+  clearDateRange(): void {
+    this.dateFrom.set('');
+    this.dateTo.set('');
+    this.reloadForDateChange();
+  }
+
+  /** Back to the first page; an impossible range is shown as an error instead of being sent. */
+  private reloadForDateChange(): void {
+    if (this.dateRangeInvalid()) return;
     this.selectedParcelPage.set(0);
     this.loadParcels();
   }

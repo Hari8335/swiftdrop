@@ -225,6 +225,51 @@ describe('CustomerComponent', () => {
       expect(listParcels).toHaveBeenLastCalledWith('DELIVERED', 0, 10, { to: '2026-11-15' });
     }));
 
+    it('Clear dates removes the range and reloads all deliveries', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      fixture.detectChanges();
+      expect(root().querySelector('#history-date-clear')).toBeNull();
+
+      pick('#history-date-from', '2026-11-01');
+      tick(100);
+      fixture.detectChanges();
+      root().querySelector<HTMLButtonElement>('#history-date-clear')!.click();
+      tick(100);
+      fixture.detectChanges();
+
+      expect(component.dateFrom()).toBe('');
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10);
+      expect(root().querySelector('#history-date-clear')).toBeNull();
+    }));
+
+    it('shows an error and does not reload when From is typed after To', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      fixture.detectChanges();
+      pick('#history-date-to', '2026-11-01');
+      tick(100);
+      const callsBefore = listParcels.mock.calls.length;
+
+      pick('#history-date-from', '2026-11-20');
+      tick(100);
+      fixture.detectChanges();
+
+      expect(listParcels.mock.calls.length).toBe(callsBefore);
+      expect(root().querySelector('#history-date-error')?.textContent).toContain('must be on or before');
+    }));
+
+    it('says no deliveries match when a date range returns nothing', fakeAsync(() => {
+      (customerService.listParcels as jest.Mock).mockReturnValue(
+        of({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 10 })
+      );
+      fixture.detectChanges();
+
+      pick('#history-date-from', '2030-01-01');
+      tick(100);
+      fixture.detectChanges();
+
+      expect(root().querySelector('#history-empty-date')?.textContent).toContain('No deliveries in this date range');
+    }));
+
     it('limits each picker so From cannot be after To', () => {
       component.dateFrom.set('2026-11-01');
       component.dateTo.set('2026-11-15');
