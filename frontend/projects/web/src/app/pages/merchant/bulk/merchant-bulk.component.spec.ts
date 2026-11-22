@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router, provideRouter } from '@angular/router';
 import { MerchantBulkComponent } from './merchant-bulk.component';
+import { MerchantNotificationsService } from '../merchant-notifications.service';
 import { CSV_HEADER, MAX_CSV_BYTES } from './merchant-csv';
 import { TextDecoder } from 'util';
 
@@ -34,6 +35,7 @@ describe('Merchant bulk upload', () => {
     expect(fixture.nativeElement.textContent).toContain('SD-real');
     expect(fixture.nativeElement.textContent).toContain('850.00 LKR');
     expect(c.showSuccessPopup()).toBe(true);
+    expect(TestBed.inject(MerchantNotificationsService).notifications()[0].title).toBe('Bulk orders created');
     expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeTruthy();
     const router = TestBed.inject(Router);
     const navigate = jest.spyOn(router, 'navigate').mockResolvedValue(true);

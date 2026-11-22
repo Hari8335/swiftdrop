@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, input, output, signal } from '@angular/core';
+import { Component, inject, input, output, signal } from '@angular/core';
 import { ButtonComponent, CardComponent, StatusBadgeComponent } from 'ui';
 import { MerchantApiCredentials } from './merchant.model';
+import { MerchantNotificationsService } from './merchant-notifications.service';
 
 @Component({
   selector: 'app-merchant-credentials',
@@ -200,9 +201,11 @@ export class MerchantCredentialsComponent {
   readonly showTokenRequest = input<boolean>(false);
   readonly secretSaved = output<void>();
   readonly copiedField = signal<string | null>(null);
+  private readonly notifications = inject(MerchantNotificationsService);
 
   hideSecret(): void {
     this.secretSaved.emit();
+    this.notifications.add('Client secret hidden', 'The one-time client secret was removed from this view.', 'info');
   }
 
   copyText(text: string | null | undefined, label: string): void {
@@ -210,8 +213,11 @@ export class MerchantCredentialsComponent {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(text).then(() => {
         this.copiedField.set(label);
+        this.notifications.add(`${label} copied`, `${label} copied to clipboard.`);
         setTimeout(() => this.copiedField.set(null), 2000);
-      });
+      }).catch(() => this.notifications.add(`${label} not copied`, 'Clipboard access was unavailable; copy the value manually.', 'error'));
+    } else {
+      this.notifications.add(`${label} not copied`, 'Clipboard access was unavailable; copy the value manually.', 'error');
     }
   }
 }

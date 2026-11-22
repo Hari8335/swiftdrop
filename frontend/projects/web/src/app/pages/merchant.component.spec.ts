@@ -142,6 +142,17 @@ describe('MerchantComponent', () => {
     expect(component.isLoadingOrders()).toBe(false);
   });
 
+  it('shows a static Sample Merchant label, the notification bell, and sidebar logout without a profile dropdown', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#merchant-profile-chip')?.textContent).toContain('Sample Merchant');
+    expect(fixture.nativeElement.querySelector('#profile-menu-btn')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#merchant-notification-bell-btn')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[aria-label="Log Out"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[aria-label="Orders Dashboard"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[aria-label="Integrations"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[aria-label="Bulk CSV Orders"]')).toBeTruthy();
+  });
+
   it('loads and displays the selected order actual details and failed history', () => {
     component.viewOrderDetails(mockOrderPage.content[0]);
     fixture.detectChanges();
@@ -392,6 +403,11 @@ describe('MerchantComponent', () => {
 
     expect(merchantService.updateWebhookSettings).toHaveBeenCalled();
     expect(component.notification()).toContain('saved successfully');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#merchant-notification-dropdown')).toBeNull();
+    (fixture.nativeElement.querySelector('#merchant-notification-bell-btn') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#merchant-notification-dropdown')?.textContent).toContain('Webhook settings saved');
   });
 
   it('should run test webhook and display result', () => {

@@ -5,11 +5,13 @@ import { Router, RouterLink } from '@angular/router';
 import { Subscription, finalize } from 'rxjs';
 import { BulkResult, MerchantBulkService } from './merchant-bulk.service';
 import { CSV_HEADER, MAX_CSV_BYTES, PreviewRow, encodeMerchantCsv, parseMerchantCsv } from './merchant-csv';
+import { MerchantNotificationBellComponent } from '../merchant-notification-bell.component';
+import { MerchantNotificationsService } from '../merchant-notifications.service';
 
 @Component({
   selector: 'app-merchant-bulk',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, MerchantNotificationBellComponent],
   template: `
     <div class="min-h-screen bg-[#faf8f6] text-[#1d1b2c] flex flex-col font-sans">
       <!-- Top Navigation Bar -->
@@ -28,6 +30,8 @@ import { CSV_HEADER, MAX_CSV_BYTES, PreviewRow, encodeMerchantCsv, parseMerchant
         </div>
 
         <div class="flex items-center gap-2">
+          <app-merchant-notification-bell />
+          <span class="h-11 inline-flex items-center rounded-full border border-[#e8e2dc] bg-[#faf8f6] px-4 text-xs font-bold text-[#1d1b2c]">Sample Merchant</span>
           <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#a53a26]/10 text-[#a53a26]">
             Bulk Dispatch
           </span>
@@ -318,6 +322,7 @@ import { CSV_HEADER, MAX_CSV_BYTES, PreviewRow, encodeMerchantCsv, parseMerchant
 })
 export class MerchantBulkComponent implements OnDestroy {
   private readonly api = inject(MerchantBulkService);
+  private readonly notifications = inject(MerchantNotificationsService);
   private readonly router = inject(Router);
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('csvFile');
   private subscription?: Subscription;
@@ -348,6 +353,7 @@ export class MerchantBulkComponent implements OnDestroy {
     if (!file) return;
     if (file.size > MAX_CSV_BYTES) {
       this.error.set('CSV exceeds 5 MiB.');
+      this.notifications.add('CSV file not accepted', this.error(), 'error');
       return;
     }
     const generation = ++this.generation;
@@ -360,12 +366,14 @@ export class MerchantBulkComponent implements OnDestroy {
         this.preview(new TextDecoder('utf-8', { fatal: true }).decode(reader.result as ArrayBuffer));
       } catch {
         this.error.set('CSV must be valid UTF-8.');
+        this.notifications.add('CSV file not accepted', this.error(), 'error');
       }
       this.reading.set(false);
     };
     reader.onerror = () => {
       if (generation === this.generation) {
         this.error.set('CSV could not be read.');
+        this.notifications.add('CSV file could not be read', this.error(), 'error');
         this.reading.set(false);
       }
     };
@@ -377,9 +385,11 @@ export class MerchantBulkComponent implements OnDestroy {
       this.rows.set(parseMerchantCsv(text));
       this.uploadKey.set(crypto.randomUUID());
       this.error.set('');
+      this.notifications.add('CSV preview ready', `${this.validRows().length} valid order(s) ready for review.`, 'info');
     } catch (error) {
       this.rows.set([]);
       this.error.set(error instanceof Error ? error.message : 'Invalid CSV.');
+      this.notifications.add('CSV preview failed', this.error(), 'error');
     }
   }
 
@@ -424,12 +434,19 @@ export class MerchantBulkComponent implements OnDestroy {
             report.results.length === report.totalRows &&
             report.results.every((item) => item.accepted)
           );
+          this.notifications.add(
+            this.showSuccessPopup() ? 'Bulk orders created' : 'Bulk upload needs review',
+            `${report.acceptedRows} accepted, ${report.rejectedRows} rejected out of ${report.totalRows} order(s).`,
+            this.showSuccessPopup() ? 'success' : 'error'
+          );
         },
-        error: (response) =>
+        error: (response) => {
           this.error.set(
             response?.error?.message ||
               'Upload response was not received. Check this upload with the same reference; do not submit it again with a new one.'
-          ),
+          );
+          this.notifications.add('Bulk upload response unavailable', this.error(), 'error');
+        },
       });
   }
 

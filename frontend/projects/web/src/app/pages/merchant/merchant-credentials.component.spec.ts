@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MerchantCredentialsComponent } from './merchant-credentials.component';
 import { MerchantApiCredentials } from './merchant.model';
+import { MerchantNotificationsService } from './merchant-notifications.service';
 
 describe('MerchantCredentialsComponent', () => {
   let fixture: ComponentFixture<MerchantCredentialsComponent>;
@@ -23,6 +24,7 @@ describe('MerchantCredentialsComponent', () => {
     const buttons = fixture.nativeElement.querySelectorAll('button');
     (buttons[buttons.length - 1] as HTMLButtonElement).click();
     expect(saved).toHaveBeenCalledTimes(1);
+    expect(TestBed.inject(MerchantNotificationsService).notifications()[0].title).toBe('Client secret hidden');
     fixture.componentRef.setInput('credentials', null);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('one-time-test-secret');
