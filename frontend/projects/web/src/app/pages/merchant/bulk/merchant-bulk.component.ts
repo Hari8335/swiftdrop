@@ -47,7 +47,7 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
               Bulk CSV orders
             </h1>
             <p class="text-xs text-[#6f6d85] font-medium mt-1">
-              Upload up to 100 orders in a UTF-8 CSV file (maximum 5 MiB). Preview makes no parcels. Review the rows, then confirm creation.
+              Upload a CSV, review the preview, then confirm to create the orders.
             </p>
           </div>
 
@@ -66,6 +66,23 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
           </a>
         </div>
 
+        <section aria-labelledby="csv-guide-title" class="space-y-4 rounded-3xl border border-[#eee7e0] bg-white p-6 shadow-sm sm:p-8">
+          <h2 id="csv-guide-title" class="text-lg font-black text-[#1d1b2c]">How to fill the CSV</h2>
+          <ul class="list-disc space-y-2 pl-5 text-sm text-[#6f6d85]">
+            <li><strong class="text-[#1d1b2c]">Template.</strong> Keep all 15 columns in the same order. Replace the sample row with your own details.</li>
+            <li><strong class="text-[#1d1b2c]">Order.</strong> Use one row per order and a new order reference each time (up to 128 characters).</li>
+            <li><strong class="text-[#1d1b2c]">Recipient.</strong> Enter the name and phone number, for example <code>+94771234567</code>.</li>
+            <li><strong class="text-[#1d1b2c]">Addresses.</strong> Enter the street, city, Sri Lankan district and postal code for both pickup and drop-off. Only <code>pickupLine2</code> and <code>dropoffLine2</code> can be blank.</li>
+            <li><strong class="text-[#1d1b2c]">Parcel.</strong> Pick <code>SMALL</code>, <code>MEDIUM</code> or <code>LARGE</code>. Enter the weight in kg, for example <code>1.50</code> (minimum <code>0.10</code> kg).</li>
+            <li><strong class="text-[#1d1b2c]">File.</strong> Save as UTF-8 CSV. Upload up to 100 orders per file (5 MiB max).</li>
+          </ul>
+          <p class="text-xs text-[#6f6d85]">Spreadsheet tip. Format phone numbers and postal codes as text to keep the + sign and leading zeros.</p>
+          <div class="space-y-1">
+            <h3 class="text-sm font-bold">Example order row</h3>
+            <code data-testid="csv-example-row" class="block break-all rounded-xl bg-[#faf8f6] p-3 text-xs text-[#1d1b2c]">{{ templateExampleRow }}</code>
+          </div>
+        </section>
+
         <!-- Upload File Drop Card -->
         <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-8 shadow-sm space-y-4">
           <div>
@@ -78,7 +95,7 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
               <div class="space-y-1">
                 <label for="csv-file" class="block font-bold text-xs text-[#1d1b2c]">CSV file</label>
                 <p class="text-[11px] text-[#6f6d85]">
-                  Select a standardized SwiftDrop 15-column UTF-8 CSV file containing up to 100 delivery manifests.
+                  Select your completed template to check each row before creating orders.
                 </p>
               </div>
 
@@ -337,12 +354,10 @@ export class MerchantBulkComponent implements OnDestroy {
   readonly busy = signal(false);
   readonly reading = signal(false);
   readonly uploadKey = signal('');
+  readonly templateExampleRow =
+    'example-001,Recipient Name,+94771234567,12 Main Road,,Colombo,Colombo,00700,45 Lake Road,,Gampaha,Gampaha,11000,SMALL,1.50';
   readonly templateUrl =
-    'data:text/csv;charset=utf-8,' +
-    encodeURIComponent(
-      CSV_HEADER +
-        '\nexample-001,Recipient Name,+94771234567,12 Main Road,,Colombo,Colombo,00700,45 Lake Road,,Gampaha,Gampaha,11000,SMALL,1.50\n'
-    );
+    'data:text/csv;charset=utf-8,' + encodeURIComponent(`${CSV_HEADER}\n${this.templateExampleRow}\n`);
   submittedCsv: string | null = null;
   sourceRows: Record<number, number> = {};
 
