@@ -24,6 +24,8 @@ import {
 } from './merchant/merchant.model';
 import { MerchantService } from './merchant/merchant.service';
 import { MerchantCredentialsComponent } from './merchant/merchant-credentials.component';
+import { MerchantNotificationBellComponent } from './merchant/merchant-notification-bell.component';
+import { MerchantNotificationsService } from './merchant/merchant-notifications.service';
 
 type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
 
@@ -34,6 +36,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
     CommonModule,
     FormsModule,
     MerchantCredentialsComponent,
+    MerchantNotificationBellComponent,
     PaginationComponent,
     LoadingStateComponent,
     EmptyStateComponent,
@@ -42,130 +45,76 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
   template: `
     <!-- Full-Screen Merchant Portal Shell Matching Customer Portal Template -->
     <div class="merchant-shell w-full min-h-screen flex flex-col md:flex-row bg-white">
-      <!-- Slim Left Sidebar Navigation Rail (Docked & Sticky) -->
+      <!-- Merchant navigation follows the Admin portal's fixed, expanding sidebar. -->
       <aside
-        class="merchant-rail w-full md:w-20 flex-shrink-0 flex md:flex-col items-center justify-between md:justify-start py-4 md:py-7 px-4 md:px-0 border-b md:border-b-0 md:border-r border-[#f0ebe5] bg-[#faf8f6] md:sticky md:top-0 md:h-screen md:space-y-7 z-20"
+        class="fixed inset-y-0 left-0 z-40 hidden h-screen w-20 flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-[#ece9e4] bg-white py-5 px-3 transition-all duration-300 ease-in-out hover:w-[272px] hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)] group lg:flex"
+        aria-label="Merchant Navigation"
       >
-        <!-- SwiftDrop Brand Logo Icon -->
-        <button
-          type="button"
-          (click)="selectTab('orders')"
-          class="w-11 h-11 rounded-2xl bg-[#a53a26] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 cursor-pointer hover:scale-105 transition-transform"
-          title="SwiftDrop Merchant Portal"
-        >
-          <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-        </button>
-
-        <!-- Navigation Icons Stack -->
-        <nav class="flex md:flex-col items-center gap-3 sm:gap-4" aria-label="Merchant Navigation">
-          <!-- 1. Grid Icon (Orders Dashboard) -->
-          <button
-            type="button"
-            (click)="selectTab('orders')"
-            [class.rail-active]="activeTab() === 'orders'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Orders Dashboard"
-            aria-label="Orders Dashboard"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <rect x="3" y="3" width="7" height="7" rx="2"></rect>
-              <rect x="14" y="3" width="7" height="7" rx="2"></rect>
-              <rect x="14" y="14" width="7" height="7" rx="2"></rect>
-              <rect x="3" y="14" width="7" height="7" rx="2"></rect>
-            </svg>
-            <span *ngIf="activeTab() === 'orders'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
+        <div>
+          <button type="button" (click)="selectTab('orders')" aria-label="SwiftDrop merchant home" class="flex items-center gap-3 px-1 text-left">
+            <span class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#9b432f] text-white shadow-[0_8px_18px_rgba(155,67,47,0.25)]">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+            </span>
+            <span class="whitespace-nowrap text-base font-extrabold tracking-tight text-[#211f32] opacity-0 transition-opacity duration-200 group-hover:opacity-100">SwiftDrop Merchant</span>
           </button>
 
-          <!-- 2. Webhook Settings Icon -->
-          <button
-            type="button"
-            (click)="selectTab('settings')"
-            [class.rail-active]="activeTab() === 'settings'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Webhook Settings"
-            aria-label="Webhook Settings"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            <span *ngIf="activeTab() === 'settings'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-          </button>
+          <nav class="mt-8 flex flex-col gap-1.5" aria-label="Merchant primary navigation">
+            <button
+              type="button" (click)="selectTab('orders')" aria-label="Orders Dashboard"
+              [ngClass]="activeTab() === 'orders' ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
+              class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
+            >
+              <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></span>
+              <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Orders Dashboard</span>
+            </button>
 
-          <!-- 3. Plus Button (Bulk CSV Orders - in the middle!) -->
-          <button
-            type="button"
-            (click)="navigateToBulk()"
-            class="my-1.5 w-10 h-10 rounded-2xl bg-[#a53a26] hover:bg-[#7e2615] text-white flex items-center justify-center shadow-md shadow-[#a53a26]/20 hover:scale-105 transition-all cursor-pointer"
-            title="Bulk CSV Orders"
-            aria-label="Bulk CSV Orders"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-          </button>
+            <div class="relative w-full">
+              <button
+                type="button" (click)="toggleIntegrationsMenu()" aria-label="Integrations"
+                aria-controls="merchant-integrations-menu" aria-expanded="true"
+                [ngClass]="isIntegrationTab() ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
+                class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
+              >
+                <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M8 7h8M8 17h8"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="17" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="7" r="2"/></svg></span>
+                <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Integrations</span>
+                <svg class="ml-auto h-3.5 w-3.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="merchant-integrations-menu" class="ml-3 mt-1 space-y-0.5 border-l border-[#e8e4df] pl-3" aria-label="Integrations pages">
+                <button type="button" (click)="selectTab('settings')" [attr.aria-current]="activeTab() === 'settings' ? 'page' : null" class="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-xs font-medium text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'settings'" [class.text-[#9b432f]]="activeTab() === 'settings'"><span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#b9b5c2]"></span><span class="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">Webhook Settings</span></button>
+                <button type="button" (click)="selectTab('deliveries')" [attr.aria-current]="activeTab() === 'deliveries' ? 'page' : null" class="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-xs font-medium text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'deliveries'" [class.text-[#9b432f]]="activeTab() === 'deliveries'"><span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#b9b5c2]"></span><span class="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">Webhook Delivery Logs</span></button>
+                <button type="button" (click)="selectTab('credentials')" [attr.aria-current]="activeTab() === 'credentials' ? 'page' : null" class="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-xs font-medium text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'credentials'" [class.text-[#9b432f]]="activeTab() === 'credentials'"><span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#b9b5c2]"></span><span class="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">API Credentials</span></button>
+              </div>
+            </div>
 
-          <!-- 4. Webhook Delivery Logs Icon -->
-          <button
-            type="button"
-            (click)="selectTab('deliveries')"
-            [class.rail-active]="activeTab() === 'deliveries'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Delivery Logs"
-            aria-label="Delivery Logs"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            <span *ngIf="activeTab() === 'deliveries'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-          </button>
+            <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#fbf7f5] hover:text-[#9b432f]">
+              <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+              <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Bulk CSV Orders</span>
+            </button>
+          </nav>
+        </div>
 
-          <!-- 5. API Credentials Icon -->
-          <button
-            type="button"
-            (click)="selectTab('credentials')"
-            [class.rail-active]="activeTab() === 'credentials'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="API Credentials"
-            aria-label="API Credentials"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <circle cx="7.5" cy="15.5" r="3.5"></circle>
-              <path d="M10 13l7-7 3 3-7 7M17 6l1-1"></path>
-            </svg>
-            <span *ngIf="activeTab() === 'credentials'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-          </button>
-        </nav>
-
-        <!-- Sidebar Footer Utilities -->
-        <div class="hidden md:flex flex-col items-center gap-3 pt-4 md:!mt-4 border-t border-[#f0ebe5]/60">
-          <button
-            type="button"
-            (click)="logOut()"
-            class="w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Log Out"
-            aria-label="Log Out"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
+        <div class="border-t border-[#f0ece8] pt-3">
+          <button type="button" id="merchant-sidebar-logout-btn" (click)="logOut()" aria-label="Log out" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#faf0ec] hover:text-[#9b432f]">
+            <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+            <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Log out</span>
           </button>
         </div>
       </aside>
 
+      <nav class="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-[#ece9e4] bg-white px-2 py-2 shadow-[0_-8px_24px_rgba(42,32,25,0.06)] lg:hidden" aria-label="Merchant navigation (mobile)">
+        <button type="button" (click)="logOut()" aria-label="Log out" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+        <button type="button" (click)="selectTab('orders')" aria-label="Orders Dashboard" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></button>
+        <div class="relative"><button type="button" (click)="toggleIntegrationsMenu()" aria-label="Integrations" [attr.aria-expanded]="integrationsMenuOpen()" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M8 7h8M8 17h8"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="17" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="7" r="2"/></svg></button>
+          @if (integrationsMenuOpen()) { <div class="absolute bottom-full left-1/2 mb-2 w-56 -translate-x-1/2 rounded-2xl border border-[#e8e4df] bg-white p-2 shadow-[0_12px_32px_rgba(33,31,50,0.12)]"><p class="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#9a97a8]">Integrations</p><button type="button" (click)="selectTab('settings')" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5]">Webhook Settings</button><button type="button" (click)="selectTab('deliveries')" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5]">Webhook Delivery Logs</button><button type="button" (click)="selectTab('credentials')" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5]">API Credentials</button></div> }
+        </div>
+        <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      </nav>
+
       <!-- Main Content Area (Edge-to-Edge Full Screen) -->
-      <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 md:py-7 space-y-7 min-w-0 bg-white">
+      <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 pb-24 lg:pb-7 lg:py-7 space-y-7 min-w-0 bg-white lg:ml-20">
         <!-- Top Header: Search Bar & Merchant Profile -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#f4efe9]">
           <!-- Search Input -->
@@ -189,113 +138,15 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             />
           </div>
 
-          <!-- Merchant Profile Menu -->
           <div class="flex items-center gap-3 self-end sm:self-auto">
-            <div class="relative">
-              <button
-                type="button"
-                id="profile-menu-btn"
-                (click)="toggleProfileMenu()"
-                aria-haspopup="menu"
-                [attr.aria-expanded]="profileMenuOpen()"
-                class="h-11 flex items-center gap-2.5 px-3 rounded-full bg-[#faf8f6] border border-[#e8e2dc] hover:border-[#a53a26]/40 transition-colors cursor-pointer"
-              >
-                <span
-                  class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm"
-                >
-                  {{ merchantInitials() }}
-                </span>
-                <span class="text-xs font-bold text-[#1d1b2c]">{{ merchantName() }}</span>
-                <svg
-                  class="w-3.5 h-3.5 text-[#6f6d85] transition-transform"
-                  [class.rotate-180]="profileMenuOpen()"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
-
-              @if (profileMenuOpen()) {
-                <div
-                  role="menu"
-                  class="absolute right-0 mt-2 w-60 rounded-2xl bg-white border border-[#e8e2dc] shadow-lg shadow-[#1d1b2c]/5 py-2 z-30"
-                >
-                  <div class="px-4 py-2 border-b border-[#f0ebe5]">
-                    <p class="text-xs font-bold text-[#1d1b2c] truncate">{{ merchantName() }}</p>
-                    <p class="text-[11px] text-[#6f6d85] truncate">{{ merchantEmail() }}</p>
-                    <span class="inline-block mt-1 px-2 py-0.5 rounded-full bg-[#a53a26]/10 text-[#a53a26] text-[10px] font-bold">MERCHANT PORTAL</span>
-                  </div>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    (click)="selectTab('settings'); toggleProfileMenu()"
-                    class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer"
-                  >
-                    <span>Webhook Settings</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    (click)="selectTab('credentials'); toggleProfileMenu()"
-                    class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer"
-                  >
-                    <span>API Credentials</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    (click)="navigateToBulk(); toggleProfileMenu()"
-                    class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer"
-                  >
-                    <span>Bulk CSV Orders</span>
-                  </button>
-                  <div class="border-t border-[#f0ebe5] mt-1 pt-1">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      (click)="logOut(); toggleProfileMenu()"
-                      class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-[#a53a26] hover:bg-[#faf8f6] transition-colors cursor-pointer"
-                    >
-                      <span>Log out</span>
-                    </button>
-                  </div>
-                </div>
-              }
+            <app-merchant-notification-bell />
+            <div id="merchant-profile-chip" class="h-11 flex items-center rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-4 select-none">
+              <span class="text-xs font-bold text-[#1d1b2c]">Sample Merchant</span>
             </div>
           </div>
         </div>
 
         <!-- Toast Feedback -->
-        @if (notification()) {
-          <div
-            id="toast-notification"
-            class="toast-alert bg-[#faf6f0] border border-[#a53a26]/20 text-[#1d1b2c] px-5 py-3.5 rounded-2xl flex items-center justify-between text-sm shadow-sm transition-all"
-          >
-            <div class="flex items-center gap-3 font-semibold">
-              <div class="w-7 h-7 rounded-full bg-[#a53a26]/10 text-[#a53a26] flex items-center justify-center flex-shrink-0">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              </div>
-              <span>{{ notification() }}</span>
-            </div>
-            <button
-              type="button"
-              (click)="notification.set(null)"
-              class="text-[#6f6d85] hover:text-[#1d1b2c] font-bold p-1 rounded-lg transition-colors cursor-pointer"
-              aria-label="Dismiss notification"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-        }
-
         <!-- ========================================================================= -->
         <!-- TAB 1: ORDERS DASHBOARD                                                  -->
         <!-- ========================================================================= -->
@@ -583,7 +434,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
         <!-- ========================================================================= -->
         <!-- TAB 2: WEBHOOK SETTINGS                                                  -->
         <!-- ========================================================================= -->
-        <div *ngIf="activeTab() === 'settings'" class="space-y-6">
+        <div *ngIf="activeTab() === 'settings'" class="mx-auto w-full max-w-7xl space-y-6">
           <!-- Account Profile Card -->
           <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-4">
             <div class="flex items-center justify-between">
@@ -635,9 +486,9 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
           </div>
 
           <!-- Configuration Grid -->
-          <div *ngIf="settings()" class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div *ngIf="settings()" class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
             <!-- Left 2 Cols: Main Webhook Config & HMAC Secret -->
-            <div class="lg:col-span-2 space-y-6">
+            <div class="xl:col-span-2 space-y-6 min-w-0">
               <!-- Destination URL & Subscriptions Card -->
               <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-6">
                 <div>
@@ -792,7 +643,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             </div>
 
             <!-- Right Col: Test Webhook Card -->
-            <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-5 h-fit">
+              <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-5 h-fit min-w-0">
               <div class="border-b border-[#f4efe9] pb-3">
                 <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Diagnostics</span>
                 <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight mt-0.5">Test Webhook Trigger</h2>
@@ -857,7 +708,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
         <!-- ========================================================================= -->
         <!-- TAB 3: WEBHOOK DELIVERY LOG                                              -->
         <!-- ========================================================================= -->
-        <div *ngIf="activeTab() === 'deliveries'" class="space-y-6">
+        <div *ngIf="activeTab() === 'deliveries'" class="mx-auto w-full max-w-7xl space-y-6">
           <!-- Tab Header -->
           <div>
             <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
@@ -1415,6 +1266,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
 })
 export class MerchantComponent implements OnInit, OnDestroy {
   private merchantService = inject(MerchantService);
+  private merchantNotifications = inject(MerchantNotificationsService);
   private authService = inject(AuthService, { optional: true });
   private router = inject(Router, { optional: true });
 
@@ -1425,8 +1277,8 @@ export class MerchantComponent implements OnInit, OnDestroy {
   private orderDetailsSubscription?: Subscription;
 
   activeTab = signal<ActiveTab>('orders');
+  integrationsMenuOpen = signal(false);
   notification = signal<string | null>(null);
-  profileMenuOpen = signal<boolean>(false);
   selectedOrder = signal<MerchantOrder | null>(null);
   orderDetails = signal<MerchantOrderDetails | null>(null);
   isLoadingOrderDetails = signal(false);
@@ -1470,11 +1322,12 @@ export class MerchantComponent implements OnInit, OnDestroy {
       next: () => {
         this.isSavingProfile.set(false);
         this.closeEditProfileModal();
-        this.notification.set('Profile updated successfully.');
+        this.notifyMerchant('Profile updated', 'Your profile was updated successfully.');
       },
       error: (err) => {
         this.isSavingProfile.set(false);
         this.editProfileError.set(err?.error?.message || err?.message || 'Failed to update profile.');
+        this.notifyMerchant('Profile update failed', this.editProfileError()!, 'error');
       },
     });
   }
@@ -1577,10 +1430,6 @@ export class MerchantComponent implements OnInit, OnDestroy {
     this.orderDetailsSubscription?.unsubscribe();
   }
 
-  toggleProfileMenu(): void {
-    this.profileMenuOpen.update((v) => !v);
-  }
-
   navigateToBulk(): void {
     if (this.router) {
       this.router.navigate(['/merchant/bulk']);
@@ -1605,6 +1454,15 @@ export class MerchantComponent implements OnInit, OnDestroy {
       this.dismissSecret();
     }
     this.activeTab.set(tab);
+    this.integrationsMenuOpen.set(this.isIntegrationTab(tab));
+  }
+
+  isIntegrationTab(tab: ActiveTab = this.activeTab()): boolean {
+    return tab === 'settings' || tab === 'deliveries' || tab === 'credentials';
+  }
+
+  toggleIntegrationsMenu(): void {
+    this.integrationsMenuOpen.update((isOpen) => !isOpen);
   }
 
   dismissSecret(): void {
@@ -1654,6 +1512,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
       error: (error: HttpErrorResponse) => {
         if (this.selectedOrder()?.orderId === orderId) {
           this.orderDetailsError.set(this.apiErrorMessage(error, 'Unable to load order details.'));
+          this.notifyMerchant('Order details unavailable', this.orderDetailsError()!, 'error');
         }
       },
     });
@@ -1698,6 +1557,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
       error: () => {
         this.orderError.set('Unable to load merchant orders. Please check network connection and retry.');
         this.isLoadingOrders.set(false);
+        this.notifyMerchant('Orders could not be loaded', this.orderError()!, 'error');
       },
     });
   }
@@ -1714,6 +1574,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
       error: () => {
         this.countsError.set('Unable to load order counts.');
         this.isLoadingCounts.set(false);
+        this.notifyMerchant('Order summary unavailable', this.countsError()!, 'error');
       },
     });
   }
@@ -1762,6 +1623,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
       error: (error: HttpErrorResponse) => {
         this.settings.set(null);
         this.settingsError.set(this.apiErrorMessage(error, 'Unable to load webhook settings.'));
+        this.notifyMerchant('Webhook settings unavailable', this.settingsError()!, 'error');
       },
     });
   }
@@ -1794,6 +1656,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
     const url = this.settingsForm.url.trim();
     if (!this.isHttpsUrl(url)) {
       this.settingsError.set('Enter a valid public HTTPS destination URL.');
+      this.notifyMerchant('Webhook settings not saved', this.settingsError()!, 'error');
       return;
     }
     this.isSavingSettings.set(true);
@@ -1803,12 +1666,13 @@ export class MerchantComponent implements OnInit, OnDestroy {
       next: (updated) => {
         this.settings.set(updated);
         this.settingsForm.url = updated.url || '';
-        this.notification.set(updated.rawSecret
-          ? 'Webhook settings saved. Copy the new signing secret now.'
-          : 'Webhook configuration saved successfully.');
+        this.notifyMerchant('Webhook settings saved', updated.rawSecret
+          ? 'Copy the new signing secret now.'
+          : 'Your webhook configuration was saved successfully.');
       },
       error: (error: HttpErrorResponse) => {
         this.settingsError.set(this.apiErrorMessage(error, 'Unable to save webhook settings.'));
+        this.notifyMerchant('Webhook settings not saved', this.settingsError()!, 'error');
       },
     });
   }
@@ -1819,6 +1683,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
     const override = this.testUrlOverride.trim();
     if (override && !this.isHttpsUrl(override)) {
       this.testError.set('Enter a valid public HTTPS test URL or leave the override empty.');
+      this.notifyMerchant('Webhook test not sent', this.testError()!, 'error');
       return;
     }
     this.isTestingWebhook.set(true);
@@ -1827,12 +1692,16 @@ export class MerchantComponent implements OnInit, OnDestroy {
     this.merchantService.triggerTestWebhook(override).pipe(finalize(() => this.isTestingWebhook.set(false))).subscribe({
       next: (res) => {
         this.testResult.set(res);
+        this.notifyMerchant(res.success ? 'Webhook test delivered' : 'Webhook test failed',
+          res.success ? `The endpoint returned HTTP ${res.statusCode}.` : (res.errorMessage || `The endpoint returned HTTP ${res.statusCode}.`),
+          res.success ? 'success' : 'error');
       },
       error: (error: HttpErrorResponse) => {
         if (error.status === 502 && this.isTestResult(error.error)) {
           this.testResult.set(error.error);
         } else {
           this.testError.set(this.apiErrorMessage(error, 'Unable to send the test event.'));
+          this.notifyMerchant('Webhook test not sent', this.testError()!, 'error');
         }
       },
     });
@@ -1859,6 +1728,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
         this.deliveries.set([]);
         this.deliveryTotalElements.set(0);
         this.deliveryError.set(this.apiErrorMessage(error, 'Unable to load webhook deliveries.'));
+        this.notifyMerchant('Delivery logs unavailable', this.deliveryError()!, 'error');
       },
     });
   }
@@ -1871,12 +1741,12 @@ export class MerchantComponent implements OnInit, OnDestroy {
     if (!text) return;
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(text).then(() => {
-        this.notification.set(`${label} copied to clipboard.`);
+        this.notifyMerchant(`${label} copied`, `${label} copied to clipboard.`);
       }).catch(() => {
-        this.notification.set(`${label} ready to copy.`);
+        this.notifyMerchant(`${label} ready`, `${label} is ready to copy manually.`, 'info');
       });
     } else {
-      this.notification.set(`${label} ready to copy.`);
+      this.notifyMerchant(`${label} ready`, `${label} is ready to copy manually.`, 'info');
     }
   }
 
@@ -1918,6 +1788,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
       }),
       error: (error: HttpErrorResponse) => {
         this.deliveryError.set(this.apiErrorMessage(error, 'Unable to load delivery details.'));
+        this.notifyMerchant('Delivery details unavailable', this.deliveryError()!, 'error');
       },
     });
   }
@@ -1931,7 +1802,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
     this.merchantService.retryDelivery(deliveryId)
       .pipe(finalize(() => this.retryingDeliveryId.set(null))).subscribe({
       next: (updated) => {
-        this.notification.set(`Delivery retry accepted (${updated.status}).`);
+        this.notifyMerchant('Delivery retry accepted', `Retry status: ${updated.status}.`);
         this.loadDeliveries();
         const selected = this.selectedDelivery();
         if (selected?.deliveryId === deliveryId) {
@@ -1940,6 +1811,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
       },
       error: (error: HttpErrorResponse) => {
         this.deliveryError.set(this.apiErrorMessage(error, 'Unable to retry delivery.'));
+        this.notifyMerchant('Delivery retry failed', this.deliveryError()!, 'error');
       },
     });
   }
@@ -1951,6 +1823,11 @@ export class MerchantComponent implements OnInit, OnDestroy {
     } catch {
       return false;
     }
+  }
+
+  private notifyMerchant(title: string, message: string, kind: 'success' | 'error' | 'info' = 'success'): void {
+    this.notification.set(message);
+    this.merchantNotifications.add(title, message, kind);
   }
 
   private isTestResult(value: unknown): value is TestWebhookResult {

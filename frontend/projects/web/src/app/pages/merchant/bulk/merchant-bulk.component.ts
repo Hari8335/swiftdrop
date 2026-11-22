@@ -1,15 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, OnDestroy, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Subscription, finalize } from 'rxjs';
 import { BulkResult, MerchantBulkService } from './merchant-bulk.service';
 import { CSV_HEADER, MAX_CSV_BYTES, PreviewRow, encodeMerchantCsv, parseMerchantCsv } from './merchant-csv';
+import { MerchantNotificationBellComponent } from '../merchant-notification-bell.component';
+import { MerchantNotificationsService } from '../merchant-notifications.service';
 
 @Component({
   selector: 'app-merchant-bulk',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, MerchantNotificationBellComponent],
   template: `
     <div class="min-h-screen bg-[#faf8f6] text-[#1d1b2c] flex flex-col font-sans">
       <!-- Top Navigation Bar -->
@@ -28,6 +30,8 @@ import { CSV_HEADER, MAX_CSV_BYTES, PreviewRow, encodeMerchantCsv, parseMerchant
         </div>
 
         <div class="flex items-center gap-2">
+          <app-merchant-notification-bell />
+          <span class="h-11 inline-flex items-center rounded-full border border-[#e8e2dc] bg-[#faf8f6] px-4 text-xs font-bold text-[#1d1b2c]">Sample Merchant</span>
           <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#a53a26]/10 text-[#a53a26]">
             Bulk Dispatch
           </span>
@@ -260,6 +264,31 @@ import { CSV_HEADER, MAX_CSV_BYTES, PreviewRow, encodeMerchantCsv, parseMerchant
           </ul>
         </section>
 
+        <!-- Success confirmation appears only after every submitted order is accepted. -->
+        @if (showSuccessPopup()) {
+          <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#1d1b2c]/50 p-4" role="presentation">
+            <section class="w-full max-w-md rounded-3xl border border-[#eee7e0] bg-white p-6 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="bulk-upload-success-title">
+              <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700" aria-hidden="true">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="m5 12 4 4L19 6"></path>
+                </svg>
+              </div>
+              <h2 id="bulk-upload-success-title" class="mt-4 text-center text-xl font-black text-[#1d1b2c]">Orders created successfully</h2>
+              <p class="mt-2 text-center text-sm text-[#6f6d85]">
+                All {{ result()?.acceptedRows }} orders were accepted. You can review them in your merchant dashboard.
+              </p>
+              <button
+                id="bulk-upload-success-ok"
+                type="button"
+                class="mt-6 w-full rounded-full bg-[#a53a26] px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-[#7e2615] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/30 focus:ring-offset-2"
+                (click)="goToDashboard()"
+              >
+                OK, go to dashboard
+              </button>
+            </section>
+          </div>
+        }
+
         <!-- Bottom Action Toolbar -->
         <div class="flex flex-wrap items-center gap-3 pt-2">
           <button
@@ -293,6 +322,8 @@ import { CSV_HEADER, MAX_CSV_BYTES, PreviewRow, encodeMerchantCsv, parseMerchant
 })
 export class MerchantBulkComponent implements OnDestroy {
   private readonly api = inject(MerchantBulkService);
+  private readonly notifications = inject(MerchantNotificationsService);
+  private readonly router = inject(Router);
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('csvFile');
   private subscription?: Subscription;
   private reader?: FileReader;
@@ -301,6 +332,7 @@ export class MerchantBulkComponent implements OnDestroy {
   readonly rows = signal<PreviewRow[]>([]);
   readonly validRows = computed(() => this.rows().filter((row) => !row.errors.length));
   readonly result = signal<BulkResult | null>(null);
+  readonly showSuccessPopup = signal(false);
   readonly error = signal('');
   readonly busy = signal(false);
   readonly reading = signal(false);
@@ -321,6 +353,7 @@ export class MerchantBulkComponent implements OnDestroy {
     if (!file) return;
     if (file.size > MAX_CSV_BYTES) {
       this.error.set('CSV exceeds 5 MiB.');
+      this.notifications.add('CSV file not accepted', this.error(), 'error');
       return;
     }
     const generation = ++this.generation;
@@ -333,12 +366,14 @@ export class MerchantBulkComponent implements OnDestroy {
         this.preview(new TextDecoder('utf-8', { fatal: true }).decode(reader.result as ArrayBuffer));
       } catch {
         this.error.set('CSV must be valid UTF-8.');
+        this.notifications.add('CSV file not accepted', this.error(), 'error');
       }
       this.reading.set(false);
     };
     reader.onerror = () => {
       if (generation === this.generation) {
         this.error.set('CSV could not be read.');
+        this.notifications.add('CSV file could not be read', this.error(), 'error');
         this.reading.set(false);
       }
     };
@@ -350,9 +385,11 @@ export class MerchantBulkComponent implements OnDestroy {
       this.rows.set(parseMerchantCsv(text));
       this.uploadKey.set(crypto.randomUUID());
       this.error.set('');
+      this.notifications.add('CSV preview ready', `${this.validRows().length} valid order(s) ready for review.`, 'info');
     } catch (error) {
       this.rows.set([]);
       this.error.set(error instanceof Error ? error.message : 'Invalid CSV.');
+      this.notifications.add('CSV preview failed', this.error(), 'error');
     }
   }
 
@@ -382,17 +419,34 @@ export class MerchantBulkComponent implements OnDestroy {
   retry(): void {
     if (this.busy() || !this.submittedCsv || !this.submittedKey) return;
     this.busy.set(true);
+    this.showSuccessPopup.set(false);
     this.error.set('');
     this.subscription = this.api
       .submit(this.submittedCsv, this.submittedKey)
       .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
-        next: (report) => this.result.set(report),
-        error: (response) =>
+        next: (report) => {
+          this.result.set(report);
+          this.showSuccessPopup.set(
+            report.totalRows > 0 &&
+            report.acceptedRows === report.totalRows &&
+            report.rejectedRows === 0 &&
+            report.results.length === report.totalRows &&
+            report.results.every((item) => item.accepted)
+          );
+          this.notifications.add(
+            this.showSuccessPopup() ? 'Bulk orders created' : 'Bulk upload needs review',
+            `${report.acceptedRows} accepted, ${report.rejectedRows} rejected out of ${report.totalRows} order(s).`,
+            this.showSuccessPopup() ? 'success' : 'error'
+          );
+        },
+        error: (response) => {
           this.error.set(
             response?.error?.message ||
               'Upload response was not received. Check this upload with the same reference; do not submit it again with a new one.'
-          ),
+          );
+          this.notifications.add('Bulk upload response unavailable', this.error(), 'error');
+        },
       });
   }
 
@@ -405,11 +459,17 @@ export class MerchantBulkComponent implements OnDestroy {
     this.reading.set(false);
     this.rows.set([]);
     this.result.set(null);
+    this.showSuccessPopup.set(false);
     this.error.set('');
     this.uploadKey.set('');
     this.submittedCsv = null;
     this.submittedKey = null;
     this.sourceRows = {};
+  }
+
+  goToDashboard(): void {
+    this.showSuccessPopup.set(false);
+    void this.router.navigate(['/merchant']);
   }
 
   ngOnDestroy(): void {
