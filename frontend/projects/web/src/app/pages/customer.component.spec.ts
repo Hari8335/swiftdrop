@@ -192,6 +192,71 @@ describe('CustomerComponent', () => {
     expect((root.querySelector('#parcel-page-next') as HTMLButtonElement).disabled).toBe(true);
   }));
 
+  describe('history status filter dropdown', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const openMenu = () => {
+      root().querySelector<HTMLButtonElement>('#status-filter-btn')!.click();
+      fixture.detectChanges();
+    };
+
+    it('shows only the current choice until the dropdown is opened', () => {
+      fixture.detectChanges();
+
+      expect(root().querySelector('#status-filter-btn')!.textContent).toContain('All');
+      expect(root().querySelector('#status-filter-menu')).toBeNull();
+
+      openMenu();
+
+      const options = Array.from(root().querySelectorAll('#status-filter-menu [role="option"]')).map((o) => o.textContent!.trim());
+      expect(options).toEqual(['All', 'Created', 'In Transit', 'Delivered']);
+      expect(root().querySelector('#status-filter-btn')!.getAttribute('aria-expanded')).toBe('true');
+      expect(root().querySelector('#status-filter-option-ALL')!.getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('picking a status filters from page 1, keeps the dates, closes the menu and relabels the button', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedParcelPage.set(1);
+      component.dateFrom.set('2026-11-01');
+      fixture.detectChanges();
+      openMenu();
+
+      root().querySelector<HTMLButtonElement>('#status-filter-option-DELIVERED')!.click();
+      tick(100);
+      fixture.detectChanges();
+
+      expect(listParcels).toHaveBeenLastCalledWith('DELIVERED', 0, 10, { from: '2026-11-01' });
+      expect(root().querySelector('#status-filter-menu')).toBeNull();
+      expect(root().querySelector('#status-filter-btn')!.textContent).toContain('Delivered');
+    }));
+
+    it('choosing All clears the status filter', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedStatusFilter.set('CREATED');
+      fixture.detectChanges();
+      openMenu();
+
+      root().querySelector<HTMLButtonElement>('#status-filter-option-ALL')!.click();
+      tick(100);
+
+      expect(component.selectedStatusFilter()).toBeNull();
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10);
+    }));
+
+    it('closes on an outside click and on Escape without changing the filter', () => {
+      fixture.detectChanges();
+      openMenu();
+      document.body.click();
+      fixture.detectChanges();
+      expect(root().querySelector('#status-filter-menu')).toBeNull();
+
+      openMenu();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(root().querySelector('#status-filter-menu')).toBeNull();
+      expect(component.selectedStatusFilter()).toBeNull();
+    });
+  });
+
   describe('history receipt download', () => {
     const root = () => fixture.nativeElement as HTMLElement;
 
