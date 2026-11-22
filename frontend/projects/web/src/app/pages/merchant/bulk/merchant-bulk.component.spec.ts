@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { MerchantBulkComponent } from './merchant-bulk.component';
 import { CSV_HEADER, MAX_CSV_BYTES } from './merchant-csv';
 import { TextDecoder } from 'util';
@@ -16,7 +16,7 @@ describe('Merchant bulk upload', () => {
   });
   afterEach(() => { http.verify(); jest.restoreAllMocks(); });
 
-  it('previews valid and invalid rows without HTTP and submits only confirmed valid rows', () => {
+  it('previews valid and invalid rows, then confirms successful orders before navigating to the dashboard', () => {
     const fixture = TestBed.createComponent(MerchantBulkComponent), c = fixture.componentInstance;
     c.preview(CSV_HEADER + '\nshort,row\n' + row('good')); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('1 valid / 1 invalid');
@@ -33,6 +33,36 @@ describe('Merchant bulk upload', () => {
     expect(fixture.nativeElement.textContent).toContain('Source row 3');
     expect(fixture.nativeElement.textContent).toContain('SD-real');
     expect(fixture.nativeElement.textContent).toContain('850.00 LKR');
+    expect(c.showSuccessPopup()).toBe(true);
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeTruthy();
+    const router = TestBed.inject(Router);
+    const navigate = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+    (fixture.nativeElement.querySelector('#bulk-upload-success-ok') as HTMLButtonElement).click();
+    expect(navigate).toHaveBeenCalledWith(['/merchant']);
+    expect(c.showSuccessPopup()).toBe(false);
+    fixture.destroy();
+  });
+
+  it('keeps partial bulk results on the page without showing the success popup or navigating', () => {
+    const fixture = TestBed.createComponent(MerchantBulkComponent), c = fixture.componentInstance;
+    const navigate = jest.spyOn(TestBed.inject(Router), 'navigate');
+    c.preview(CSV_HEADER + '\n' + row('accepted') + '\n' + row('rejected'));
+    c.confirm();
+    http.expectOne('/api/v1/merchant/orders/bulk').flush({
+      totalRows: 2,
+      acceptedRows: 1,
+      rejectedRows: 1,
+      results: [
+        { rowNumber: 2, accepted: true, order: { trackingNumber: 'SD-partial', status: 'CREATED', fee: 850 }, errors: [] },
+        { rowNumber: 3, accepted: false, errors: ['External reference is already in use.'] },
+      ],
+    });
+    fixture.detectChanges();
+
+    expect(c.showSuccessPopup()).toBe(false);
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('1 successful / 1 failed or unresolved / 2 total');
+    expect(navigate).not.toHaveBeenCalled();
     fixture.destroy();
   });
   it('retains the exact key and body after a lost response, blocks double confirmation and shows row failures', () => {
