@@ -1285,8 +1285,25 @@ export class MerchantComponent implements OnInit, OnDestroy {
   orderDetailsError = signal<string | null>(null);
   diagnosticTab = signal<'overview' | 'headers' | 'payload' | 'response'>('overview');
 
+  isLoadingProfile = signal(false);
+  profileError = signal<string | null>(null);
+  profileSubscription?: Subscription;
+
+  readonly isEmailLoading = computed(() => {
+    return this.isLoadingProfile() || (this.authService ? !this.authService.isInitialized() : false);
+  });
   readonly merchantName = computed(() => this.authService?.currentUser()?.fullName || 'Merchant Partner');
-  readonly merchantEmail = computed(() => this.authService?.currentUser()?.email || 'merchant@swiftdrop.lk');
+  readonly merchantEmail = computed(() => {
+    const user = this.authService?.currentUser();
+    const email = user?.email;
+    if (email && email.trim().length > 0) {
+      return email.trim();
+    }
+    if (this.isEmailLoading()) {
+      return 'Loading email...';
+    }
+    return 'Email unavailable';
+  });
   readonly merchantPhone = computed(() => this.authService?.currentUser()?.phoneNumber || '');
 
   isEditProfileModalOpen = signal(false);
@@ -1297,9 +1314,10 @@ export class MerchantComponent implements OnInit, OnDestroy {
   isSavingProfile = signal(false);
 
   openEditProfileModal(): void {
-    this.editProfileFullName = this.merchantName();
-    this.editProfilePhone = this.merchantPhone();
-    this.editProfileEmail = this.merchantEmail();
+    const user = this.authService?.currentUser();
+    this.editProfileFullName = user?.fullName || (this.merchantName() !== 'Merchant Partner' ? this.merchantName() : '');
+    this.editProfilePhone = user?.phoneNumber || this.merchantPhone();
+    this.editProfileEmail = user?.email || '';
     this.editProfileError.set(null);
     this.isEditProfileModalOpen.set(true);
   }
@@ -1314,20 +1332,60 @@ export class MerchantComponent implements OnInit, OnDestroy {
     this.isSavingProfile.set(true);
     this.editProfileError.set(null);
 
-    this.authService?.updateProfile({
+    const update$ = this.authService?.updateProfile({
       fullName: this.editProfileFullName.trim(),
       phoneNumber: this.editProfilePhone.trim() || undefined,
       email: this.editProfileEmail.trim(),
-    }).subscribe({
+    });
+
+    if (!update$) {
+      this.isSavingProfile.set(false);
+      return;
+    }
+
+    update$.subscribe({
       next: () => {
         this.isSavingProfile.set(false);
         this.closeEditProfileModal();
         this.notifyMerchant('Profile updated', 'Your profile was updated successfully.');
       },
-      error: (err) => {
+      error: (err: any) => {
         this.isSavingProfile.set(false);
         this.editProfileError.set(err?.error?.message || err?.message || 'Failed to update profile.');
         this.notifyMerchant('Profile update failed', this.editProfileError()!, 'error');
+      },
+    });
+  }
+
+  loadProfile(): void {
+    if (!this.authService || (typeof this.authService.isAuthenticated === 'function' && !this.authService.isAuthenticated())) {
+      return;
+    }
+    if (this.authService.currentUser()?.email) {
+      return;
+    }
+    if (this.isLoadingProfile()) {
+      return;
+    }
+    const fetch$ = typeof (this.authService as any).getProfile === 'function'
+      ? (this.authService as any).getProfile()
+      : typeof this.authService.getCurrentUser === 'function'
+      ? this.authService.getCurrentUser()
+      : null;
+
+    if (!fetch$) {
+      return;
+    }
+    this.isLoadingProfile.set(true);
+    this.profileError.set(null);
+    this.profileSubscription?.unsubscribe();
+    this.profileSubscription = fetch$.subscribe({
+      next: () => {
+        this.isLoadingProfile.set(false);
+      },
+      error: () => {
+        this.isLoadingProfile.set(false);
+        this.profileError.set('Unable to load profile');
       },
     });
   }
@@ -1416,6 +1474,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
+    this.loadProfile();
     this.loadOrders();
     this.loadOrderCounts();
     this.loadSettings();
@@ -1428,6 +1487,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
     this.deliverySubscription?.unsubscribe();
     this.detailSubscription?.unsubscribe();
     this.orderDetailsSubscription?.unsubscribe();
+    this.profileSubscription?.unsubscribe();
   }
 
   navigateToBulk(): void {
@@ -1439,6 +1499,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
   }
 
   logOut(): void {
+    this.profileSubscription?.unsubscribe();
     if (this.authService) {
       this.authService.logout().subscribe({
         next: () => this.router?.navigate(['/login']),
