@@ -292,7 +292,7 @@ interface HomeResults {
             <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#f4efe9] pb-5">
               <p id="queue-summary" class="text-sm font-bold text-[#1d1b2c]">{{ filteredParcels().length }} <span class="font-medium text-[#6f6d85]">{{ filteredParcels().length === 1 ? 'parcel awaiting assignment' : 'parcels awaiting assignment' }}</span></p>
 
-              <!-- Queue tools: search + zone + select all + refresh -->
+              <!-- Queue tools: search + zone + select all -->
               <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
                 <div class="relative w-full sm:w-60">
                   <svg class="w-4 h-4 text-[#a09eaf] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -338,19 +338,6 @@ interface HomeResults {
                   />
                   <span>Select All</span>
                 </label>
-
-                <button
-                  type="button"
-                  id="refresh-queue-btn"
-                  (click)="retryLoadQueue()"
-                  class="inline-flex items-center justify-center gap-2 px-4 text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#f3eee9] cursor-pointer h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
-                >
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <polyline points="23 4 23 10 17 10"></polyline>
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                  </svg>
-                  <span>Refresh</span>
-                </button>
               </div>
             </div>
 
@@ -425,70 +412,53 @@ interface HomeResults {
               <div *ngIf="filteredParcels().length > 0; else emptyQueueTemplate" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div
                   *ngFor="let parcel of filteredParcels()"
-                  class="bg-white rounded-2xl border border-[#f0ebe5] shadow-sm p-5 hover:border-[#a53a26]/40 hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                  class="bg-white rounded-2xl border border-[#f0ebe5] shadow-xs p-5 hover:border-[#a53a26]/40 hover:shadow-md transition-all flex flex-col justify-between gap-4"
                 >
                   <div>
-                    <div class="flex items-center justify-between gap-2">
-                      <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-between gap-3">
+                      <label class="flex items-center gap-2.5 min-w-0 cursor-pointer">
                         <input
                           type="checkbox"
                           [attr.id]="'select-parcel-' + parcel.parcelId"
                           [checked]="isParcelSelected(parcel.parcelId)"
                           (change)="toggleSelectParcel(parcel.parcelId)"
+                          [attr.aria-label]="'Select ' + parcel.trackingNumber"
                           class="rounded text-[#a53a26] focus:ring-[#a53a26] w-4 h-4 cursor-pointer"
                         />
-                        <span class="font-mono text-sm font-black text-[#a53a26] bg-[#a53a26]/10 px-2.5 py-1 rounded-lg border border-[#a53a26]/20">
-                          {{ parcel.trackingNumber }}
-                        </span>
-                      </div>
-                      <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 align-middle"></span>Unassigned
+                        <span class="font-mono text-sm font-bold text-[#1d1b2c] truncate">{{ parcel.trackingNumber }}</span>
+                      </label>
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#faf8f6] border border-[#f0ebe5] text-[11px] font-semibold text-[#6f6d85]">
+                        <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>Unassigned
                       </span>
                     </div>
 
-                    <!-- Pickup & Dropoff Routing -->
-                    <div class="mt-4 space-y-2.5 text-xs text-[#6f6d85]">
-                      <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#faf8f6] border border-[#f0ebe5] text-[11px] font-bold text-[#1d1b2c]">
-                        <span>Route:</span>
-                        <span class="text-[#a53a26]">{{ parcel.pickupZone }} → {{ parcel.dropoffZone }}</span>
-                      </div>
-
-                      <div class="flex items-start gap-2">
-                        <span class="w-16 shrink-0 mt-0.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Pickup</span>
-                        <div>
-                          <p class="font-bold text-[#1d1b2c]">{{ parcel.pickupAddress || 'Address on file' }}</p>
-                          <p class="text-[11px] text-[#6f6d85]">{{ parcel.pickupZone }}</p>
-                        </div>
-                      </div>
-                      <div class="flex items-start gap-2">
-                        <span class="w-16 shrink-0 mt-0.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#a53a26]"><span class="w-2 h-2 rounded-full bg-[#a53a26]"></span>Drop-off</span>
-                        <div>
-                          <p class="font-bold text-[#1d1b2c]">{{ parcel.dropoffAddress || 'Address on file' }}</p>
-                          <p class="text-[11px] text-[#6f6d85]">
-                            {{ parcel.dropoffZone }}
-                            <span *ngIf="parcel.recipientName"> • Recipient: {{ parcel.recipientName }}</span>
-                            <span *ngIf="parcel.recipientPhone"> ({{ parcel.recipientPhone }})</span>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    <dl class="mt-4 grid grid-cols-[5.5rem_1fr] gap-x-4 gap-y-2.5">
+                      <dt class="text-[11px] font-semibold uppercase tracking-wide text-[#a09eaf] pt-px">Route</dt>
+                      <dd class="text-xs font-medium text-[#1d1b2c] min-w-0 break-words flex items-center gap-1.5">{{ parcel.pickupZone }} <svg class="w-3 h-3 text-[#a09eaf] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg> {{ parcel.dropoffZone }}</dd>
+                      <dt class="text-[11px] font-semibold uppercase tracking-wide text-[#a09eaf] pt-px">Pickup</dt>
+                      <dd class="text-xs font-medium text-[#1d1b2c] min-w-0 break-words">{{ parcel.pickupAddress || 'Address on file' }}</dd>
+                      <dt class="text-[11px] font-semibold uppercase tracking-wide text-[#a09eaf] pt-px">Drop-off</dt>
+                      <dd class="text-xs font-medium text-[#1d1b2c] min-w-0 break-words">{{ parcel.dropoffAddress || 'Address on file' }}</dd>
+                      <ng-container *ngIf="parcel.recipientName || parcel.recipientPhone">
+                        <dt class="text-[11px] font-semibold uppercase tracking-wide text-[#a09eaf] pt-px">Recipient</dt>
+                        <dd class="text-xs font-medium text-[#1d1b2c] min-w-0 break-words">
+                          {{ parcel.recipientName }}<span *ngIf="parcel.recipientName && parcel.recipientPhone" class="text-[#a09eaf]"> · </span><span *ngIf="parcel.recipientPhone" class="text-[#6f6d85]">{{ parcel.recipientPhone }}</span>
+                        </dd>
+                      </ng-container>
+                    </dl>
                   </div>
 
-                  <!-- Footer Specs & Assign Trigger -->
-                  <div class="pt-3 border-t border-[#f0ebe5] flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-3 text-xs text-[#6f6d85] font-medium">
-                      <span *ngIf="parcel.weightKg !== undefined">{{ parcel.weightKg }} kg</span>
-                      <span>•</span>
-                      <span>Attempts: {{ parcel.attemptCount ?? 0 }}</span>
-                    </div>
-
+                  <div class="pt-3 border-t border-[#f4efe9] flex items-center justify-between gap-3">
+                    <p class="text-xs text-[#6f6d85]">
+                      <span *ngIf="parcel.weightKg !== undefined">{{ parcel.weightKg }} kg · </span>{{ parcel.attemptCount ?? 0 }} {{ (parcel.attemptCount ?? 0) === 1 ? 'attempt' : 'attempts' }}
+                    </p>
                     <button
                       type="button"
                       [attr.id]="'assign-parcel-' + parcel.parcelId + '-btn'"
                       (click)="openAssignModal(parcel)"
-                      class="px-4 py-2 rounded-xl bg-[#a53a26] hover:bg-[#8c2e1d] text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                      class="h-9 px-4 rounded-full bg-[#a53a26] hover:bg-[#8c2e1d] text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
                     >
-                      <span>Assign Courier</span>
+                      <span>Assign courier</span>
                       <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
                     </button>
                   </div>
@@ -526,7 +496,7 @@ interface HomeResults {
             <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#f4efe9] pb-5">
               <p id="workload-summary" class="text-sm font-bold text-[#1d1b2c]">{{ filteredCouriers().length }} <span class="font-medium text-[#6f6d85]">{{ filteredCouriers().length === 1 ? 'courier' : 'couriers' }} · {{ dispatchService.availableCouriersCount() }} online</span></p>
 
-              <!-- Workload tools: search + zone + online only + refresh -->
+              <!-- Workload tools: search + zone + online only -->
               <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
                 <div class="relative w-full sm:w-60">
                   <svg class="w-4 h-4 text-[#a09eaf] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -572,19 +542,6 @@ interface HomeResults {
                   />
                   <span>Online Only</span>
                 </label>
-
-                <button
-                  type="button"
-                  id="refresh-workload-btn"
-                  (click)="retryLoadWorkload()"
-                  class="inline-flex items-center justify-center gap-2 px-4 text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#f3eee9] cursor-pointer h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
-                >
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <polyline points="23 4 23 10 17 10"></polyline>
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                  </svg>
-                  <span>Refresh</span>
-                </button>
               </div>
             </div>
 
@@ -716,7 +673,7 @@ interface HomeResults {
             <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#f4efe9] pb-5">
               <p id="failed-summary" class="text-sm font-bold text-[#1d1b2c]">{{ filteredFailedParcels().length }} <span class="font-medium text-[#6f6d85]">{{ filteredFailedParcels().length === 1 ? 'failed delivery to review' : 'failed deliveries to review' }}</span></p>
 
-              <!-- Failed tools: search + zone + refresh -->
+              <!-- Failed tools: search + zone -->
               <div class="flex flex-wrap items-center gap-2.5 lg:justify-end">
                 <div class="relative w-full sm:w-60">
                   <svg class="w-4 h-4 text-[#a09eaf] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -751,19 +708,6 @@ interface HomeResults {
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
                 </div>
-
-                <button
-                  type="button"
-                  id="refresh-failed-btn"
-                  (click)="retryLoadFailed()"
-                  class="inline-flex items-center justify-center gap-2 px-4 text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#f3eee9] cursor-pointer h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
-                >
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <polyline points="23 4 23 10 17 10"></polyline>
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                  </svg>
-                  <span>Refresh</span>
-                </button>
               </div>
             </div>
 
@@ -791,64 +735,43 @@ interface HomeResults {
               <div *ngIf="filteredFailedParcels().length > 0; else emptyFailedTemplate" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div
                   *ngFor="let parcel of filteredFailedParcels()"
-                  class="bg-white rounded-2xl border border-rose-200/80 shadow-sm p-5 hover:border-rose-300 transition-all space-y-4 flex flex-col justify-between"
+                  class="bg-white rounded-2xl border border-[#f0ebe5] shadow-xs p-5 hover:border-[#a53a26]/40 hover:shadow-md transition-all flex flex-col justify-between gap-4"
                 >
                   <div>
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="font-mono text-sm font-black text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
-                        {{ parcel.trackingNumber }}
-                      </span>
-                      <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-rose-600 mr-1.5 align-middle"></span>Failed
+                    <div class="flex items-center justify-between gap-3">
+                      <span class="font-mono text-sm font-bold text-[#1d1b2c] truncate">{{ parcel.trackingNumber }}</span>
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#faf8f6] border border-[#f0ebe5] text-[11px] font-semibold text-[#6f6d85]">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>Failed
                       </span>
                     </div>
 
-                    <!-- Failure Reason Alert Box -->
-                    <div class="mt-3 p-3 rounded-xl bg-rose-50/70 border border-rose-200 text-xs text-rose-900 space-y-1">
-                      <div class="flex items-center gap-1.5 font-bold">
-                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                        <span>Failure reason</span>
-                      </div>
-                      <p class="text-rose-700 font-medium pl-[22px]">{{ readableReason(parcel.failureReason) }}</p>
-                    </div>
-
-                    <!-- Routing -->
-                    <div class="mt-3 space-y-2 text-xs text-[#6f6d85]">
-                      <div class="flex items-start gap-2">
-                        <span class="w-16 shrink-0 mt-0.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Pickup</span>
-                        <div>
-                          <p class="font-bold text-[#1d1b2c]">{{ parcel.pickupAddress || 'Address on file' }}</p>
-                          <p class="text-[11px] text-[#6f6d85]">{{ parcel.pickupZone }}</p>
-                        </div>
-                      </div>
-                      <div class="flex items-start gap-2">
-                        <span class="w-16 shrink-0 mt-0.5 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#a53a26]"><span class="w-2 h-2 rounded-full bg-[#a53a26]"></span>Drop-off</span>
-                        <div>
-                          <p class="font-bold text-[#1d1b2c]">{{ parcel.dropoffAddress || 'Address on file' }}</p>
-                          <p class="text-[11px] text-[#6f6d85]">
-                            {{ parcel.dropoffZone }}
-                            <span *ngIf="parcel.recipientName"> • Recipient: {{ parcel.recipientName }}</span>
-                            <span *ngIf="parcel.recipientPhone"> ({{ parcel.recipientPhone }})</span>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    <dl class="mt-4 grid grid-cols-[5.5rem_1fr] gap-x-4 gap-y-2.5">
+                      <dt class="text-[11px] font-semibold uppercase tracking-wide text-[#a09eaf] pt-px">Reason</dt>
+                      <dd class="text-xs font-semibold text-[#a53a26] min-w-0 break-words">{{ readableReason(parcel.failureReason) }}</dd>
+                      <dt class="text-[11px] font-semibold uppercase tracking-wide text-[#a09eaf] pt-px">Route</dt>
+                      <dd class="text-xs font-medium text-[#1d1b2c] min-w-0 break-words flex items-center gap-1.5">{{ parcel.pickupZone }} <svg class="w-3 h-3 text-[#a09eaf] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg> {{ parcel.dropoffZone }}</dd>
+                      <dt class="text-[11px] font-semibold uppercase tracking-wide text-[#a09eaf] pt-px">Pickup</dt>
+                      <dd class="text-xs font-medium text-[#1d1b2c] min-w-0 break-words">{{ parcel.pickupAddress || 'Address on file' }}</dd>
+                      <dt class="text-[11px] font-semibold uppercase tracking-wide text-[#a09eaf] pt-px">Drop-off</dt>
+                      <dd class="text-xs font-medium text-[#1d1b2c] min-w-0 break-words">{{ parcel.dropoffAddress || 'Address on file' }}</dd>
+                      <ng-container *ngIf="parcel.recipientName || parcel.recipientPhone">
+                        <dt class="text-[11px] font-semibold uppercase tracking-wide text-[#a09eaf] pt-px">Recipient</dt>
+                        <dd class="text-xs font-medium text-[#1d1b2c] min-w-0 break-words">
+                          {{ parcel.recipientName }}<span *ngIf="parcel.recipientName && parcel.recipientPhone" class="text-[#a09eaf]"> · </span><span *ngIf="parcel.recipientPhone" class="text-[#6f6d85]">{{ parcel.recipientPhone }}</span>
+                        </dd>
+                      </ng-container>
+                    </dl>
                   </div>
 
-                  <!-- Footer & Re-queue Trigger -->
-                  <div class="pt-3 border-t border-[#f0ebe5] flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 text-xs text-[#6f6d85] font-medium">
-                      <span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 font-bold">
-                        Attempt #{{ parcel.attemptCount ?? 1 }}
-                      </span>
-                      <span *ngIf="parcel.weightKg !== undefined">• {{ parcel.weightKg }} kg</span>
-                    </div>
-
+                  <div class="pt-3 border-t border-[#f4efe9] flex items-center justify-between gap-3">
+                    <p class="text-xs text-[#6f6d85]">
+                      <span *ngIf="parcel.weightKg !== undefined">{{ parcel.weightKg }} kg · </span>Attempt {{ parcel.attemptCount ?? 1 }}
+                    </p>
                     <button
                       type="button"
                       [attr.id]="'requeue-parcel-' + parcel.parcelId + '-btn'"
                       (click)="openRequeueModal(parcel)"
-                      class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                      class="h-9 px-4 rounded-full bg-[#a53a26] hover:bg-[#8c2e1d] text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer"
                     >
                       <span>Re-queue parcel</span>
                     </button>
@@ -902,12 +825,31 @@ interface HomeResults {
 
           <!-- Select Courier -->
           <div class="space-y-2">
-            <label class="block text-xs font-bold text-[#1d1b2c] uppercase tracking-wider">
+            <label for="assign-courier-search" class="block text-xs font-bold text-[#1d1b2c] uppercase tracking-wider">
               Select Available Courier
             </label>
+            <div class="relative">
+              <svg class="w-4 h-4 text-[#a09eaf] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                type="search"
+                id="assign-courier-search"
+                [ngModel]="courierSearch()"
+                (ngModelChange)="courierSearch.set($event)"
+                [disabled]="isSubmittingAssignment()"
+                placeholder="Search courier by name, phone, zone or vehicle"
+                autocomplete="off"
+                class="w-full h-10 pl-10 pr-4 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
+              />
+            </div>
+            <p *ngIf="assignCourierOptions().length === 0" id="assign-courier-no-match" class="py-6 text-center text-xs text-[#6f6d85]">
+              No couriers match "{{ courierSearch() }}".
+            </p>
             <div class="max-h-56 overflow-y-auto space-y-2 pr-1">
               <div
-                *ngFor="let courier of dispatchService.couriers()"
+                *ngFor="let courier of assignCourierOptions()"
                 (click)="courier.available && !isSubmittingAssignment() ? selectedCourierId.set(courier.courierId) : null"
                 class="p-3 rounded-xl border flex items-center justify-between gap-3 transition-all"
                 [class.cursor-pointer]="courier.available && !isSubmittingAssignment()"
@@ -1162,6 +1104,12 @@ export class DispatchComponent implements OnInit, OnDestroy {
   // Modals & Submitting state
   public selectedParcelForAssign = signal<DispatchParcelSummary | null>(null);
   public selectedCourierId = signal<string>('');
+  /** Search box inside the assign dialog. */
+  public courierSearch = signal('');
+  public assignCourierOptions = computed(() => {
+    const q = this.courierSearch();
+    return this.dispatchService.couriers().filter((c) => this.courierMatchesSearch(c, q));
+  });
   public isSubmittingAssignment = signal(false);
 
   // Re-queue state
@@ -1562,6 +1510,7 @@ export class DispatchComponent implements OnInit, OnDestroy {
   // Single Assignment Logic
   // -------------------------------------------------------------------------
   public openAssignModal(parcel: DispatchParcelSummary): void {
+    this.courierSearch.set('');
     this.selectedParcelForAssign.set(parcel);
     const firstAvailable = this.dispatchService.availableCouriers()[0];
     this.selectedCourierId.set(firstAvailable ? firstAvailable.courierId : '');

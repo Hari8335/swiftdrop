@@ -6,6 +6,7 @@ import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { ButtonComponent, CardComponent, ErrorStateComponent, LoadingStateComponent, TextareaComponent } from 'ui';
 import { RatingService } from './rating.service';
+import { CustomerToastService } from '../customer/customer-toast.service';
 import { RATING_COMMENT_MAX, RATING_SCORES, RatingResponse } from './tracking.model';
 
 type RatingState = 'loading' | 'form' | 'rated' | 'unavailable' | 'load-error';
@@ -104,6 +105,7 @@ type RatingState = 'loading' | 'form' | 'rated' | 'unavailable' | 'load-error';
 })
 export class ParcelRatingComponent {
   private readonly ratings = inject(RatingService);
+  private readonly toast = inject(CustomerToastService);
   private readonly destroyRef = inject(DestroyRef);
   private request?: Subscription;
 
@@ -184,7 +186,8 @@ export class ParcelRatingComponent {
       .subscribe({
         next: (rating) => {
           this.submitting.set(false);
-          this.notice.set('Thank you for your rating');
+          this.notice.set('Your rating');
+          this.toast.success('Thank you for your rating', 'Your feedback helps us improve deliveries.');
           this.showRating(rating);
         },
         error: (err: unknown) => {

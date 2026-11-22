@@ -217,6 +217,62 @@ describe('DispatchComponent (Real API Integration)', () => {
     expect(compiled.querySelector('#tab-queue-link')).toBeNull();
   });
 
+  it.each(['queue', 'failed'] as const)('shows %s parcel details as a minimal label/value list', (tab) => {
+    component.activeTab.set(tab);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const card = compiled.querySelector('dl')!.closest('div.rounded-2xl') as HTMLElement;
+    const labels = Array.from(card.querySelectorAll('dt')).map((d) => d.textContent?.trim());
+    expect(labels).toEqual(expect.arrayContaining(['Route', 'Pickup', 'Drop-off']));
+    if (tab === 'failed') expect(labels[0]).toBe('Reason');
+    expect(card.innerHTML).not.toMatch(/(emerald|amber|rose)-\d/);
+  });
+
+  it('colours the status dot yellow for unassigned and red for failed parcels', () => {
+    component.activeTab.set('queue');
+    fixture.detectChanges();
+    let compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.bg-yellow-400')?.parentElement?.textContent).toContain('Unassigned');
+
+    component.activeTab.set('failed');
+    fixture.detectChanges();
+    compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.bg-red-600')?.parentElement?.textContent).toContain('Failed');
+  });
+
+  it('lets the dispatcher search couriers in the assign dialog', () => {
+    (dispatchServiceSpy.couriers as any).mockReturnValue([
+      { courierId: 'c1', name: 'Saman Perera', phoneNumber: '+94770000001', zone: 'Colombo', activeCount: 1, available: true, vehicleType: 'VAN' },
+      { courierId: 'c2', name: 'Kasun Rathnayake', phoneNumber: '+94770000002', zone: 'Kandy', activeCount: 0, available: true },
+    ]);
+    component.courierSearch.set('leftover');
+    component.openAssignModal({ parcelId: 'p1', trackingNumber: 'SD-1', status: 'CREATED', pickupZone: 'Colombo', dropoffZone: 'Kandy', createdAt: '' });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#assign-courier-search')).toBeTruthy();
+    expect(component.courierSearch()).toBe('');
+    expect(component.assignCourierOptions().map((c) => c.courierId)).toEqual(['c1', 'c2']);
+
+    component.courierSearch.set('kandy');
+    expect(component.assignCourierOptions().map((c) => c.courierId)).toEqual(['c2']);
+    component.courierSearch.set('0001');
+    expect(component.assignCourierOptions().map((c) => c.courierId)).toEqual(['c1']);
+
+    component.courierSearch.set('nobody');
+    fixture.detectChanges();
+    expect(compiled.querySelector('#assign-courier-no-match')).toBeTruthy();
+  });
+
+  it.each(['queue', 'workload', 'failed'] as const)('has no Refresh button on the %s page', (tab) => {
+    component.activeTab.set(tab);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector(`#refresh-${tab}-btn`)).toBeNull();
+    const labels = Array.from(compiled.querySelectorAll('button')).map((b) => b.textContent?.trim());
+    expect(labels).not.toContain('Refresh');
+  });
+
   it('should render interactive delivery zones and pricing rules buttons on home page', () => {
     component.activeTab.set('home');
     fixture.detectChanges();

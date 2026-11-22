@@ -30,6 +30,9 @@ describe('AuthShellComponent', () => {
   it('renders the brand, the text and the projected form inside the white card', () => {
     const el = render('signin');
     expect(el.querySelector('.brand-text')?.textContent).toBe('SwiftDrop');
+    // Same logo as the landing page: white tile with the parcel mark.
+    expect(el.querySelector('.brand .brand-mark svg')).toBeTruthy();
+    expect(el.querySelector('.brand-icon')).toBeNull();
     expect(el.querySelector('.hero-badge')?.textContent).toContain('Badge text');
     expect(el.querySelector('h1.hero-headline')?.textContent).toBe('Big headline');
     expect(el.querySelector('.hero-lede')?.textContent).toBe('Some lede');

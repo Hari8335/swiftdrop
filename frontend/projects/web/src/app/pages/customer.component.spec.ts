@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 import { CustomerComponent } from './customer.component';
 import { CustomerAddress, CustomerParcel, QuoteResponse } from './customer/customer.model';
 import { CustomerService } from './customer/customer.service';
+import { CustomerToastService } from './customer/customer-toast.service';
 
 describe('CustomerComponent', () => {
   let component: CustomerComponent;
@@ -158,10 +159,42 @@ describe('CustomerComponent', () => {
 
     component.changeParcelPage(1);
     tick(100);
-    expect(listParcels).toHaveBeenLastCalledWith(undefined, 1);
+    expect(listParcels).toHaveBeenLastCalledWith(undefined, 1, 10);
     expect(component.parcelPage().page).toBe(1);
     expect(component.parcels()).toEqual([]);
   }));
+
+  it('shows numbered pagination instead of "Show all" under recent deliveries', fakeAsync(() => {
+    const listParcels = customerService.listParcels as jest.Mock;
+    listParcels.mockImplementation((status: string | undefined, page = 0, size = 10) => of({
+      content: page === 0 ? Array.from({ length: 10 }, (_, i) => ({ ...mockCreatedParcel, id: `p${i}` })) : [mockCreatedParcel],
+      totalElements: 11,
+      totalPages: 2,
+      page,
+      size,
+    }));
+    component.loadParcels();
+    tick(100);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).not.toContain('Show all');
+    expect(root.querySelector('#recent-deliveries-range')?.textContent?.replace(/\s+/g, ' ')).toContain('Showing 1–10 of 11 deliveries');
+    expect((root.querySelector('#parcel-page-prev') as HTMLButtonElement).disabled).toBe(true);
+    expect(root.querySelector('#parcel-page-1')?.getAttribute('aria-current')).toBe('page');
+
+    (root.querySelector('#parcel-page-2') as HTMLButtonElement).click();
+    tick(100);
+    fixture.detectChanges();
+    expect(listParcels).toHaveBeenLastCalledWith(undefined, 1, 10);
+    expect(root.querySelector('#recent-deliveries-range')?.textContent?.replace(/\s+/g, ' ')).toContain('Showing 11–11 of 11');
+    expect((root.querySelector('#parcel-page-next') as HTMLButtonElement).disabled).toBe(true);
+  }));
+
+  it('collapses long page lists with gaps', () => {
+    component.parcelPage.set({ content: [], totalElements: 200, totalPages: 20, page: 9, size: 10 });
+    expect(component.pageNumbers()).toEqual([0, null, 8, 9, 10, null, 19]);
+  });
 
   it('should navigate through wizard steps with validation and real fee quote integration', fakeAsync(() => {
     component.startNewDelivery();
@@ -277,6 +310,8 @@ describe('CustomerComponent', () => {
     expect(component.confirmedParcel()?.id).toBe('pcl-real-uuid-1234');
     expect(component.confirmedParcel()?.trackingNumber).toBe('SD-20261105-H7K9N2');
     expect(component.notification()).toContain('booked successfully');
+    // The confirmation step already shows the booking, so no toast pops up.
+    expect(TestBed.inject(CustomerToastService).toasts()).toHaveLength(0);
     expect(component.notification()).toContain('SD-20261105-H7K9N2');
   }));
 
@@ -557,11 +592,11 @@ describe('CustomerComponent', () => {
       expect(el().querySelector('#customer-search-clear')).toBeNull();
     });
 
-    it('top bar shows "Signed in as" with the customer name and initials', () => {
+    it('top bar shows the customer name and initials without a "Signed in as" caption', () => {
       fixture.detectChanges();
       const badge = el().querySelector<HTMLElement>('#profile-badge')!;
 
-      expect(badge.textContent).toContain('Signed in as');
+      expect(badge.textContent).not.toContain('Signed in as');
       expect(el().querySelector('#profile-badge-name')!.textContent!.trim()).toBe(component.customerName() || 'Customer');
     });
 

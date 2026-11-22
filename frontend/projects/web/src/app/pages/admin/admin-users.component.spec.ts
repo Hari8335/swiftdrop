@@ -19,6 +19,7 @@ describe('AdminUsersComponent', () => {
       phoneNumber: '+94771234567',
       role: 'COURIER',
       enabled: true,
+      zone: 'COLOMBO_ZONE',
       createdAt: '2026-10-25T13:20:00Z',
     },
     {
@@ -50,6 +51,12 @@ describe('AdminUsersComponent', () => {
           page: 0,
           size: 20,
         })
+      ),
+      loadDeliveryZones: jest.fn(() =>
+        of([
+          { id: 'z-1', name: 'COLOMBO_ZONE', districts: ['Colombo'], served: true, baseFeeLkr: 500 },
+          { id: 'z-2', name: 'GAMPAHA_ZONE', districts: ['Gampaha'], served: true, baseFeeLkr: 500 },
+        ])
       ),
       createStaffUser: jest.fn(),
       updateUserStatus: jest.fn(),
@@ -136,6 +143,7 @@ describe('AdminUsersComponent', () => {
     component.newUserFullName = 'Saman Kumara';
     component.newUserEmail = 'courier.saman@swiftdrop.lk';
     component.newUserPhone = '0771234567'; // valid 10 digits
+    component.newUserZone.set('COLOMBO_ZONE');
 
     expect(component.isPhoneValid()).toBe(true);
     expect(component.isFormValid()).toBe(true);
@@ -147,6 +155,7 @@ describe('AdminUsersComponent', () => {
     component.newUserEmail = 'courier.saman@swiftdrop.lk';
     component.newUserPhone = '0771234567';
     component.newUserRole = 'COURIER';
+    component.newUserZone.set('COLOMBO_ZONE');
 
     const createdResponse: UserSummary = {
       id: 'usr-new-1',
@@ -166,6 +175,7 @@ describe('AdminUsersComponent', () => {
       email: 'courier.saman@swiftdrop.lk',
       phoneNumber: '0771234567',
       role: 'COURIER',
+      zone: 'COLOMBO_ZONE',
     });
     expect(component.toastMessage()).toContain('provisioned');
     expect(component.isCreateUserModalOpen()).toBe(false);
@@ -179,6 +189,7 @@ describe('AdminUsersComponent', () => {
     component.newUserEmail = 'courier.duplicate@swiftdrop.lk';
     component.newUserPhone = '0771234567';
     component.newUserRole = 'COURIER';
+    component.newUserZone.set('COLOMBO_ZONE');
 
     adminUsersServiceMock.createStaffUser.mockReturnValue(
       throwError(() => ({
@@ -328,5 +339,86 @@ describe('AdminUsersComponent', () => {
     expect(component.pendingConfirmUserId()).toBeNull();
     expect(adminUsersServiceMock.updateUserStatus).not.toHaveBeenCalled();
     expect(compiled.querySelector('#toggle-user-usr-2-btn')).toBeTruthy();
+  });
+
+  it('should render Zone column header and display assigned zones in the table', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+    const headers = Array.from(compiled.querySelectorAll('thead th')).map((th) => th.textContent?.trim());
+    expect(headers).toContain('Zone');
+
+    const rows = compiled.querySelectorAll('tbody tr');
+    // First row has zone: 'COLOMBO_ZONE'
+    expect(rows[0].textContent).toContain('COLOMBO_ZONE');
+    // Second row has no zone -> displays '—'
+    expect(rows[1].textContent).toContain('—');
+  });
+
+  it('should filter delivery zone suggestions when typing in zone input and select zone', () => {
+    component.openCreateUserModal();
+    fixture.detectChanges();
+
+    expect(component.availableZones().length).toBe(2);
+
+    // Typing 'col' should filter matching zones
+    component.onZoneInputChange('col');
+    expect(component.matchingZones().length).toBe(1);
+    expect(component.matchingZones()[0].name).toBe('COLOMBO_ZONE');
+
+    // Selecting the zone sets the input
+    component.selectZone('COLOMBO_ZONE');
+    expect(component.newUserZone()).toBe('COLOMBO_ZONE');
+    expect(component.showZoneDropdown()).toBe(false);
+  });
+
+  it('should include assigned zone in payload when provisioning staff user with zone', () => {
+    component.openCreateUserModal();
+    component.newUserFullName = 'Nimal Perera';
+    component.newUserEmail = 'courier.nimal@swiftdrop.lk';
+    component.newUserPhone = '0771234567';
+    component.newUserRole = 'COURIER';
+    component.newUserZone.set('COLOMBO_ZONE');
+
+    const createdResponse: UserSummary = {
+      id: 'usr-new-2',
+      email: 'courier.nimal@swiftdrop.lk',
+      fullName: 'Nimal Perera',
+      phoneNumber: '0771234567',
+      role: 'COURIER',
+      enabled: true,
+      zone: 'COLOMBO_ZONE',
+      createdAt: '2026-10-28T12:00:00Z',
+    };
+    adminUsersServiceMock.createStaffUser.mockReturnValue(of(createdResponse));
+
+    component.submitCreateStaffUser();
+
+    expect(adminUsersServiceMock.createStaffUser).toHaveBeenCalledWith({
+      fullName: 'Nimal Perera',
+      email: 'courier.nimal@swiftdrop.lk',
+      phoneNumber: '0771234567',
+      role: 'COURIER',
+      zone: 'COLOMBO_ZONE',
+    });
+    expect(component.isCreateUserModalOpen()).toBe(false);
+    expect(component.newUserZone()).toBe('');
+  });
+
+  it('should require delivery zone for form validity', () => {
+    component.newUserFullName = 'Kamal Perera';
+    component.newUserEmail = 'courier.kamal@swiftdrop.lk';
+    component.newUserPhone = '0771234567';
+    component.newUserRole = 'COURIER';
+
+    // Zone empty -> invalid
+    component.newUserZone.set('');
+    expect(component.isFormValid()).toBe(false);
+
+    // Zone whitespace only -> invalid
+    component.newUserZone.set('   ');
+    expect(component.isFormValid()).toBe(false);
+
+    // Zone provided -> valid
+    component.newUserZone.set('COLOMBO_ZONE');
+    expect(component.isFormValid()).toBe(true);
   });
 });

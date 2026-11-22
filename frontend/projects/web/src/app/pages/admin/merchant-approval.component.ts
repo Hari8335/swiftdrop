@@ -71,12 +71,12 @@ type Action = 'approve' | 'reject' | 'recover' | 'suspend' | 'reactivate';
       @if (merchantService.loading()) {
         <div id="merchant-approval-loading" class="rounded-[1.5rem] border border-[#e9e3dd] bg-white p-12 text-center shadow-[0_8px_24px_rgba(42,32,25,0.04)]" role="status">
           <div class="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-[#9b432f] border-t-transparent"></div>
-          <p class="text-sm font-semibold text-[#77748a]">Loading pending merchants...</p>
+          <p class="text-sm font-semibold text-[#77748a]">Loading {{ listStatus().toLowerCase() }} merchants...</p>
         </div>
       } @else if (merchantService.merchants().length === 0 && !merchantService.error()) {
         <div id="merchant-approval-empty" class="rounded-[1.5rem] border border-dashed border-[#d9d3cd] bg-[#f8f6f3] p-12 text-center">
-          <h2 class="text-lg font-black text-[#211f32]">No pending merchants</h2>
-          <p class="mt-2 text-sm text-[#77748a]">New merchant registrations will appear here for review.</p>
+          <h2 class="text-lg font-black text-[#211f32]">No {{ listStatus().toLowerCase() }} merchants</h2>
+          <p class="mt-2 text-sm text-[#77748a]">{{ listStatus() === 'PENDING' ? 'New merchant registrations will appear here for review.' : 'No approved merchants found.' }}</p>
         </div>
       } @else if (!merchantService.error()) {
         <section class="overflow-hidden rounded-[1.5rem] border border-[#e9e3dd] bg-white shadow-[0_8px_24px_rgba(42,32,25,0.04)]">
@@ -240,9 +240,9 @@ export class MerchantApprovalComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const qParam = this.route?.snapshot?.queryParamMap?.get('status')?.toUpperCase();
-    if (qParam === 'APPROVED' || qParam === 'PENDING' || qParam === 'SUSPENDED') {
-      this.listStatus.set(qParam);
-      this.merchantService.loadMerchants(0, this.merchantService.pageSize(), qParam).subscribe({ error: () => undefined });
+    if (qParam === 'APPROVED') {
+      this.listStatus.set('APPROVED');
+      this.merchantService.loadMerchants(0, this.merchantService.pageSize(), 'APPROVED').subscribe({ error: () => undefined });
     } else {
       this.reload();
     }
@@ -258,7 +258,14 @@ export class MerchantApprovalComponent implements OnInit, OnDestroy {
   }
 
   reload(): void {
-    this.merchantService.refresh().subscribe({ error: () => undefined });
+    this.merchantService.refresh().subscribe({
+      next: (page) => {
+        if (this.listStatus() === 'PENDING' && page && page.totalElements === 0) {
+          this.changeStatus('APPROVED');
+        }
+      },
+      error: () => undefined,
+    });
   }
 
   goToPage(page: number): void {

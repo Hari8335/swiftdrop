@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { AuthService } from 'shared-auth';
+import { CustomerToastService } from './customer-toast.service';
 import { CustomerChangePasswordComponent } from './customer-change-password.component';
 
 describe('CustomerChangePasswordComponent', () => {
@@ -46,6 +47,8 @@ describe('CustomerChangePasswordComponent', () => {
     click('#send-password-code-btn');
     expect(auth.forgotPassword).toHaveBeenCalledWith({ email: 'kamal@example.com' });
     expect(component.step()).toBe('code');
+    const toasts = TestBed.inject(CustomerToastService);
+    expect(toasts.toasts().at(-1)).toMatchObject({ kind: 'success', title: 'Verification code sent' });
 
     type('#password-code', '123456');
     click('#verify-password-code-btn');
@@ -58,7 +61,9 @@ describe('CustomerChangePasswordComponent', () => {
 
     expect(auth.resetPassword).toHaveBeenCalledWith({ email: 'kamal@example.com', token: '123456', newPassword: 'NewPass1!' });
     expect(auth.setSession).toHaveBeenCalledWith('new-token', user);
-    expect(el().querySelector('#password-changed')).not.toBeNull();
+    // Confirmed with a toast, and the form goes back to its first step.
+    expect(toasts.toasts().at(-1)).toMatchObject({ kind: 'success', title: 'Password updated' });
+    expect(component.step()).toBe('start');
   });
 
   it('shows the error and stays on the code step when the code is wrong', () => {
