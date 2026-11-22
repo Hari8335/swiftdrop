@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { Subscription, finalize } from 'rxjs';
 import { AuthService } from 'shared-auth';
 import {
@@ -32,9 +32,11 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
 @Component({
   selector: 'app-merchant',
   standalone: true,
+  host: { '(document:keydown.escape)': 'cancelLogout()' },
   imports: [
     CommonModule,
     FormsModule,
+    RouterOutlet,
     MerchantCredentialsComponent,
     MerchantNotificationBellComponent,
     PaginationComponent,
@@ -47,7 +49,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
     <div class="merchant-shell w-full min-h-screen flex flex-col md:flex-row bg-white">
       <!-- Merchant navigation follows the Admin portal's fixed, expanding sidebar. -->
       <aside
-        class="fixed inset-y-0 left-0 z-40 hidden h-screen w-20 flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-[#ece9e4] bg-white py-5 px-3 transition-all duration-300 ease-in-out hover:w-[272px] hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)] group lg:flex"
+        class="fixed inset-y-0 left-0 z-40 hidden h-screen w-20 flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-[#ece9e4] bg-white py-5 px-3 transition-all duration-300 ease-in-out hover:w-[272px] has-[:focus-visible]:w-[272px] hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)] group lg:flex"
         aria-label="Merchant Navigation"
       >
         <div>
@@ -64,7 +66,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
           <nav class="mt-8 flex flex-col gap-1.5" aria-label="Merchant primary navigation">
             <button
               type="button" (click)="selectTab('orders')" aria-label="Orders Dashboard"
-              [ngClass]="activeTab() === 'orders' ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
+              [ngClass]="!bulkPageActive() && activeTab() === 'orders' ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
               class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
             >
               <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></span>
@@ -72,32 +74,29 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             </button>
 
             <div class="relative w-full">
-              <button
-                type="button" (click)="toggleIntegrationsMenu()" aria-label="Integrations"
-                aria-controls="merchant-integrations-menu" aria-expanded="true"
+              <button type="button" (click)="toggleIntegrationsMenu()" aria-label="Integrations"
+                aria-controls="merchant-integrations-menu" [attr.aria-expanded]="integrationsMenuOpen()"
                 [ngClass]="isIntegrationTab() ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
-                class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
-              >
-                <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M8 7h8M8 17h8"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="17" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="7" r="2"/></svg></span>
-                <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Integrations</span>
-                <svg class="ml-auto h-3.5 w-3.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                class="flex h-11 w-full items-center gap-2 rounded-2xl px-2 transition-all duration-200">
+                <ng-container *ngTemplateOutlet="integrationsIcon" />
+                <span class="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100">Integrations</span>
               </button>
-              <div id="merchant-integrations-menu" class="ml-3 mt-1 space-y-0.5 border-l border-[#e8e4df] pl-3" aria-label="Integrations pages">
-                <button type="button" (click)="selectTab('settings')" [attr.aria-current]="activeTab() === 'settings' ? 'page' : null" class="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-xs font-medium text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'settings'" [class.text-[#9b432f]]="activeTab() === 'settings'"><span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#b9b5c2]"></span><span class="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">Webhook Settings</span></button>
-                <button type="button" (click)="selectTab('deliveries')" [attr.aria-current]="activeTab() === 'deliveries' ? 'page' : null" class="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-xs font-medium text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'deliveries'" [class.text-[#9b432f]]="activeTab() === 'deliveries'"><span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#b9b5c2]"></span><span class="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">Webhook Delivery Logs</span></button>
-                <button type="button" (click)="selectTab('credentials')" [attr.aria-current]="activeTab() === 'credentials' ? 'page' : null" class="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-xs font-medium text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'credentials'" [class.text-[#9b432f]]="activeTab() === 'credentials'"><span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#b9b5c2]"></span><span class="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">API Credentials</span></button>
-              </div>
+              @if (integrationsMenuOpen()) {
+                <div id="merchant-integrations-menu" class="ml-7 mt-1 hidden space-y-0.5 group-hover:block group-has-[:focus-visible]:block">
+                  <ng-container *ngTemplateOutlet="integrationLinks" />
+                </div>
+              }
             </div>
 
-            <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#fbf7f5] hover:text-[#9b432f]">
-              <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+            <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" [attr.aria-current]="bulkPageActive() ? 'page' : null" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#fbf7f5] hover:text-[#9b432f]">
+              <ng-container *ngTemplateOutlet="bulkPlusIcon" />
               <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Bulk CSV Orders</span>
             </button>
           </nav>
         </div>
 
         <div class="border-t border-[#f0ece8] pt-3">
-          <button type="button" id="merchant-sidebar-logout-btn" (click)="logOut()" aria-label="Log out" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#faf0ec] hover:text-[#9b432f]">
+          <button type="button" id="merchant-sidebar-logout-btn" (click)="openLogoutConfirm()" aria-label="Log out" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#faf0ec] hover:text-[#9b432f]">
             <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
             <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Log out</span>
           </button>
@@ -105,16 +104,64 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
       </aside>
 
       <nav class="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-[#ece9e4] bg-white px-2 py-2 shadow-[0_-8px_24px_rgba(42,32,25,0.06)] lg:hidden" aria-label="Merchant navigation (mobile)">
-        <button type="button" (click)="logOut()" aria-label="Log out" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+        <button type="button" (click)="openLogoutConfirm()" aria-label="Log out" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
         <button type="button" (click)="selectTab('orders')" aria-label="Orders Dashboard" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></button>
-        <div class="relative"><button type="button" (click)="toggleIntegrationsMenu()" aria-label="Integrations" [attr.aria-expanded]="integrationsMenuOpen()" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M8 7h8M8 17h8"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="17" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="7" r="2"/></svg></button>
-          @if (integrationsMenuOpen()) { <div class="absolute bottom-full left-1/2 mb-2 w-56 -translate-x-1/2 rounded-2xl border border-[#e8e4df] bg-white p-2 shadow-[0_12px_32px_rgba(33,31,50,0.12)]"><p class="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#9a97a8]">Integrations</p><button type="button" (click)="selectTab('settings')" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5]">Webhook Settings</button><button type="button" (click)="selectTab('deliveries')" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5]">Webhook Delivery Logs</button><button type="button" (click)="selectTab('credentials')" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5]">API Credentials</button></div> }
+        <div class="relative">
+          <button type="button" (click)="toggleIntegrationsMenu()" aria-label="Integrations"
+            aria-controls="merchant-mobile-integrations-menu" [attr.aria-expanded]="integrationsMenuOpen()"
+            class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]">
+            <ng-container *ngTemplateOutlet="integrationsIcon" />
+          </button>
+          @if (integrationsMenuOpen()) {
+            <div id="merchant-mobile-integrations-menu" class="absolute bottom-full left-1/2 mb-2 w-56 -translate-x-1/2 rounded-2xl border border-[#e8e4df] bg-white p-2 shadow-[0_12px_32px_rgba(33,31,50,0.12)]">
+              <ng-container *ngTemplateOutlet="integrationLinks" />
+            </div>
+          }
         </div>
-        <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" [attr.aria-current]="bulkPageActive() ? 'page' : null" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]">
+          <ng-container *ngTemplateOutlet="bulkPlusIcon" />
+        </button>
       </nav>
+
+      <ng-template #integrationsIcon>
+        <span class="flex shrink-0 items-center gap-1" aria-hidden="true">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M8 7h8M8 17h8" />
+            <circle cx="5" cy="7" r="2" /><circle cx="19" cy="7" r="2" />
+            <circle cx="5" cy="17" r="2" /><circle cx="19" cy="17" r="2" />
+          </svg>
+          <svg class="h-3 w-3 transition-transform" [class.rotate-180]="integrationsMenuOpen()"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
+      </ng-template>
+
+      <ng-template #integrationLinks>
+        @for (link of integrationTabs; track link.tab) {
+          <button type="button" (click)="selectTab(link.tab)"
+            [attr.aria-current]="activeTab() === link.tab ? 'page' : null"
+            [class.bg-[#fff5ef]]="activeTab() === link.tab"
+            [class.text-[#9b432f]]="activeTab() === link.tab"
+            class="block w-full whitespace-nowrap rounded-xl px-2.5 py-2.5 text-left text-xs font-semibold text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]">
+            {{ link.label }}
+          </button>
+        }
+      </ng-template>
+
+      <ng-template #bulkPlusIcon>
+        <span class="grid h-7 w-7 -mx-1 shrink-0 place-items-center rounded-lg bg-[#9b432f] text-white shadow-[0_6px_14px_rgba(155,67,47,0.25)]">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </span>
+      </ng-template>
 
       <!-- Main Content Area (Edge-to-Edge Full Screen) -->
       <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 pb-24 lg:pb-7 lg:py-7 space-y-7 min-w-0 bg-white lg:ml-20">
+        <router-outlet [routerOutletData]="merchantDisplayName()" (activate)="onBulkOpened()" (deactivate)="onBulkClosed()" />
+        @if (!bulkPageActive()) {
         <!-- Top Header: Search Bar & Merchant Profile -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#f4efe9]">
           <!-- Search Input -->
@@ -140,8 +187,8 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
 
           <div class="flex items-center gap-3 self-end sm:self-auto">
             <app-merchant-notification-bell />
-            <div id="merchant-profile-chip" class="h-11 flex items-center rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-4 select-none">
-              <span class="text-xs font-bold text-[#1d1b2c]">Sample Merchant</span>
+            <div id="merchant-profile-chip" class="h-11 flex min-w-0 max-w-60 items-center rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-4 select-none">
+              <span class="truncate text-xs font-bold text-[#1d1b2c]" [title]="merchantDisplayName()">{{ merchantDisplayName() }}</span>
             </div>
           </div>
         </div>
@@ -1048,7 +1095,36 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
         <!-- TAB 4: API CREDENTIALS                                                   -->
         <!-- ========================================================================= -->
         <app-merchant-credentials *ngIf="activeTab() === 'credentials'"></app-merchant-credentials>
+        }
       </main>
+
+      @if (logoutConfirmOpen()) {
+        <div class="fixed inset-0 z-[100] flex items-center justify-center bg-[#1d1b2c]/40 backdrop-blur-sm p-4"
+          (click)="cancelLogout()">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="merchant-logout-title"
+            aria-describedby="merchant-logout-description"
+            class="w-full max-w-sm rounded-3xl bg-white border border-[#eee7e0] shadow-xl p-6 space-y-5"
+            (click)="$event.stopPropagation()">
+            <div class="w-12 h-12 rounded-2xl bg-[#faf6f0] text-[#a53a26] flex items-center justify-center">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </div>
+            <div>
+              <h3 id="merchant-logout-title" class="text-base font-black text-[#1d1b2c]">Log out of SwiftDrop?</h3>
+              <p id="merchant-logout-description" class="text-xs text-[#6f6d85] font-medium mt-1">You'll need to sign in again to manage your orders.</p>
+            </div>
+            <div class="flex justify-end gap-3">
+              <button type="button" id="merchant-logout-cancel-btn" (click)="cancelLogout()"
+                class="px-5 py-2.5 bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#1d1b2c] text-xs font-bold rounded-full transition-all cursor-pointer">Cancel</button>
+              <button type="button" id="merchant-logout-confirm-btn" (click)="logOut()"
+                class="px-5 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-all cursor-pointer">Log out</button>
+            </div>
+          </div>
+        </div>
+      }
 
       <!-- Order Detail Modal for Dashboard -->
       @if (selectedOrder()) {
@@ -1278,6 +1354,13 @@ export class MerchantComponent implements OnInit, OnDestroy {
 
   activeTab = signal<ActiveTab>('orders');
   integrationsMenuOpen = signal(false);
+  readonly integrationTabs: ReadonlyArray<{ tab: ActiveTab; label: string }> = [
+    { tab: 'settings', label: 'Webhook Settings' },
+    { tab: 'deliveries', label: 'Webhook Delivery Logs' },
+    { tab: 'credentials', label: 'API Credentials' },
+  ];
+  readonly bulkPageActive = signal(false);
+  readonly logoutConfirmOpen = signal(false);
   notification = signal<string | null>(null);
   selectedOrder = signal<MerchantOrder | null>(null);
   orderDetails = signal<MerchantOrderDetails | null>(null);
@@ -1293,6 +1376,19 @@ export class MerchantComponent implements OnInit, OnDestroy {
     return this.isLoadingProfile() || (this.authService ? !this.authService.isInitialized() : false);
   });
   readonly merchantName = computed(() => this.authService?.currentUser()?.fullName || 'Merchant Partner');
+  private readonly merchantProfileOwner = computed(() => {
+    const user = this.authService?.currentUser();
+    return user?.merchantId ? `${user.id}:${user.merchantId}` : null;
+  });
+  private readonly merchantBusiness = signal<{ owner: string; businessName: string } | null>(null);
+  readonly merchantDisplayName = computed(() => {
+    const owner = this.merchantProfileOwner();
+    if (!owner) {
+      return this.authService?.currentUser()?.fullName?.trim() || 'Merchant';
+    }
+    const business = this.merchantBusiness();
+    return business?.owner === owner ? business.businessName : 'Merchant';
+  });
   readonly merchantEmail = computed(() => {
     const user = this.authService?.currentUser();
     const email = user?.email;
@@ -1473,6 +1569,21 @@ export class MerchantComponent implements OnInit, OnDestroy {
     { label: 'Test event', value: 'TEST_EVENT' },
   ];
 
+  constructor() {
+    effect((onCleanup) => {
+      const owner = this.merchantProfileOwner();
+      this.merchantBusiness.set(null);
+      if (!owner) {
+        return;
+      }
+      const request = untracked(() => this.merchantService.getMerchantProfile().subscribe({
+        next: ({ businessName }) => this.merchantBusiness.set({ owner, businessName }),
+        error: () => this.merchantBusiness.set(null),
+      }));
+      onCleanup(() => request.unsubscribe());
+    });
+  }
+
   ngOnInit(): void {
     this.loadProfile();
     this.loadOrders();
@@ -1498,7 +1609,29 @@ export class MerchantComponent implements OnInit, OnDestroy {
     }
   }
 
+  onBulkOpened(): void {
+    this.dismissSecret();
+    this.activeTab.set('orders');
+    this.integrationsMenuOpen.set(false);
+    this.bulkPageActive.set(true);
+  }
+
+  onBulkClosed(): void {
+    this.bulkPageActive.set(false);
+    this.loadOrders();
+    this.loadOrderCounts();
+  }
+
+  openLogoutConfirm(): void {
+    this.logoutConfirmOpen.set(true);
+  }
+
+  cancelLogout(): void {
+    this.logoutConfirmOpen.set(false);
+  }
+
   logOut(): void {
+    this.cancelLogout();
     this.profileSubscription?.unsubscribe();
     if (this.authService) {
       this.authService.logout().subscribe({
@@ -1516,10 +1649,13 @@ export class MerchantComponent implements OnInit, OnDestroy {
     }
     this.activeTab.set(tab);
     this.integrationsMenuOpen.set(this.isIntegrationTab(tab));
+    if (this.bulkPageActive()) {
+      void this.router?.navigate(['/merchant']);
+    }
   }
 
   isIntegrationTab(tab: ActiveTab = this.activeTab()): boolean {
-    return tab === 'settings' || tab === 'deliveries' || tab === 'credentials';
+    return this.integrationTabs.some((link) => link.tab === tab);
   }
 
   toggleIntegrationsMenu(): void {
