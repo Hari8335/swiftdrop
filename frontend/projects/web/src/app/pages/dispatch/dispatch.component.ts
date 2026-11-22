@@ -425,7 +425,7 @@ interface HomeResults {
                           [attr.aria-label]="'Select ' + parcel.trackingNumber"
                           class="rounded text-[#a53a26] focus:ring-[#a53a26] w-4 h-4 cursor-pointer"
                         />
-                        <span class="font-mono text-sm font-bold text-[#1d1b2c] truncate">{{ parcel.trackingNumber }}</span>
+                        <span class="font-mono text-sm font-bold text-[#1d1b2c] bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg truncate">{{ parcel.trackingNumber }}</span>
                       </label>
                       <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#faf8f6] border border-[#f0ebe5] text-[11px] font-semibold text-[#6f6d85]">
                         <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>Unassigned
@@ -739,7 +739,7 @@ interface HomeResults {
                 >
                   <div>
                     <div class="flex items-center justify-between gap-3">
-                      <span class="font-mono text-sm font-bold text-[#1d1b2c] truncate">{{ parcel.trackingNumber }}</span>
+                      <span class="font-mono text-sm font-bold text-[#1d1b2c] bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg truncate">{{ parcel.trackingNumber }}</span>
                       <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#faf8f6] border border-[#f0ebe5] text-[11px] font-semibold text-[#6f6d85]">
                         <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>Failed
                       </span>
@@ -855,8 +855,8 @@ interface HomeResults {
                 [class.cursor-pointer]="courier.available && !isSubmittingAssignment()"
                 [class.cursor-not-allowed]="!courier.available || isSubmittingAssignment()"
                 [class.opacity-50]="!courier.available"
-                [class.border-[#a53a26]]="selectedCourierId() === courier.courierId"
-                [class.bg-[#fff8f5]]="selectedCourierId() === courier.courierId"
+                [class.border-emerald-600]="selectedCourierId() === courier.courierId"
+                [class.bg-emerald-50]="selectedCourierId() === courier.courierId"
                 [class.border-[#f0ebe5]]="selectedCourierId() !== courier.courierId"
               >
                 <div class="flex items-center gap-3">
@@ -866,7 +866,7 @@ interface HomeResults {
                     [value]="courier.courierId"
                     [checked]="selectedCourierId() === courier.courierId"
                     [disabled]="!courier.available || isSubmittingAssignment()"
-                    class="text-[#a53a26] focus:ring-[#a53a26]"
+                    class="accent-emerald-600 text-emerald-600 focus:ring-emerald-600"
                   />
                   <div>
                     <p class="text-xs font-bold text-[#1d1b2c]">{{ courier.name }}</p>
