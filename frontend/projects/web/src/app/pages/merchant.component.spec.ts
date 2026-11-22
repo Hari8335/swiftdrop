@@ -142,6 +142,17 @@ describe('MerchantComponent', () => {
     expect(component.isLoadingOrders()).toBe(false);
   });
 
+  it('shows a static Sample Merchant label, the notification bell, and sidebar logout without a profile dropdown', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#merchant-profile-chip')?.textContent).toContain('Sample Merchant');
+    expect(fixture.nativeElement.querySelector('#profile-menu-btn')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#merchant-notification-bell-btn')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#merchant-sidebar-logout-btn')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[aria-label="Orders Dashboard"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[aria-label="Integrations"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[aria-label="Bulk CSV Orders"]')).toBeTruthy();
+  });
+
   it('loads and displays the selected order actual details and failed history', () => {
     component.viewOrderDetails(mockOrderPage.content[0]);
     fixture.detectChanges();
@@ -207,6 +218,41 @@ describe('MerchantComponent', () => {
 
     component.activeTab.set('deliveries');
     expect(component.activeTab()).toBe('deliveries');
+  });
+
+  it('groups webhook settings, delivery logs, and API credentials under Integrations', () => {
+    const integrationsButton = fixture.nativeElement.querySelector('[aria-label="Integrations"]') as HTMLButtonElement;
+    const menu = fixture.nativeElement.querySelector('#merchant-integrations-menu') as HTMLElement;
+    expect(integrationsButton.getAttribute('aria-expanded')).toBe('true');
+    expect(menu).toBeTruthy();
+    expect(menu.textContent).toContain('Webhook Settings');
+    expect(menu.textContent).toContain('Webhook Delivery Logs');
+    expect(menu.textContent).toContain('API Credentials');
+
+    integrationsButton.click();
+    fixture.detectChanges();
+
+    const deliveryLogsButton = Array.from(menu.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('Webhook Delivery Logs')) as HTMLButtonElement;
+    deliveryLogsButton.click();
+    fixture.detectChanges();
+
+    expect(component.activeTab()).toBe('deliveries');
+    expect(integrationsButton.getAttribute('aria-expanded')).toBe('true');
+    expect(menu.querySelector('[aria-current="page"]')?.textContent).toContain('Webhook Delivery Logs');
+  });
+
+  it('updates the mobile Integrations submenu state when navigating back to orders', () => {
+    component.selectTab('credentials');
+    fixture.detectChanges();
+    expect(component.integrationsMenuOpen()).toBe(true);
+
+    const ordersButton = fixture.nativeElement.querySelector('[aria-label="Orders Dashboard"]') as HTMLButtonElement;
+    ordersButton.click();
+    fixture.detectChanges();
+
+    expect(component.activeTab()).toBe('orders');
+    expect(component.integrationsMenuOpen()).toBe(false);
   });
 
   it('should reload orders on status filter change with page reset to 0', () => {
@@ -357,6 +403,11 @@ describe('MerchantComponent', () => {
 
     expect(merchantService.updateWebhookSettings).toHaveBeenCalled();
     expect(component.notification()).toContain('saved successfully');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#merchant-notification-dropdown')).toBeNull();
+    (fixture.nativeElement.querySelector('#merchant-notification-bell-btn') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#merchant-notification-dropdown')?.textContent).toContain('Webhook settings saved');
   });
 
   it('should run test webhook and display result', () => {

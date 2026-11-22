@@ -56,6 +56,15 @@ public class MerchantIdentityResolver {
                         "Merchant account is not approved for this operation"));
     }
 
+    /** Portal notifications and one-time secrets are for the provisioned human user, never API clients. */
+    public UUID requirePortalUserMerchantId(CurrentUser user) {
+        UUID merchantId = requireMerchantId(user);
+        if (user.userId() == null || merchants.findByIdAndAuthUserId(merchantId, user.userId()).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant portal user credentials are required");
+        }
+        return merchantId;
+    }
+
     private static ResponseStatusException required() {
         return new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant credentials are required");
     }

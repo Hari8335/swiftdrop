@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router, provideRouter } from '@angular/router';
 import { MerchantBulkComponent } from './merchant-bulk.component';
+import { MerchantNotificationsService } from '../merchant-notifications.service';
 import { CSV_HEADER, MAX_CSV_BYTES } from './merchant-csv';
 import { TextDecoder } from 'util';
 
@@ -15,10 +16,11 @@ describe('Merchant bulk upload', () => {
     jest.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001');
   });
   afterEach(() => { http.verify(); jest.restoreAllMocks(); });
+  const flushPortalNotifications = () => http.match('/api/v1/merchant/notifications').forEach((request) => request.flush({ items: [], totalElements: 0, unreadCount: 0 }));
 
   it('previews valid and invalid rows, then confirms successful orders before navigating to the dashboard', () => {
     const fixture = TestBed.createComponent(MerchantBulkComponent), c = fixture.componentInstance;
-    c.preview(CSV_HEADER + '\nshort,row\n' + row('good')); fixture.detectChanges();
+    c.preview(CSV_HEADER + '\nshort,row\n' + row('good')); fixture.detectChanges(); flushPortalNotifications();
     expect(fixture.nativeElement.textContent).toContain('1 valid / 1 invalid');
     expect(fixture.nativeElement.textContent).toContain('15 columns');
     http.expectNone('/api/v1/merchant/orders/bulk');
@@ -30,10 +32,12 @@ describe('Merchant bulk upload', () => {
     expect(request.request.body).toContain('good'); expect(request.request.body).not.toContain('short,row');
     request.flush({ totalRows: 1, acceptedRows: 1, rejectedRows: 0, results: [{ rowNumber: 2, accepted: true, order: { trackingNumber: 'SD-real', status: 'CREATED', fee: 850 }, errors: [] }] });
     fixture.detectChanges();
+    flushPortalNotifications();
     expect(fixture.nativeElement.textContent).toContain('Source row 3');
     expect(fixture.nativeElement.textContent).toContain('SD-real');
     expect(fixture.nativeElement.textContent).toContain('850.00 LKR');
     expect(c.showSuccessPopup()).toBe(true);
+    expect(TestBed.inject(MerchantNotificationsService).notifications()[0].title).toBe('Bulk orders created');
     expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeTruthy();
     const router = TestBed.inject(Router);
     const navigate = jest.spyOn(router, 'navigate').mockResolvedValue(true);
@@ -58,6 +62,7 @@ describe('Merchant bulk upload', () => {
       ],
     });
     fixture.detectChanges();
+    flushPortalNotifications();
 
     expect(c.showSuccessPopup()).toBe(false);
     expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeNull();
@@ -77,7 +82,7 @@ describe('Merchant bulk upload', () => {
     const replay = http.expectOne('/api/v1/merchant/orders/bulk');
     expect(replay.request.body).toBe(body); expect(replay.request.headers.get('Idempotency-Key')).toBe(key);
     replay.flush({ totalRows: 1, acceptedRows: 0, rejectedRows: 1, results: [{ rowNumber: 2, accepted: false, errors: ['Outcome unknown; do not resubmit.'] }] });
-    fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('Outcome unknown');
+    fixture.detectChanges(); flushPortalNotifications(); expect(fixture.nativeElement.textContent).toContain('Outcome unknown');
     fixture.destroy();
   });
   it('supports removing invalid rows, blocks invalid-only confirmation and exposes the documented template', () => {
@@ -86,7 +91,7 @@ describe('Merchant bulk upload', () => {
     http.expectNone('/api/v1/merchant/orders/bulk');
     c.preview(CSV_HEADER + '\nshort,row\n' + row('valid')); c.removeInvalid();
     expect(c.rows()).toHaveLength(1); expect(c.rows()[0].rowNumber).toBe(3);
-    fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[download]').getAttribute('href')).toContain(encodeURIComponent(CSV_HEADER));
+    fixture.detectChanges(); flushPortalNotifications(); expect(fixture.nativeElement.querySelector('[download]').getAttribute('href')).toContain(encodeURIComponent(CSV_HEADER));
     fixture.destroy();
   });
   it('rejects oversized files before reading and clears private preview data on reset', () => {
@@ -100,6 +105,7 @@ describe('Merchant bulk upload', () => {
   it('reads an uploaded file as strict UTF-8 and rejects malformed encoding before submission', async () => {
     Object.defineProperty(globalThis, 'TextDecoder', { value: TextDecoder, configurable: true });
     const fixture = TestBed.createComponent(MerchantBulkComponent), c = fixture.componentInstance;
+    fixture.detectChanges(); flushPortalNotifications();
     const read = FileReader.prototype.readAsArrayBuffer;
     let complete: () => void;
     jest.spyOn(FileReader.prototype, 'readAsArrayBuffer').mockImplementation(function (this: FileReader, blob: Blob) {
@@ -131,6 +137,7 @@ describe('Merchant bulk upload', () => {
   it('clears the file control so the same corrected CSV can be selected again', () => {
     const fixture = TestBed.createComponent(MerchantBulkComponent), c = fixture.componentInstance;
     fixture.detectChanges();
+    flushPortalNotifications();
     const input = fixture.nativeElement.querySelector('#csv-file') as HTMLInputElement;
     const clear = jest.spyOn(input, 'value', 'set');
     c.preview(CSV_HEADER + '\n' + row('same-file'));

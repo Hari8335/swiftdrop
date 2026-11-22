@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MerchantCredentialsComponent } from './merchant-credentials.component';
 import { MerchantApiCredentials } from './merchant.model';
+import { MerchantNotificationsService } from './merchant-notifications.service';
 
 describe('MerchantCredentialsComponent', () => {
   let fixture: ComponentFixture<MerchantCredentialsComponent>;
@@ -23,6 +24,7 @@ describe('MerchantCredentialsComponent', () => {
     const buttons = fixture.nativeElement.querySelectorAll('button');
     (buttons[buttons.length - 1] as HTMLButtonElement).click();
     expect(saved).toHaveBeenCalledTimes(1);
+    expect(TestBed.inject(MerchantNotificationsService).notifications()[0].title).toBe('Client secret hidden');
     fixture.componentRef.setInput('credentials', null);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('one-time-test-secret');
@@ -45,6 +47,16 @@ describe('MerchantCredentialsComponent', () => {
     expect(fixture.nativeElement.querySelector('ui-card')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('ui-status-badge').textContent).toContain('APPROVED');
     expect(fixture.nativeElement.querySelector('ui-button')).toBeTruthy();
+  });
+
+  it('uses the shared integration content width and responsive credential grid', () => {
+    fixture.componentRef.setInput('credentials', credentials);
+    fixture.detectChanges();
+
+    const section = fixture.nativeElement.querySelector('[aria-labelledby="merchant-api-credentials-title"]') as HTMLElement;
+    const credentialGrid = fixture.nativeElement.querySelector('#clientId')?.closest('.grid') as HTMLElement;
+    expect(section.classList.contains('max-w-7xl')).toBe(true);
+    expect(credentialGrid.classList.contains('xl:grid-cols-2')).toBe(true);
   });
 
   it('shows pending approval without exposing credentials', () => {
