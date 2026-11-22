@@ -400,15 +400,66 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
 
+  /api/v1/merchant/notifications:
+    get:
+      summary: List notifications for the signed-in merchant portal user
+      operationId: listMerchantPortalNotifications
+      tags: [Merchant Onboarding]
+      security: [{BearerAuth: []}]
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200': {description: Merchant-owned notifications; never includes credential secrets., content: {application/json: {schema: {$ref: '#/components/schemas/MerchantPortalNotificationPage'}}}}
+        '400': {description: Invalid page or size.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: A provisioned merchant portal user is required. OAuth client credentials cannot read portal notifications.}
+  /api/v1/merchant/notifications/{notificationId}/read:
+    post:
+      summary: Mark a merchant-owned notification as read
+      operationId: markMerchantPortalNotificationRead
+      tags: [Merchant Onboarding]
+      security: [{BearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/MerchantNotificationId'}
+      responses:
+        '204': {description: Notification marked read.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: The provisioned merchant portal user is required.}
+        '404': {description: Notification does not exist for this merchant.}
+  /api/v1/merchant/notifications/{notificationId}/credential/claim:
+    post:
+      summary: Claim a replacement client secret once
+      description: Requires the provisioned human merchant user to own the notification. The encrypted secret can be claimed once within 24 hours. Response is never cacheable; the secret is omitted from notification list payloads and erased from the handoff store after claim or expiry.
+      operationId: claimMerchantCredentialHandoff
+      tags: [Merchant Onboarding]
+      security: [{BearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/MerchantNotificationId'}
+      responses:
+        '200':
+          description: One-time client credential handoff.
+          headers: {Cache-Control: {schema: {type: string, enum: [no-store]}}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/MerchantCredentialClaim'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: The provisioned human merchant user is required; OAuth client credentials are not accepted.}
+        '404': {description: Notification is missing, belongs to another merchant, or was already claimed.}
+        '410': {description: The one-time credential handoff expired.}
+
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: OAuth 2.0 client-credentials access token issued by auth-service.
+      description: Signed merchant portal user bearer token or OAuth 2.0 client-credentials token; portal notification operations additionally require the provisioned human user.
 
   parameters:
+    MerchantNotificationId:
+      name: notificationId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
     MerchantId:
       name: merchantId
       in: path
@@ -472,6 +523,32 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
   schemas:
+    MerchantPortalNotificationPage:
+      type: object
+      required: [items, totalElements, unreadCount]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/MerchantPortalNotification'}
+        totalElements: {type: integer, format: int64}
+        unreadCount: {type: integer, format: int64}
+    MerchantPortalNotification:
+      type: object
+      required: [id, type, title, message, read, credentialAvailable, createdAt]
+      properties:
+        id: {type: string, format: uuid}
+        type: {type: string, enum: [MERCHANT_APPROVED, CREDENTIALS_REPLACED]}
+        title: {type: string}
+        message: {type: string}
+        read: {type: boolean}
+        credentialAvailable: {type: boolean, description: Indicates a live one-time handoff exists; never includes the secret.}
+        createdAt: {type: string, format: date-time}
+    MerchantCredentialClaim:
+      type: object
+      required: [clientId, clientSecret]
+      properties:
+        clientId: {type: string}
+        clientSecret: {type: string, readOnly: true, description: Returned once to the merchant portal user and never persisted in plaintext.}
     MerchantRegistrationRequest:
       type: object
       required: [businessName, contactName, email, phoneNumber]

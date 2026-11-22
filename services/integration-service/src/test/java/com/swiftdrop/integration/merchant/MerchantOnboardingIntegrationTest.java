@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
 import com.swiftdrop.integration.merchant.AuthProvisioningClient.ProvisioningResponse;
 import com.swiftdrop.integration.merchant.AuthProvisioningClient.AuthUserResponse;
@@ -27,6 +28,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -34,7 +36,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest
+@SpringBootTest(properties = "swiftdrop.merchant.credentials.handoff-encryption-key=test-only-key-long-enough-for-aes-gcm-123456")
 @AutoConfigureMockMvc
 @Testcontainers
 class MerchantOnboardingIntegrationTest {
@@ -45,6 +47,7 @@ class MerchantOnboardingIntegrationTest {
 
     @Autowired MockMvc mockMvc;
     @Autowired MerchantRepository merchantRepository;
+    @Autowired MerchantPortalNotificationService portalNotifications;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @MockitoBean AuthProvisioningClient authProvisioningClient;
     @MockitoBean MerchantApprovalMailSender merchantApprovalMailSender;
@@ -253,6 +256,8 @@ class MerchantOnboardingIntegrationTest {
         org.mockito.Mockito.verify(authProvisioningClient, org.mockito.Mockito.never()).provision(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
         org.mockito.Mockito.verify(authProvisioningClient, org.mockito.Mockito.never()).replaceCredential(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
         org.mockito.Mockito.verify(authProvisioningClient).recordRejection(org.mockito.ArgumentMatchers.eq(merchant.getId()), org.mockito.ArgumentMatchers.any());
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "select count(*) from merchant_portal_notifications where merchant_id=?", Integer.class, merchant.getId())).isZero();
     }
 
     @Test @WithMockUser(roles="ADMIN")
@@ -303,6 +308,72 @@ class MerchantOnboardingIntegrationTest {
         mockMvc.perform(post("/api/v1/admin/merchants/{id}/recover-credentials",merchant.getId()).header("Idempotency-Key",key)
                 .contentType("application/json").content("{\"confirmReplacement\":true}"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.clientSecret").doesNotExist());
+    }
+
+    @Test @WithMockUser(roles="ADMIN")
+    void replacementCredentialIsMerchantOwnedEncryptedAndClaimedOnlyOnceByPortalUser() throws Exception {
+        Merchant merchant = register("portal-handoff@example.test");
+        stubProvision(merchant, "initial-secret");
+        mockMvc.perform(post("/api/v1/admin/merchants/{id}/approve", merchant.getId())).andExpect(status().isOk());
+        when(authProvisioningClient.replaceCredential(any(), any())).thenAnswer(call ->
+                response(call.getArgument(0), merchant, authUser(merchant, true), "replacement-secret", false));
+        mockMvc.perform(post("/api/v1/admin/merchants/{id}/recover-credentials", merchant.getId())
+                        .header("Idempotency-Key", java.util.UUID.randomUUID())
+                        .contentType("application/json").content("{\"confirmReplacement\":true}"))
+                .andExpect(status().isOk());
+
+        java.util.UUID notificationId = jdbc.queryForObject(
+                "select id from merchant_portal_notifications where merchant_id=? and event_type='CREDENTIALS_REPLACED'",
+                java.util.UUID.class, merchant.getId());
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "select encrypted_secret from merchant_credential_handoffs where notification_id=?",
+                String.class, notificationId)).doesNotContain("replacement-secret");
+        var portalUser = jwt().jwt(token -> token.subject("usr-validation")
+                .claim("role", "MERCHANT").claim("merchantId", merchant.getId().toString()))
+                .authorities(new SimpleGrantedAuthority("ROLE_MERCHANT"));
+        mockMvc.perform(get("/api/v1/merchant/notifications").with(portalUser))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].credentialAvailable").value(true))
+                .andExpect(jsonPath("$.items[1].type").value("MERCHANT_APPROVED"))
+                .andExpect(content().string(not(containsString("replacement-secret"))));
+        mockMvc.perform(post("/api/v1/merchant/notifications/{id}/credential/claim", notificationId)
+                        .with(jwt().jwt(token -> token.subject("client-validation").claim("role", "MERCHANT")
+                                .claim("merchantId", merchant.getId().toString()))
+                                .authorities(new SimpleGrantedAuthority("ROLE_MERCHANT"))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/merchant/notifications/{id}/credential/claim", notificationId).with(portalUser))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.clientId").value("client-validation"))
+                .andExpect(jsonPath("$.clientSecret").value("replacement-secret"));
+        mockMvc.perform(post("/api/v1/merchant/notifications/{id}/credential/claim", notificationId).with(portalUser))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void supersededAndExpiredHandoffsLoseTheirSecret() throws Exception {
+        Merchant merchant = register("portal-expiry@example.test");
+        merchant.recordProvisioned("usr-validation", "client-validation");
+        merchant.approve("client-validation");
+        merchantRepository.saveAndFlush(merchant);
+
+        var supersededId = portalNotifications.credentialReplaced(merchant, "client-validation", "old-secret");
+        var currentId = portalNotifications.credentialReplaced(merchant, "client-validation", "new-secret");
+        var portalUser = jwt().jwt(token -> token.subject("usr-validation")
+                .claim("role", "MERCHANT").claim("merchantId", merchant.getId().toString()))
+                .authorities(new SimpleGrantedAuthority("ROLE_MERCHANT"));
+        mockMvc.perform(post("/api/v1/merchant/notifications/{id}/credential/claim", supersededId).with(portalUser))
+                .andExpect(status().isNotFound());
+
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "select extract(epoch from expires_at - created_at)::integer from merchant_credential_handoffs where notification_id=?",
+                Integer.class, currentId)).isEqualTo(86_400);
+        jdbc.update("update merchant_credential_handoffs set expires_at = current_timestamp - interval '1 second' where notification_id=?",
+                currentId);
+        portalNotifications.purgeExpired();
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "select encrypted_secret from merchant_credential_handoffs where notification_id=?",
+                String.class, currentId)).isEmpty();
+        mockMvc.perform(post("/api/v1/merchant/notifications/{id}/credential/claim", currentId).with(portalUser))
+                .andExpect(status().isGone()).andExpect(jsonPath("$.clientSecret").doesNotExist());
     }
     @Test @WithMockUser(roles="ADMIN")
     void recoveryRequiresConfirmationAndProvisioningBlocksUnsafeRejection() throws Exception {
