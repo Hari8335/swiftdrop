@@ -80,21 +80,46 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             <span *ngIf="activeTab() === 'orders'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
           </button>
 
-          <!-- 2. Webhook Settings Icon -->
-          <button
-            type="button"
-            (click)="selectTab('settings')"
-            [class.rail-active]="activeTab() === 'settings'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Webhook Settings"
-            aria-label="Webhook Settings"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            <span *ngIf="activeTab() === 'settings'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-          </button>
+          <!-- Integrations parent menu: webhook settings, delivery logs, and API credentials -->
+          <div class="relative">
+            <button
+              type="button"
+              (click)="toggleIntegrationsMenu()"
+              [class.rail-active]="isIntegrationTab()"
+              class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
+              title="Integrations"
+              aria-label="Integrations"
+              aria-controls="merchant-integrations-menu"
+              [attr.aria-expanded]="integrationsMenuOpen()"
+            >
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                <path d="M8 7h8M8 17h8"></path>
+                <circle cx="5" cy="7" r="2"></circle>
+                <circle cx="19" cy="17" r="2"></circle>
+                <circle cx="5" cy="17" r="2"></circle>
+                <circle cx="19" cy="7" r="2"></circle>
+              </svg>
+              <span *ngIf="isIntegrationTab()" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
+            </button>
+
+            <div
+              *ngIf="integrationsMenuOpen()"
+              id="merchant-integrations-menu"
+              class="absolute z-40 top-full right-0 mt-2 w-56 rounded-2xl border border-[#e8e2dc] bg-white p-2 shadow-xl shadow-[#1d1b2c]/10 md:top-0 md:left-full md:right-auto md:ml-3 md:mt-0"
+              aria-label="Integrations pages"
+            >
+              <p class="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#a09eaf]">Integrations</p>
+              <button type="button" (click)="selectTab('settings')" [attr.aria-current]="activeTab() === 'settings' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26]" [class.bg-[#faf6f0]]="activeTab() === 'settings'">
+                Webhook Settings
+              </button>
+              <button type="button" (click)="selectTab('deliveries')" [attr.aria-current]="activeTab() === 'deliveries' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26]" [class.bg-[#faf6f0]]="activeTab() === 'deliveries'">
+                Webhook Delivery Logs
+              </button>
+              <button type="button" (click)="selectTab('credentials')" [attr.aria-current]="activeTab() === 'credentials' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26]" [class.bg-[#faf6f0]]="activeTab() === 'credentials'">
+                API Credentials
+              </button>
+            </div>
+          </div>
 
           <!-- 3. Plus Button (Bulk CSV Orders - in the middle!) -->
           <button
@@ -110,40 +135,6 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             </svg>
           </button>
 
-          <!-- 4. Webhook Delivery Logs Icon -->
-          <button
-            type="button"
-            (click)="selectTab('deliveries')"
-            [class.rail-active]="activeTab() === 'deliveries'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="Delivery Logs"
-            aria-label="Delivery Logs"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            <span *ngIf="activeTab() === 'deliveries'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-          </button>
-
-          <!-- 5. API Credentials Icon -->
-          <button
-            type="button"
-            (click)="selectTab('credentials')"
-            [class.rail-active]="activeTab() === 'credentials'"
-            class="rail-icon-btn relative w-10 h-10 rounded-xl flex items-center justify-center text-[#6f6d85] hover:text-[#a53a26] hover:bg-white transition-all cursor-pointer"
-            title="API Credentials"
-            aria-label="API Credentials"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <circle cx="7.5" cy="15.5" r="3.5"></circle>
-              <path d="M10 13l7-7 3 3-7 7M17 6l1-1"></path>
-            </svg>
-            <span *ngIf="activeTab() === 'credentials'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
-          </button>
         </nav>
 
         <!-- Sidebar Footer Utilities -->
@@ -228,20 +219,14 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                     <p class="text-[11px] text-[#6f6d85] truncate">{{ merchantEmail() }}</p>
                     <span class="inline-block mt-1 px-2 py-0.5 rounded-full bg-[#a53a26]/10 text-[#a53a26] text-[10px] font-bold">MERCHANT PORTAL</span>
                   </div>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    (click)="selectTab('settings'); toggleProfileMenu()"
-                    class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer"
-                  >
+                  <div class="px-4 pt-2 pb-1 text-[10px] font-black uppercase tracking-widest text-[#a09eaf]">Integrations</div>
+                  <button type="button" role="menuitem" (click)="selectTab('settings'); toggleProfileMenu()" class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer">
                     <span>Webhook Settings</span>
                   </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    (click)="selectTab('credentials'); toggleProfileMenu()"
-                    class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer"
-                  >
+                  <button type="button" role="menuitem" (click)="selectTab('deliveries'); toggleProfileMenu()" class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer">
+                    <span>Webhook Delivery Logs</span>
+                  </button>
+                  <button type="button" role="menuitem" (click)="selectTab('credentials'); toggleProfileMenu()" class="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer">
                     <span>API Credentials</span>
                   </button>
                   <button
@@ -583,7 +568,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
         <!-- ========================================================================= -->
         <!-- TAB 2: WEBHOOK SETTINGS                                                  -->
         <!-- ========================================================================= -->
-        <div *ngIf="activeTab() === 'settings'" class="space-y-6">
+        <div *ngIf="activeTab() === 'settings'" class="mx-auto w-full max-w-7xl space-y-6">
           <!-- Account Profile Card -->
           <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-4">
             <div class="flex items-center justify-between">
@@ -635,9 +620,9 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
           </div>
 
           <!-- Configuration Grid -->
-          <div *ngIf="settings()" class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div *ngIf="settings()" class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
             <!-- Left 2 Cols: Main Webhook Config & HMAC Secret -->
-            <div class="lg:col-span-2 space-y-6">
+            <div class="xl:col-span-2 space-y-6 min-w-0">
               <!-- Destination URL & Subscriptions Card -->
               <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-6">
                 <div>
@@ -792,7 +777,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             </div>
 
             <!-- Right Col: Test Webhook Card -->
-            <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-5 h-fit">
+              <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-5 h-fit min-w-0">
               <div class="border-b border-[#f4efe9] pb-3">
                 <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Diagnostics</span>
                 <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight mt-0.5">Test Webhook Trigger</h2>
@@ -857,7 +842,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
         <!-- ========================================================================= -->
         <!-- TAB 3: WEBHOOK DELIVERY LOG                                              -->
         <!-- ========================================================================= -->
-        <div *ngIf="activeTab() === 'deliveries'" class="space-y-6">
+        <div *ngIf="activeTab() === 'deliveries'" class="mx-auto w-full max-w-7xl space-y-6">
           <!-- Tab Header -->
           <div>
             <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
@@ -1425,6 +1410,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
   private orderDetailsSubscription?: Subscription;
 
   activeTab = signal<ActiveTab>('orders');
+  integrationsMenuOpen = signal(false);
   notification = signal<string | null>(null);
   profileMenuOpen = signal<boolean>(false);
   selectedOrder = signal<MerchantOrder | null>(null);
@@ -1605,6 +1591,15 @@ export class MerchantComponent implements OnInit, OnDestroy {
       this.dismissSecret();
     }
     this.activeTab.set(tab);
+    this.integrationsMenuOpen.set(this.isIntegrationTab(tab));
+  }
+
+  isIntegrationTab(tab: ActiveTab = this.activeTab()): boolean {
+    return tab === 'settings' || tab === 'deliveries' || tab === 'credentials';
+  }
+
+  toggleIntegrationsMenu(): void {
+    this.integrationsMenuOpen.update((isOpen) => !isOpen);
   }
 
   dismissSecret(): void {

@@ -47,6 +47,16 @@ describe('MerchantCredentialsComponent', () => {
     expect(fixture.nativeElement.querySelector('ui-button')).toBeTruthy();
   });
 
+  it('uses the shared integration content width and responsive credential grid', () => {
+    fixture.componentRef.setInput('credentials', credentials);
+    fixture.detectChanges();
+
+    const section = fixture.nativeElement.querySelector('[aria-labelledby="merchant-api-credentials-title"]') as HTMLElement;
+    const credentialGrid = fixture.nativeElement.querySelector('#clientId')?.closest('.grid') as HTMLElement;
+    expect(section.classList.contains('max-w-7xl')).toBe(true);
+    expect(credentialGrid.classList.contains('xl:grid-cols-2')).toBe(true);
+  });
+
   it('shows pending approval without exposing credentials', () => {
     fixture.componentRef.setInput('credentials', { ...credentials, status: 'PENDING' });
     fixture.detectChanges();
