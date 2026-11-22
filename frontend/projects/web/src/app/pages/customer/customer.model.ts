@@ -70,6 +70,8 @@ export interface AddressDto {
   city: string;
   district: District;
   postalCode: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface CustomerAddress extends AddressDto {

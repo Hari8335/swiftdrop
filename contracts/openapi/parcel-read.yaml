@@ -218,6 +218,29 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/parcels/{id}/location/latest:
+    get:
+      tags: [Customer]
+      summary: Latest protected courier location
+      description: Exact GPS is available only to the parcel owner, assigned courier, DISPATCHER or ADMIN.
+      operationId: getLatestCourierLocation
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: Latest accepted location
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourierLocation'
+        '204':
+          description: No location has been reported
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/parcels/{id}/receipt:
     get:
       tags: [Customer]
@@ -458,6 +481,16 @@ components:
             timestamp: "2026-10-26T12:00:00Z"
 
   schemas:
+    CourierLocation:
+      type: object
+      required: [parcelId, latitude, longitude, accuracyMeters, recordedAt, receivedAt]
+      properties:
+        parcelId: { type: string, format: uuid }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        accuracyMeters: { type: number, minimum: 0, maximum: 10000 }
+        recordedAt: { type: string, format: date-time }
+        receivedAt: { type: string, format: date-time }
     # -----------------------------------------------------------------------
     # Public tracking (masked)
     # -----------------------------------------------------------------------
@@ -467,6 +500,7 @@ components:
         Everything the public page may show. Adding a field here needs a
         masking review (see `docs/tracking-design.md`, section 2).
       required:
+        - parcelId
         - trackingNumber
         - status
         - recipientNameMasked
@@ -474,6 +508,10 @@ components:
         - lastUpdatedAt
         - timeline
       properties:
+        parcelId:
+          type: string
+          format: uuid
+          description: Opaque parcel identifier used only for authenticated detail requests; it does not grant access.
         trackingNumber:
           type: string
           example: "SD-20261026-A1B2C3"
@@ -494,6 +532,10 @@ components:
           description: Status changes, oldest first. No reasons, courier or actor data.
           items:
             $ref: '#/components/schemas/PublicTimelineEntry'
+        pickupLatitude: { type: number, minimum: -90, maximum: 90, nullable: true }
+        pickupLongitude: { type: number, minimum: -180, maximum: 180, nullable: true }
+        dropoffLatitude: { type: number, minimum: -90, maximum: 90, nullable: true }
+        dropoffLongitude: { type: number, minimum: -180, maximum: 180, nullable: true }
 
     PublicTimelineEntry:
       type: object

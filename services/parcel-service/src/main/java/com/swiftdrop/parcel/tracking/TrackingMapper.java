@@ -27,12 +27,17 @@ final class TrackingMapper {
                 .toList();
         String district = parcel.dropoffAddress() != null ? parcel.dropoffAddress().district() : null;
         return new PublicTrackingResponse(
+                parcel.id(),
                 parcel.trackingNumber(),
                 parcel.status(),
                 maskName(parcel.recipientName()),
                 district,
                 lastUpdatedAt(parcel, timeline),
-                timeline);
+                timeline,
+                parcel.pickupAddress() != null ? parcel.pickupAddress().latitude() : null,
+                parcel.pickupAddress() != null ? parcel.pickupAddress().longitude() : null,
+                parcel.dropoffAddress() != null ? parcel.dropoffAddress().latitude() : null,
+                parcel.dropoffAddress() != null ? parcel.dropoffAddress().longitude() : null);
     }
 
     static ParcelHistoryResponse toHistory(ParcelResponse parcel, List<StatusHistoryView> history) {

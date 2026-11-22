@@ -15,5 +15,15 @@ public record AddressDto(
     String district,
 
     @NotBlank(message = "Postal code is required")
-    String postalCode
-) {}
+    String postalCode,
+    @jakarta.validation.constraints.DecimalMin(value = "-90.0")
+    @jakarta.validation.constraints.DecimalMax(value = "90.0")
+    Double latitude,
+    @jakarta.validation.constraints.DecimalMin(value = "-180.0")
+    @jakarta.validation.constraints.DecimalMax(value = "180.0")
+    Double longitude
+) {
+    public AddressDto(String line1, String line2, String city, String district, String postalCode) {
+        this(line1, line2, city, district, postalCode, null, null);
+    }
+}

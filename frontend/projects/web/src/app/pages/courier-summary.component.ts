@@ -256,7 +256,7 @@ import { CourierService } from './courier/courier.service';
 
           <!-- Notification Bell & Static User Profile (No Dropdown, Vertically Centered) -->
           <div class="flex items-center gap-3 self-end sm:self-auto">
-            <app-notification-bell placement="below"></app-notification-bell>
+            <app-notification-bell *ngIf="authService?.hasRole('CUSTOMER')" placement="below"></app-notification-bell>
 
             <div
               id="profile-badge"
@@ -475,7 +475,7 @@ import { CourierService } from './courier/courier.service';
 export class CourierSummaryComponent {
   private readonly service = inject(CourierService);
   private readonly router = inject(Router, { optional: true });
-  private readonly authService = inject(AuthService, { optional: true });
+  readonly authService = inject(AuthService, { optional: true });
 
   readonly summary = signal<CourierDailySummary | null>(null);
   readonly selectedDate = signal('');

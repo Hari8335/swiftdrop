@@ -807,6 +807,18 @@ components:
         postalCode:
           type: string
           example: "00300"
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+          nullable: true
+          description: Optional verified map-picker latitude.
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+          nullable: true
+          description: Optional verified map-picker longitude.
 
     CreateSavedAddressRequest:
       type: object

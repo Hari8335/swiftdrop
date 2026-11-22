@@ -1,9 +1,10 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { EMPTY, Subject, catchError, distinctUntilChanged, map, startWith, switchMap, tap } from 'rxjs';
+import { EMPTY, BehaviorSubject, Subject, catchError, combineLatest, distinctUntilChanged, finalize, map, startWith, switchMap, takeUntil, tap, timer } from 'rxjs';
+import { AuthService } from 'shared-auth';
 import {
   ButtonComponent,
   EmptyStateComponent,
@@ -18,6 +19,9 @@ import { LiveTimeline } from './tracking/live-timeline';
 import { TrackingApiService } from './tracking/tracking-api.service';
 import { StreamState, TrackingStreamService } from './tracking/tracking-stream.service';
 import { TrackingTimelineComponent } from './tracking/tracking-timeline.component';
+import { TrackingMapComponent } from './tracking/tracking-map.component';
+import { CourierService } from './courier/courier.service';
+import { CustomerService } from './customer/customer.service';
 
 /** SwiftDrop tracking numbers (same pattern as parcel-service's TrackingService). */
 export const TRACKING_NUMBER = /^SD-\d{8}-[A-Z0-9]{6}$/;
@@ -28,6 +32,22 @@ export function normalizeTrackingNumber(value: string): string {
 }
 
 type TrackPageState = PageState | 'search' | 'invalid';
+
+interface TrackingNavigationState {
+  selectedParcelId?: unknown;
+  selectedTrackingNumber?: unknown;
+}
+
+interface DeliveryOption {
+  parcelId: string;
+  trackingNumber: string;
+  status: string;
+}
+
+interface DeliverySelection {
+  parcelId: string | null;
+  trackingNumber: string | null;
+}
 
 /**
  * Public tracking page (CU-06, CU-04): no login, masked data only. Loads the public lookup,
@@ -49,6 +69,7 @@ type TrackPageState = PageState | 'search' | 'invalid';
     EmptyStateComponent,
     LiveIndicatorComponent,
     TrackingTimelineComponent,
+    TrackingMapComponent,
   ],
   template: `
     <!-- Full-Screen Live Tracking Layout (Matching My Deliveries Sample Design) -->
@@ -178,6 +199,31 @@ type TrackPageState = PageState | 'search' | 'invalid';
               Track
             </ui-button>
           </form>
+
+          @if (deliverySelectorVisible()) {
+            <div class="flex-1 max-w-sm">
+              <label for="tracking-delivery-select" class="sr-only">Select Delivery ID</label>
+              <select
+                id="tracking-delivery-select"
+                class="w-full rounded-full border border-[#e8e2dc] bg-[#faf8f6] px-4 py-2.5 text-xs font-semibold text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#a53a26]/20"
+                [value]="selectedDeliveryId()"
+                (change)="selectDelivery($any($event.target).value)"
+                aria-label="Select Delivery ID"
+              >
+                <option value="">Select Delivery ID</option>
+                @for (delivery of availableDeliveries(); track delivery.parcelId) {
+                  <option [value]="delivery.parcelId">{{ delivery.trackingNumber }} — {{ delivery.status }}</option>
+                }
+              </select>
+              @if (deliveryLoading()) {
+                <p class="mt-1 text-[11px] font-medium text-[#6f6d85]">Loading available deliveries…</p>
+              } @else if (deliveryError()) {
+                <p class="mt-1 text-[11px] font-medium text-[#b42318]" role="alert">{{ deliveryError() }}</p>
+              } @else if (!availableDeliveries().length) {
+                <p class="mt-1 text-[11px] font-medium text-[#6f6d85]">No deliveries are available for tracking.</p>
+              }
+            </div>
+          }
 
           <!-- Quick Back to Customer Portal -->
           <div class="flex items-center gap-3 self-end sm:self-auto">
@@ -343,6 +389,14 @@ type TrackPageState = PageState | 'search' | 'invalid';
                 </div>
               </div>
 
+              <app-tracking-map
+                [pickup]="pickup()"
+                [destination]="destination()"
+                [location]="location()"
+                [authorized]="authorizedLocation()"
+                [locationLabel]="locationLabel()"
+              />
+
               <!-- Timeline Card (Matching Table Card Styling) -->
               <div class="timeline-card bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-8 shadow-sm space-y-6">
                 <div class="flex items-center justify-between border-b border-[#f4efe9] pb-4">
@@ -419,8 +473,24 @@ export class TrackComponent {
   private readonly router = inject(Router);
   private readonly api = inject(TrackingApiService);
   private readonly streams = inject(TrackingStreamService);
+  private readonly auth = inject(AuthService, { optional: true });
+  private readonly courierService = inject(CourierService, { optional: true });
+  private readonly customerService = inject(CustomerService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
   private readonly retry$ = new Subject<void>();
+  private readonly locationStop$ = new Subject<void>();
+  private readonly navigationState = this.readNavigationState();
+  private readonly selectedParcelId = typeof this.navigationState?.selectedParcelId === 'string'
+    ? this.navigationState.selectedParcelId.trim()
+    : null;
+  private readonly selectedTrackingNumber = typeof this.navigationState?.selectedTrackingNumber === 'string'
+    ? normalizeTrackingNumber(this.navigationState.selectedTrackingNumber)
+    : null;
+  private readonly selection$ = new BehaviorSubject<DeliverySelection>({
+    parcelId: this.selectedParcelId,
+    trackingNumber: this.selectedTrackingNumber,
+  });
 
   /** The number typed in the search box; checked here so a typo never reaches the server. */
   readonly query = new FormControl('', {
@@ -434,14 +504,35 @@ export class TrackComponent {
   readonly error = signal('');
   readonly recipient = signal('');
   readonly district = signal('');
+  readonly pickup = signal<[number, number] | null>(null);
+  readonly destination = signal<[number, number] | null>(null);
+  readonly location = signal<import('./tracking/tracking.model').CourierLocation | null>(null);
+  readonly authorizedLocation = signal(false);
+  readonly locationLabel = signal('Location unavailable');
+  readonly availableDeliveries = signal<DeliveryOption[]>([]);
+  readonly selectedDeliveryId = signal(this.selectedParcelId ?? '');
+  readonly deliveryLoading = signal(false);
+  readonly deliveryError = signal('');
+  readonly deliverySelectorVisible = signal(false);
 
   constructor() {
-    this.route.paramMap
+    this.loadAvailableDeliveries();
+    const routeTrackingNumber$ = this.route.paramMap.pipe(
+      map((params) => normalizeTrackingNumber(params.get('trackingNo') ?? '')),
+      distinctUntilChanged(),
+    );
+    combineLatest([routeTrackingNumber$, this.selection$])
       .pipe(
-        map((params) => normalizeTrackingNumber(params.get('trackingNo') ?? '')),
-        distinctUntilChanged(),
-        // switchMap: a new tracking number closes the previous stream before the next one opens.
-        switchMap((trackingNumber) => this.reload$.pipe(startWith(undefined), switchMap(() => this.load(trackingNumber)))),
+        map(([trackingNumber, selection]) => trackingNumber
+          ? { parcelId: null, trackingNumber }
+          : selection),
+        distinctUntilChanged((a, b) => a.parcelId === b.parcelId && a.trackingNumber === b.trackingNumber),
+        switchMap((selection) => this.reload$.pipe(
+          startWith(undefined),
+          switchMap(() => selection.parcelId
+            ? this.loadSelectedParcel(selection.parcelId, selection.trackingNumber)
+            : this.load(selection.trackingNumber ?? '')),
+        )),
         takeUntilDestroyed(),
       )
       .subscribe();
@@ -462,7 +553,60 @@ export class TrackComponent {
     if (this.query.invalid) {
       return;
     }
+    this.locationStop$.next();
+    this.selection$.next({ parcelId: null, trackingNumber: null });
     void this.router.navigate(['/track', this.query.value]);
+  }
+
+  selectDelivery(parcelId: string): void {
+    const selected = this.availableDeliveries().find((delivery) => delivery.parcelId === parcelId);
+    if (!selected) {
+      this.selectedDeliveryId.set('');
+      return;
+    }
+    this.locationStop$.next();
+    this.selectedDeliveryId.set(selected.parcelId);
+    this.selection$.next({ parcelId: selected.parcelId, trackingNumber: selected.trackingNumber });
+  }
+
+  private loadAvailableDeliveries(): void {
+    const role = this.auth?.currentUser()?.role?.toUpperCase();
+    if (role !== 'COURIER' && role !== 'CUSTOMER') {
+      return;
+    }
+    this.deliverySelectorVisible.set(true);
+    this.deliveryLoading.set(true);
+    this.deliveryError.set('');
+    const request = role === 'COURIER'
+      ? this.courierService?.getDeliveries().pipe(map((response) => response.deliveries.map((delivery) => ({
+        parcelId: delivery.parcelId,
+        trackingNumber: normalizeTrackingNumber(delivery.trackingNumber),
+        status: delivery.status,
+      }))))
+      : this.customerService?.listParcels(undefined, 0, 100).pipe(map((response) => response.content.map((parcel) => ({
+        parcelId: parcel.id,
+        trackingNumber: normalizeTrackingNumber(parcel.trackingNumber),
+        status: parcel.status,
+      }))));
+    if (!request) {
+      this.deliveryLoading.set(false);
+      this.deliveryError.set('Delivery selection is unavailable for this account.');
+      return;
+    }
+    request.pipe(
+      catchError(() => {
+        this.deliveryError.set('Could not load available deliveries.');
+        return EMPTY;
+      }),
+      finalize(() => this.deliveryLoading.set(false)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe((deliveries) => {
+      const unique = new Map(deliveries.map((delivery) => [delivery.parcelId, delivery]));
+      this.availableDeliveries.set([...unique.values()]);
+      if (this.selectedParcelId && unique.has(this.selectedParcelId)) {
+        this.selectedDeliveryId.set(this.selectedParcelId);
+      }
+    });
   }
 
   private load(trackingNumber: string) {
@@ -492,11 +636,49 @@ export class TrackComponent {
         this.timeline.reset(tracking.trackingNumber, tracking.status, tracking.timeline, tracking.lastUpdatedAt);
         this.recipient.set(tracking.recipientNameMasked);
         this.district.set(tracking.dropoffDistrict);
+        this.pickup.set(tracking.pickupLatitude != null && tracking.pickupLongitude != null ? [tracking.pickupLatitude, tracking.pickupLongitude] : null);
+        this.destination.set(tracking.dropoffLatitude != null && tracking.dropoffLongitude != null ? [tracking.dropoffLatitude, tracking.dropoffLongitude] : null);
+        this.location.set(null);
+        this.locationStop$.next();
+        const signedIn = Boolean(this.auth?.currentUser());
+        this.authorizedLocation.set(signedIn);
+        if (signedIn) {
+          timer(0, 10000).pipe(
+            switchMap(() => this.api.latestLocation(tracking.parcelId)),
+            catchError(() => { this.locationLabel.set('Location unavailable or not authorized'); return EMPTY; }),
+            takeUntil(this.locationStop$),
+            takeUntilDestroyed(this.destroyRef),
+          ).subscribe(location => { this.location.set(location); this.locationLabel.set('Location live'); });
+        } else {
+          this.locationLabel.set('Sign in for precise GPS');
+        }
         this.page.set('ready');
       }),
       switchMap((tracking) =>
         followParcel(this.streams, this.timeline, tracking.trackingNumber, tracking.status, (s) => this.stream.set(s), this.retry$),
       ),
     );
+  }
+
+  private loadSelectedParcel(parcelId: string | null, trackingNumber: string | null) {
+    if (!parcelId) return this.load(trackingNumber ?? '');
+    this.page.set('loading');
+    this.error.set('');
+    return this.api.parcel(parcelId).pipe(
+      map((parcel) => parcel.trackingNumber),
+      catchError(() => {
+        this.page.set('error');
+        this.error.set('The selected delivery could not be opened or is not authorized for this account.');
+        return EMPTY;
+      }),
+      switchMap((resolvedTrackingNumber) => this.load(normalizeTrackingNumber(resolvedTrackingNumber))),
+    );
+  }
+
+  private readNavigationState(): TrackingNavigationState | null {
+    const navigationState = this.router.getCurrentNavigation()?.extras.state;
+    if (navigationState) return navigationState as TrackingNavigationState;
+    if (typeof history !== 'undefined' && history.state) return history.state as TrackingNavigationState;
+    return null;
   }
 }

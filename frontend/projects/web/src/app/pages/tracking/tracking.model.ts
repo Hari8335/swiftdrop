@@ -34,12 +34,17 @@ export interface PublicTimelineEntry {
 }
 
 export interface PublicTrackingResponse {
+  parcelId: string;
   trackingNumber: string;
   status: ParcelStatus;
   recipientNameMasked: string;
   dropoffDistrict: string;
   lastUpdatedAt: string;
   timeline: PublicTimelineEntry[];
+  pickupLatitude?: number | null;
+  pickupLongitude?: number | null;
+  dropoffLatitude?: number | null;
+  dropoffLongitude?: number | null;
 }
 
 /** Body of an SSE `status` event. */
@@ -71,7 +76,20 @@ export interface ParcelAddress {
   city: string;
   district: string;
   postalCode: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
+
+export interface CourierLocation {
+  parcelId: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number;
+  recordedAt: string;
+  receivedAt: string;
+}
+
+export type NavigationHeading = number | null;
 
 /** Fields of M1's ParcelResponse that the detail page shows. */
 export interface ParcelDetail {

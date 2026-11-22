@@ -258,7 +258,7 @@ export type CourierSettingsSection = 'profile' | 'duty' | 'security';
 
           <!-- Notification Bell & Static User Profile (No Dropdown, Vertically Centered) -->
           <div class="flex items-center gap-3 self-end sm:self-auto">
-            <app-notification-bell placement="below"></app-notification-bell>
+            <app-notification-bell *ngIf="authService?.hasRole('CUSTOMER')" placement="below"></app-notification-bell>
 
             <div
               id="profile-badge"
@@ -668,7 +668,7 @@ export type CourierSettingsSection = 'profile' | 'duty' | 'security';
 export class CourierProfileComponent {
   private readonly service = inject(CourierService);
   private readonly router = inject(Router, { optional: true });
-  private readonly authService = inject(AuthService, { optional: true });
+  readonly authService = inject(AuthService, { optional: true });
 
   readonly profile = signal<CourierProfile | null>(null);
   readonly loading = signal(true);

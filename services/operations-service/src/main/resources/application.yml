@@ -26,6 +26,10 @@ swiftdrop:
   services:
     parcel-service:
       url: ${SWIFTDROP_SERVICES_PARCEL_SERVICE_URL:http://localhost:8082}
+  routing:
+    osrm-url: ${SWIFTDROP_ROUTING_OSRM_URL:}
+    timeout-ms: ${SWIFTDROP_ROUTING_TIMEOUT_MS:10000}
+    minimum-interval-ms: ${SWIFTDROP_ROUTING_MINIMUM_INTERVAL_MS:15000}
   security:
     internal:
       tokens:

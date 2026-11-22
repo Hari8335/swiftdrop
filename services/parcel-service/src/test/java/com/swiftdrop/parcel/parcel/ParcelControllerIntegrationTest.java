@@ -153,6 +153,30 @@ class ParcelControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("Assigned courier can read parcel coordinates through the authenticated detail endpoint")
+    void assignedCourierCanReadParcelDetail() throws Exception {
+        Parcel parcel = saveParcel("SD-20261102-COURIER", "usr-cust-1", ParcelStatus.CREATED,
+                "2026-11-02T10:00:00");
+        parcel.setCourierId("courier-1");
+        parcel.setPickupAddress(AddressSnapshot.from(new AddressDto(
+                "Pickup", null, "Colombo", "Colombo", "00100", 6.9271, 79.8612)));
+        parcel.setDropoffAddress(AddressSnapshot.from(new AddressDto(
+                "Dropoff", null, "Colombo", "Colombo", "00200", 6.9147, 79.8737)));
+        parcelRepository.saveAndFlush(parcel);
+
+        mockMvc.perform(get("/api/v1/parcels/" + parcel.getId())
+                        .with(user("courier-1").roles("COURIER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(parcel.getId())))
+                .andExpect(jsonPath("$.pickupAddress.latitude", is(6.9271)))
+                .andExpect(jsonPath("$.dropoffAddress.longitude", is(79.8737)));
+
+        mockMvc.perform(get("/api/v1/parcels/" + parcel.getId())
+                        .with(user("courier-2").roles("COURIER")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("V6 widens only the external identity columns")
     void migrationUses64CharacterExternalIdentityColumns() {
         assertThat(columnLength("addresses", "customer_id")).isEqualTo(64);

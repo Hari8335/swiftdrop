@@ -2,4 +2,6 @@
 export const environment = {
   /** When true, MSW intercepts API calls in the browser. See frontend/README.md "Mock API". */
   useMocks: false,
+  /** Keep routing disabled until a private approved OSRM service is configured. */
+  routingProvider: 'unconfigured' as 'unconfigured' | 'osrm',
 };

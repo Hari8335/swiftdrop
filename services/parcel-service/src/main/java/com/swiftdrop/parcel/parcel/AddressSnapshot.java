@@ -16,6 +16,10 @@ import lombok.Setter;
 @AllArgsConstructor
 public class AddressSnapshot {
 
+    public AddressSnapshot(String line1, String line2, String city, String district, String postalCode) {
+        this(line1, line2, city, district, postalCode, null, null);
+    }
+
     @Column(nullable = false, length = 255)
     private String line1;
 
@@ -31,17 +35,26 @@ public class AddressSnapshot {
     @Column(nullable = false, length = 20)
     private String postalCode;
 
+    @Column(name = "latitude", precision = 9, scale = 6)
+    private Double latitude;
+
+    @Column(name = "longitude", precision = 9, scale = 6)
+    private Double longitude;
+
     public static AddressSnapshot from(AddressDto dto) {
+        if ((dto.latitude() == null) != (dto.longitude() == null)) {
+            throw new IllegalArgumentException("Latitude and longitude must be supplied together");
+        }
         return new AddressSnapshot(
                 dto.line1().trim(),
                 dto.line2() != null ? dto.line2().trim() : null,
                 dto.city().trim(),
                 District.normalize(dto.district()),
-                dto.postalCode().trim()
+                dto.postalCode().trim(), dto.latitude(), dto.longitude()
         );
     }
 
     public AddressDto toDto() {
-        return new AddressDto(line1, line2, city, district, postalCode);
+        return new AddressDto(line1, line2, city, district, postalCode, latitude, longitude);
     }
 }
