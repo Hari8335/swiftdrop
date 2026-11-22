@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, inject, signal } from '@angular/core';
-import { MerchantNotification, MerchantNotificationsService } from './merchant-notifications.service';
+import { Component, computed, DestroyRef, HostListener, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MerchantCredentialClaim, MerchantNotification, MerchantNotificationsService } from './merchant-notifications.service';
 
 @Component({
   selector: 'app-merchant-notification-bell',
@@ -46,7 +47,9 @@ import { MerchantNotification, MerchantNotificationsService } from './merchant-n
                 </button></li>
               }
             </ul>
-            <div class="px-4 py-2.5 border-t border-[#f0ebe5] text-right"><button type="button" (click)="notifications.clearAll()" class="text-xs font-semibold text-[#6f6d85] hover:text-[#a53a26] cursor-pointer">Clear all</button></div>
+            @if (notifications.hasLocalActivity()) {
+              <div class="px-4 py-2.5 border-t border-[#f0ebe5] text-right"><button type="button" (click)="notifications.clearAll()" class="text-xs font-semibold text-[#6f6d85] hover:text-[#a53a26] cursor-pointer">Clear local activity</button></div>
+            }
           }
         </div>
       }
@@ -59,18 +62,71 @@ import { MerchantNotification, MerchantNotificationsService } from './merchant-n
         <button type="button" (click)="notifications.dismissToast()" aria-label="Dismiss notification" class="text-sm font-bold opacity-70 hover:opacity-100">×</button>
       </div>
     }
+
+    @if (credentialClaim(); as credentials) {
+      <div class="fixed inset-0 z-[90] grid place-items-center bg-black/40 p-4" role="presentation">
+        <section role="dialog" aria-modal="true" aria-labelledby="merchant-secret-title" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <h2 id="merchant-secret-title" class="text-lg font-black text-[#1d1b2c]">Replacement API credentials</h2>
+          <p class="mt-2 text-sm text-[#6f6d85]">This secret is shown once. Store it securely before closing.</p>
+          <label class="mt-4 block text-xs font-bold text-[#6f6d85]">Client ID</label>
+          <code class="mt-1 block break-all rounded-lg bg-[#faf8f6] p-3 text-sm">{{ credentials.clientId }}</code>
+          <label class="mt-4 block text-xs font-bold text-[#6f6d85]">Client Secret</label>
+          <code class="mt-1 block break-all rounded-lg bg-[#faf8f6] p-3 text-sm">{{ credentials.clientSecret }}</code>
+          <button type="button" (click)="dismissCredentials()" class="mt-5 w-full rounded-xl bg-[#a53a26] px-4 py-3 text-sm font-bold text-white">I have saved it</button>
+        </section>
+      </div>
+    }
+    @if (claimError()) {
+      <div role="alert" class="fixed bottom-4 right-4 z-[90] max-w-sm rounded-xl border border-rose-200 bg-white p-4 text-sm text-rose-800 shadow-lg">
+        {{ claimError() }} <button type="button" class="ml-2 font-bold" (click)="claimError.set('')" aria-label="Dismiss">×</button>
+      </div>
+    }
   `,
 })
-export class MerchantNotificationBellComponent {
+export class MerchantNotificationBellComponent implements OnInit, OnDestroy {
   readonly notifications = inject(MerchantNotificationsService);
   readonly open = signal(false);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly revealedCredentials = signal<{ owner: string | null; claim: MerchantCredentialClaim } | null>(null);
+  readonly credentialClaim = computed(() => {
+    const credentials = this.revealedCredentials();
+    return credentials && credentials.owner === this.notifications.owner() ? credentials.claim : null;
+  });
+  readonly claimError = signal('');
+  private refreshTimer: ReturnType<typeof setInterval> | undefined;
 
-  toggle(): void { this.open.update((value) => !value); }
+  ngOnInit(): void {
+    this.notifications.refresh();
+    this.refreshTimer = setInterval(() => this.notifications.refresh(), 30_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.dismissCredentials();
+  }
+
+  toggle(): void {
+    this.open.update((value) => !value);
+    if (this.open()) this.notifications.refresh();
+  }
 
   openItem(item: MerchantNotification): void {
-    this.notifications.markRead(item.id);
     this.open.set(false);
+    if (item.type === 'CREDENTIALS_REPLACED' && item.credentialAvailable && typeof item.id === 'string') {
+      this.claimError.set('');
+      const owner = this.notifications.owner();
+      this.notifications.claimCredential(item.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: (claim) => this.revealedCredentials.set({ owner, claim }),
+        error: (error: { status?: number }) => this.claimError.set(error.status === 410
+          ? 'This one-time secret has expired. Ask an administrator to replace the credentials again.'
+          : 'The one-time secret could not be retrieved. Contact an administrator if it was already viewed.'),
+      });
+    } else {
+      this.notifications.markRead(item.id);
+    }
   }
+
+  dismissCredentials(): void { this.revealedCredentials.set(null); }
 
   @HostListener('document:click', ['$event'])
   closeOnOutsideClick(event: MouseEvent): void {

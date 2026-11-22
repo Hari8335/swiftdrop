@@ -5,7 +5,11 @@ info:
   description: |
     Additive #207 recovery contract. Cross-owner scope and explicit same-client
     credential replacement were approved by the user confirming M10/M5 agreement.
-    Existing successful registration/approval payloads remain compatible.
+    Existing successful registration/approval payloads remain compatible. A successful
+    credential replacement also stores an encrypted, merchant-owned one-time portal
+    handoff for up to 24 hours; see merchant portal notification operations in
+    integration-merchant.yaml. The secret remains hash-only in auth-service and is not
+    included in notification list responses.
 paths:
   /internal/v1/merchant-provisioning/{operationId}:
     parameters:
@@ -123,7 +127,7 @@ paths:
                 confirmReplacement: {type: boolean, enum: [true]}
       responses:
         '200':
-          description: Merchant approved, same client ID, replacement secret returned once; no-store.
+          description: Merchant approved, same client ID, replacement secret returned once to admin and securely staged for one-time merchant portal claim within 24 hours; no-store.
           content:
             application/json:
               schema:

@@ -19,16 +19,23 @@ public class MerchantRecoveryService {
     private final MerchantApprovalMailSender approvalMailSender;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transaction;
+    private final MerchantPortalNotificationService portalNotifications;
 
     public MerchantRecoveryService(MerchantRepository merchants, AuthProvisioningClient auth,
-            MerchantApprovalMailSender approvalMailSender, JdbcTemplate jdbc, PlatformTransactionManager manager) {
+            MerchantApprovalMailSender approvalMailSender, JdbcTemplate jdbc, PlatformTransactionManager manager,
+            MerchantPortalNotificationService portalNotifications) {
         this.merchants = merchants; this.auth = auth; this.approvalMailSender = approvalMailSender; this.jdbc = jdbc;
         this.transaction = new TransactionTemplate(manager);
+        this.portalNotifications = portalNotifications;
     }
 
     public MerchantApprovalResponse approve(UUID merchant) { return run(merchant, null); }
 
-    public MerchantApprovalResponse recover(UUID merchant, UUID replacement) { return run(merchant, replacement); }
+    public MerchantApprovalResponse recover(UUID merchant, UUID replacement) {
+        // Fail before rotating the secret if a secure merchant-side handoff cannot be persisted.
+        portalNotifications.assertHandoffReady();
+        return run(merchant, replacement);
+    }
 
     private MerchantApprovalResponse run(UUID id, UUID replacement) {
         String actor = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -65,8 +72,15 @@ public class MerchantRecoveryService {
                     audit(merchant, replacement, actor, "HANDOFF_REQUIRED");
                     return null;
                 }
-                if (merchant.getStatus() == MerchantStatus.PENDING) merchant.approve(response.clientId());
+                boolean newlyApproved = merchant.getStatus() == MerchantStatus.PENDING;
+                if (newlyApproved) merchant.approve(response.clientId());
                 Merchant saved = merchants.saveAndFlush(merchant);
+                if (newlyApproved) {
+                    portalNotifications.merchantApproved(saved);
+                }
+                if (replacement != null) {
+                    portalNotifications.credentialReplaced(saved, response.clientId(), response.clientSecret());
+                }
                 audit(saved, replacement, actor, replacement == null ? "APPROVED" : "CREDENTIAL_REPLACED");
                 return new MerchantApprovalResponse(MerchantSummary.from(saved), response.clientId(), response.clientSecret());
             });
