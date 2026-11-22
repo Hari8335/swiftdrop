@@ -45,126 +45,79 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
   template: `
     <!-- Full-Screen Merchant Portal Shell Matching Customer Portal Template -->
     <div class="merchant-shell w-full min-h-screen flex flex-col md:flex-row bg-white">
-      <!-- Slim Left Sidebar Navigation Rail (Docked & Sticky) -->
+      <!-- Merchant navigation follows the Admin portal's fixed, expanding sidebar. -->
       <aside
-        class="merchant-rail group w-full md:fixed md:inset-y-0 md:left-0 md:z-40 md:h-screen md:w-20 md:hover:w-[272px] md:focus-within:w-[272px] md:overflow-y-auto md:overflow-x-hidden md:transition-all md:duration-300 md:ease-in-out md:hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)] md:focus-within:shadow-[0_15px_35px_rgba(0,0,0,0.08)] flex-shrink-0 flex md:flex-col items-center justify-between md:justify-start py-4 md:py-5 px-4 md:px-3 border-b md:border-b-0 md:border-r border-[#ece9e4] bg-white md:space-y-0 z-20"
+        class="fixed inset-y-0 left-0 z-40 hidden h-screen w-20 flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-[#ece9e4] bg-white py-5 px-3 transition-all duration-300 ease-in-out hover:w-[272px] hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)] group lg:flex"
+        aria-label="Merchant Navigation"
       >
-        <!-- SwiftDrop Brand Logo Icon -->
-        <button
-          type="button"
-          (click)="selectTab('orders')"
-          class="w-11 md:w-full h-11 rounded-2xl bg-white text-[#1d1b2c] flex items-center px-2 gap-3 cursor-pointer hover:bg-[#faf8f6] transition-colors"
-          title="SwiftDrop Merchant Portal"
-        >
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#a53a26] text-white shadow-[0_8px_18px_rgba(165,58,38,0.25)]"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg></span>
-          <span class="hidden whitespace-nowrap text-base font-extrabold tracking-tight opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 md:block">SwiftDrop Merchant</span>
-        </button>
-
-        <!-- Navigation Icons Stack -->
-        <nav class="flex md:w-full md:flex-col items-center gap-3 sm:gap-4 md:gap-1.5" aria-label="Merchant Navigation">
-          <!-- 1. Grid Icon (Orders Dashboard) -->
-          <button
-            type="button"
-            (click)="selectTab('orders')"
-            [class.rail-active]="activeTab() === 'orders'"
-            class="relative flex h-11 w-11 md:w-full shrink-0 items-center rounded-2xl px-3 text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf8f6] transition-all cursor-pointer"
-            title="Orders Dashboard"
-            aria-label="Orders Dashboard"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <rect x="3" y="3" width="7" height="7" rx="2"></rect>
-              <rect x="14" y="3" width="7" height="7" rx="2"></rect>
-              <rect x="14" y="14" width="7" height="7" rx="2"></rect>
-              <rect x="3" y="14" width="7" height="7" rx="2"></rect>
-            </svg>
-            <span class="hidden ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 md:block">Orders</span>
-            <span *ngIf="activeTab() === 'orders'" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
+        <div>
+          <button type="button" (click)="selectTab('orders')" aria-label="SwiftDrop merchant home" class="flex items-center gap-3 px-1 text-left">
+            <span class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#9b432f] text-white shadow-[0_8px_18px_rgba(155,67,47,0.25)]">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+            </span>
+            <span class="whitespace-nowrap text-base font-extrabold tracking-tight text-[#211f32] opacity-0 transition-opacity duration-200 group-hover:opacity-100">SwiftDrop Merchant</span>
           </button>
 
-          <!-- Integrations parent menu: webhook settings, delivery logs, and API credentials -->
-          <div class="relative">
+          <nav class="mt-8 flex flex-col gap-1.5" aria-label="Merchant primary navigation">
             <button
-              type="button"
-              (click)="toggleIntegrationsMenu()"
-              [class.rail-active]="isIntegrationTab()"
-              class="relative flex h-11 w-11 md:w-full shrink-0 items-center rounded-2xl px-3 text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf8f6] transition-all cursor-pointer"
-              title="Integrations"
-              aria-label="Integrations"
-              aria-controls="merchant-integrations-menu"
-              [attr.aria-expanded]="integrationsMenuOpen()"
+              type="button" (click)="selectTab('orders')" aria-label="Orders Dashboard"
+              [ngClass]="activeTab() === 'orders' ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
+              class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
             >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-                <path d="M8 7h8M8 17h8"></path>
-                <circle cx="5" cy="7" r="2"></circle>
-                <circle cx="19" cy="17" r="2"></circle>
-                <circle cx="5" cy="17" r="2"></circle>
-                <circle cx="19" cy="7" r="2"></circle>
-              </svg>
-              <span class="hidden ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 md:block">Integrations</span>
-              <span *ngIf="isIntegrationTab()" class="hidden md:block absolute -right-[1px] top-2 bottom-2 w-1 bg-[#a53a26] rounded-l-full"></span>
+              <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></span>
+              <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Orders Dashboard</span>
             </button>
 
-            <div
-              *ngIf="integrationsMenuOpen()"
-              id="merchant-integrations-menu"
-              class="absolute z-40 top-full right-0 mt-2 w-56 rounded-2xl border border-[#e8e2dc] bg-white p-2 shadow-xl shadow-[#1d1b2c]/10 md:top-0 md:left-full md:right-auto md:ml-3 md:mt-0"
-              aria-label="Integrations pages"
-            >
-              <p class="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#a09eaf]">Integrations</p>
-              <button type="button" (click)="selectTab('settings')" [attr.aria-current]="activeTab() === 'settings' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26]" [class.bg-[#faf6f0]]="activeTab() === 'settings'">
-                Webhook Settings
+            <div class="relative w-full">
+              <button
+                type="button" (click)="toggleIntegrationsMenu()" aria-label="Integrations"
+                aria-controls="merchant-integrations-menu" [attr.aria-expanded]="integrationsMenuOpen()"
+                [ngClass]="isIntegrationTab() ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
+                class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
+              >
+                <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M8 7h8M8 17h8"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="17" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="7" r="2"/></svg></span>
+                <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Integrations</span>
+                <svg class="ml-auto h-3.5 w-3.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
-              <button type="button" (click)="selectTab('deliveries')" [attr.aria-current]="activeTab() === 'deliveries' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26]" [class.bg-[#faf6f0]]="activeTab() === 'deliveries'">
-                Webhook Delivery Logs
-              </button>
-              <button type="button" (click)="selectTab('credentials')" [attr.aria-current]="activeTab() === 'credentials' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26]" [class.bg-[#faf6f0]]="activeTab() === 'credentials'">
-                API Credentials
-              </button>
+              @if (integrationsMenuOpen()) {
+                <div id="merchant-integrations-menu" class="absolute left-full top-0 z-50 ml-3 w-56 rounded-2xl border border-[#e8e4df] bg-white p-2 shadow-[0_12px_32px_rgba(33,31,50,0.12)]" aria-label="Integrations pages">
+                  <p class="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#9a97a8]">Integrations</p>
+                  <button type="button" (click)="selectTab('settings')" [attr.aria-current]="activeTab() === 'settings' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'settings'">Webhook Settings</button>
+                  <button type="button" (click)="selectTab('deliveries')" [attr.aria-current]="activeTab() === 'deliveries' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'deliveries'">Webhook Delivery Logs</button>
+                  <button type="button" (click)="selectTab('credentials')" [attr.aria-current]="activeTab() === 'credentials' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'credentials'">API Credentials</button>
+                </div>
+              }
             </div>
-          </div>
 
-          <!-- 3. Plus Button (Bulk CSV Orders - in the middle!) -->
-          <button
-            type="button"
-            (click)="navigateToBulk()"
-            class="my-1.5 flex h-11 w-11 md:w-full shrink-0 items-center rounded-2xl bg-[#a53a26] px-3 text-white shadow-md shadow-[#a53a26]/20 hover:bg-[#7e2615] transition-all cursor-pointer"
-            title="Bulk CSV Orders"
-            aria-label="Bulk CSV Orders"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span class="hidden ml-3.5 whitespace-nowrap text-sm font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 md:block">Bulk CSV Orders</span>
-          </button>
+            <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#fbf7f5] hover:text-[#9b432f]">
+              <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+              <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Bulk CSV Orders</span>
+            </button>
+          </nav>
+        </div>
 
-        </nav>
-
-        <!-- Sidebar Footer Utilities -->
-        <div class="flex md:w-full md:mt-auto flex-col items-center gap-3 pt-4 md:pt-3 border-t border-[#f0ebe5]/60">
-          <button
-            type="button"
-            (click)="logOut()"
-            class="flex h-11 w-11 md:w-full shrink-0 items-center rounded-2xl px-3 text-[#6f6d85] hover:text-[#a53a26] hover:bg-[#faf8f6] transition-all cursor-pointer"
-            title="Log Out"
-            aria-label="Log Out"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            <span class="hidden ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 md:block">Log out</span>
+        <div class="border-t border-[#f0ece8] pt-3">
+          <button type="button" id="merchant-sidebar-logout-btn" (click)="logOut()" aria-label="Log out" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#faf0ec] hover:text-[#9b432f]">
+            <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+            <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Log out</span>
           </button>
         </div>
       </aside>
 
+      <nav class="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-[#ece9e4] bg-white px-2 py-2 shadow-[0_-8px_24px_rgba(42,32,25,0.06)] lg:hidden" aria-label="Merchant navigation (mobile)">
+        <button type="button" (click)="logOut()" aria-label="Log out" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+        <button type="button" (click)="selectTab('orders')" aria-label="Orders Dashboard" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></button>
+        <div class="relative"><button type="button" (click)="toggleIntegrationsMenu()" aria-label="Integrations" [attr.aria-expanded]="integrationsMenuOpen()" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M8 7h8M8 17h8"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="17" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="7" r="2"/></svg></button>
+          @if (integrationsMenuOpen()) { <div class="absolute bottom-full left-1/2 mb-2 w-56 -translate-x-1/2 rounded-2xl border border-[#e8e4df] bg-white p-2 shadow-[0_12px_32px_rgba(33,31,50,0.12)]"><p class="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#9a97a8]">Integrations</p><button type="button" (click)="selectTab('settings')" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5]">Webhook Settings</button><button type="button" (click)="selectTab('deliveries')" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5]">Webhook Delivery Logs</button><button type="button" (click)="selectTab('credentials')" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5]">API Credentials</button></div> }
+        </div>
+        <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      </nav>
+
       <!-- Main Content Area (Edge-to-Edge Full Screen) -->
-      <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 md:py-7 space-y-7 min-w-0 bg-white md:ml-20">
+      <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 pb-24 lg:pb-7 lg:py-7 space-y-7 min-w-0 bg-white lg:ml-20">
         <!-- Top Header: Search Bar & Merchant Profile -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#f4efe9]">
           <!-- Search Input -->

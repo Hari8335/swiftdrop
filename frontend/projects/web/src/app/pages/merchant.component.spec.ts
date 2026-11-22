@@ -147,7 +147,7 @@ describe('MerchantComponent', () => {
     expect(fixture.nativeElement.querySelector('#merchant-profile-chip')?.textContent).toContain('Sample Merchant');
     expect(fixture.nativeElement.querySelector('#profile-menu-btn')).toBeNull();
     expect(fixture.nativeElement.querySelector('#merchant-notification-bell-btn')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('[aria-label="Log Out"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#merchant-sidebar-logout-btn')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('[aria-label="Orders Dashboard"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('[aria-label="Integrations"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('[aria-label="Bulk CSV Orders"]')).toBeTruthy();
