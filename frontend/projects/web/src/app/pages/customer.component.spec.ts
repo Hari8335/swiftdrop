@@ -191,6 +191,50 @@ describe('CustomerComponent', () => {
     expect((root.querySelector('#parcel-page-next') as HTMLButtonElement).disabled).toBe(true);
   }));
 
+  describe('history date filter', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const pick = (id: string, value: string) => {
+      const input = root().querySelector<HTMLInputElement>(id)!;
+      input.value = value;
+      input.dispatchEvent(new Event('change'));
+    };
+
+    it('reloads the table from the first page with the picked booking dates', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedParcelPage.set(1);
+      fixture.detectChanges();
+
+      pick('#history-date-from', '2026-11-01');
+      tick(100);
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10, { from: '2026-11-01' });
+
+      pick('#history-date-to', '2026-11-15');
+      tick(100);
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10, { from: '2026-11-01', to: '2026-11-15' });
+      expect(component.selectedParcelPage()).toBe(0);
+    }));
+
+    it('combines the date range with the status filter', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedStatusFilter.set('DELIVERED');
+      fixture.detectChanges();
+
+      pick('#history-date-to', '2026-11-15');
+      tick(100);
+
+      expect(listParcels).toHaveBeenLastCalledWith('DELIVERED', 0, 10, { to: '2026-11-15' });
+    }));
+
+    it('limits each picker so From cannot be after To', () => {
+      component.dateFrom.set('2026-11-01');
+      component.dateTo.set('2026-11-15');
+      fixture.detectChanges();
+
+      expect(root().querySelector('#history-date-from')!.getAttribute('max')).toBe('2026-11-15');
+      expect(root().querySelector('#history-date-to')!.getAttribute('min')).toBe('2026-11-01');
+    });
+  });
+
   it('collapses long page lists with gaps', () => {
     component.parcelPage.set({ content: [], totalElements: 200, totalPages: 20, page: 9, size: 10 });
     expect(component.pageNumbers()).toEqual([0, null, 8, 9, 10, null, 19]);

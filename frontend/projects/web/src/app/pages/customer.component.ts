@@ -14,6 +14,7 @@ import {
   CustomerParcelPage,
   District,
   FeePreview,
+  ParcelDateRange,
   ParcelSize,
   ParcelStatus,
   SRI_LANKA_DISTRICTS,
@@ -222,6 +223,32 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                   </button>
                   }
                 </div>
+              </div>
+
+              <!-- Booking Date Range Filter -->
+              <div id="history-date-filter" class="flex flex-wrap items-end gap-3">
+                <label class="flex flex-col gap-1 text-[11px] font-bold text-[#6f6d85]">
+                  From
+                  <input
+                    type="date"
+                    id="history-date-from"
+                    [value]="dateFrom()"
+                    [attr.max]="dateTo() || null"
+                    (change)="setDateFrom($any($event.target).value)"
+                    class="h-9 rounded-xl border border-[#e4e0db] bg-white px-3 text-xs font-semibold text-[#1d1b2c] outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
+                  />
+                </label>
+                <label class="flex flex-col gap-1 text-[11px] font-bold text-[#6f6d85]">
+                  To
+                  <input
+                    type="date"
+                    id="history-date-to"
+                    [value]="dateTo()"
+                    [attr.min]="dateFrom() || null"
+                    (change)="setDateTo($any($event.target).value)"
+                    class="h-9 rounded-xl border border-[#e4e0db] bg-white px-3 text-xs font-semibold text-[#1d1b2c] outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
+                  />
+                </label>
               </div>
 
               <!-- Deliveries Table Matching Reference Format -->
@@ -1668,6 +1695,9 @@ export class CustomerComponent implements OnInit {
     return out;
   });
   selectedStatusFilter = signal<ParcelStatus | null>(null);
+  /** Booking-date range for the history table, as YYYY-MM-DD ('' = no bound). */
+  dateFrom = signal('');
+  dateTo = signal('');
   notification = signal<string | null>(null);
   private readonly toast = inject(CustomerToastService);
 
@@ -1866,9 +1896,34 @@ export class CustomerComponent implements OnInit {
     this.loadAddresses();
   }
 
+  setDateFrom(value: string): void {
+    this.dateFrom.set(value ?? '');
+    this.selectedParcelPage.set(0);
+    this.loadParcels();
+  }
+
+  setDateTo(value: string): void {
+    this.dateTo.set(value ?? '');
+    this.selectedParcelPage.set(0);
+    this.loadParcels();
+  }
+
+  /** The date range to send, or undefined when no date is picked. */
+  private activeDateRange(): ParcelDateRange | undefined {
+    const from = this.dateFrom();
+    const to = this.dateTo();
+    if (!from && !to) return undefined;
+    return { ...(from ? { from } : {}), ...(to ? { to } : {}) };
+  }
+
   loadParcels(): void {
-    this.customerService
-      .listParcels(this.selectedStatusFilter() || undefined, this.selectedParcelPage(), RECENT_DELIVERIES_PAGE_SIZE)
+    const status = this.selectedStatusFilter() || undefined;
+    const page = this.selectedParcelPage();
+    const range = this.activeDateRange();
+    const request$ = range
+      ? this.customerService.listParcels(status, page, RECENT_DELIVERIES_PAGE_SIZE, range)
+      : this.customerService.listParcels(status, page, RECENT_DELIVERIES_PAGE_SIZE);
+    request$
       .subscribe({
         next: (page) => {
           this.parcelPage.set(page);
