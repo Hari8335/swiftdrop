@@ -74,22 +74,19 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             <div class="relative w-full">
               <button
                 type="button" (click)="toggleIntegrationsMenu()" aria-label="Integrations"
-                aria-controls="merchant-integrations-menu" [attr.aria-expanded]="integrationsMenuOpen()"
+                aria-controls="merchant-integrations-menu" aria-expanded="true"
                 [ngClass]="isIntegrationTab() ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
                 class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
               >
                 <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M8 7h8M8 17h8"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="17" r="2"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="7" r="2"/></svg></span>
                 <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Integrations</span>
-                <svg class="ml-auto h-3.5 w-3.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                <svg class="ml-auto h-3.5 w-3.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
-              @if (integrationsMenuOpen()) {
-                <div id="merchant-integrations-menu" class="absolute left-full top-0 z-50 ml-3 w-56 rounded-2xl border border-[#e8e4df] bg-white p-2 shadow-[0_12px_32px_rgba(33,31,50,0.12)]" aria-label="Integrations pages">
-                  <p class="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#9a97a8]">Integrations</p>
-                  <button type="button" (click)="selectTab('settings')" [attr.aria-current]="activeTab() === 'settings' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'settings'">Webhook Settings</button>
-                  <button type="button" (click)="selectTab('deliveries')" [attr.aria-current]="activeTab() === 'deliveries' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'deliveries'">Webhook Delivery Logs</button>
-                  <button type="button" (click)="selectTab('credentials')" [attr.aria-current]="activeTab() === 'credentials' ? 'page' : null" class="w-full rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#211f32] hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'credentials'">API Credentials</button>
-                </div>
-              }
+              <div id="merchant-integrations-menu" class="ml-3 mt-1 space-y-0.5 border-l border-[#e8e4df] pl-3" aria-label="Integrations pages">
+                <button type="button" (click)="selectTab('settings')" [attr.aria-current]="activeTab() === 'settings' ? 'page' : null" class="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-xs font-medium text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'settings'" [class.text-[#9b432f]]="activeTab() === 'settings'"><span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#b9b5c2]"></span><span class="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">Webhook Settings</span></button>
+                <button type="button" (click)="selectTab('deliveries')" [attr.aria-current]="activeTab() === 'deliveries' ? 'page' : null" class="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-xs font-medium text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'deliveries'" [class.text-[#9b432f]]="activeTab() === 'deliveries'"><span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#b9b5c2]"></span><span class="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">Webhook Delivery Logs</span></button>
+                <button type="button" (click)="selectTab('credentials')" [attr.aria-current]="activeTab() === 'credentials' ? 'page' : null" class="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-xs font-medium text-[#77748a] transition hover:bg-[#fbf7f5] hover:text-[#9b432f]" [class.bg-[#fff5ef]]="activeTab() === 'credentials'" [class.text-[#9b432f]]="activeTab() === 'credentials'"><span class="h-1.5 w-1.5 shrink-0 rounded-full bg-[#b9b5c2]"></span><span class="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">API Credentials</span></button>
+              </div>
             </div>
 
             <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#fbf7f5] hover:text-[#9b432f]">

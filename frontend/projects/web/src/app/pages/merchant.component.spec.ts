@@ -222,15 +222,15 @@ describe('MerchantComponent', () => {
 
   it('groups webhook settings, delivery logs, and API credentials under Integrations', () => {
     const integrationsButton = fixture.nativeElement.querySelector('[aria-label="Integrations"]') as HTMLButtonElement;
-    expect(integrationsButton.getAttribute('aria-expanded')).toBe('false');
-
-    integrationsButton.click();
-    fixture.detectChanges();
-
     const menu = fixture.nativeElement.querySelector('#merchant-integrations-menu') as HTMLElement;
+    expect(integrationsButton.getAttribute('aria-expanded')).toBe('true');
+    expect(menu).toBeTruthy();
     expect(menu.textContent).toContain('Webhook Settings');
     expect(menu.textContent).toContain('Webhook Delivery Logs');
     expect(menu.textContent).toContain('API Credentials');
+
+    integrationsButton.click();
+    fixture.detectChanges();
 
     const deliveryLogsButton = Array.from(menu.querySelectorAll('button'))
       .find((button) => button.textContent?.includes('Webhook Delivery Logs')) as HTMLButtonElement;
@@ -242,7 +242,7 @@ describe('MerchantComponent', () => {
     expect(menu.querySelector('[aria-current="page"]')?.textContent).toContain('Webhook Delivery Logs');
   });
 
-  it('closes the Integrations submenu when navigating back to orders', () => {
+  it('updates the mobile Integrations submenu state when navigating back to orders', () => {
     component.selectTab('credentials');
     fixture.detectChanges();
     expect(component.integrationsMenuOpen()).toBe(true);
