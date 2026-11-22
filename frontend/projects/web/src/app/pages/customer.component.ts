@@ -211,17 +211,61 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight">Your recent deliveries</h2>
 
-                <!-- Status Filter Pills -->
-                <div class="flex flex-wrap items-center gap-1.5">
-                  @for (st of statusFilters; track $index) {
+                <!-- Status Filter Dropdown -->
+                <div id="status-filter" class="relative">
                   <button
                     type="button"
-                    (click)="selectedStatusFilter.set(st.value); selectedParcelPage.set(0); loadParcels()"
-                    [class.filter-active]="selectedStatusFilter() === st.value"
-                    class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                    id="status-filter-btn"
+                    (click)="toggleStatusMenu()"
+                    aria-haspopup="listbox"
+                    [attr.aria-expanded]="statusMenuOpen()"
+                    aria-controls="status-filter-menu"
+                    class="filter-pill filter-active inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
                   >
-                    {{ st.label }}
+                    <span>{{ selectedStatusLabel() }}</span>
+                    <svg
+                      class="w-3 h-3 transition-transform"
+                      [class.rotate-180]="statusMenuOpen()"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
                   </button>
+
+                  @if (statusMenuOpen()) {
+                  <ul
+                    id="status-filter-menu"
+                    role="listbox"
+                    aria-label="Filter deliveries by status"
+                    class="absolute left-0 sm:left-auto sm:right-0 mt-2 w-44 rounded-2xl bg-white border border-[#e8e2dc] shadow-lg shadow-[#1d1b2c]/5 py-1.5 z-30"
+                  >
+                    @for (st of statusFilters; track $index) {
+                    <li>
+                      <button
+                        type="button"
+                        role="option"
+                        [attr.id]="'status-filter-option-' + (st.value || 'ALL')"
+                        [attr.aria-selected]="selectedStatusFilter() === st.value"
+                        (click)="selectStatusFilter(st.value)"
+                        class="w-full flex items-center justify-between gap-2 px-4 py-2 text-xs font-bold text-left text-[#1d1b2c] hover:bg-[#faf8f6] hover:text-[#a53a26] transition-colors cursor-pointer"
+                        [class.text-[#a53a26]]="selectedStatusFilter() === st.value"
+                      >
+                        <span>{{ st.label }}</span>
+                        @if (selectedStatusFilter() === st.value) {
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        }
+                      </button>
+                    </li>
+                    }
+                  </ul>
                   }
                 </div>
               </div>
@@ -1726,6 +1770,25 @@ export class CustomerComponent implements OnInit {
     return out;
   });
   selectedStatusFilter = signal<ParcelStatus | null>(null);
+  /** Whether the status filter dropdown is open. */
+  statusMenuOpen = signal(false);
+  /** Label of the current status filter, shown on the dropdown button. */
+  selectedStatusLabel = computed(
+    () => this.statusFilters.find((st) => st.value === this.selectedStatusFilter())?.label ?? 'All'
+  );
+
+  toggleStatusMenu(): void {
+    this.statusMenuOpen.update((open) => !open);
+  }
+
+  /** Applies a status filter from the dropdown: back to page 1, keeps the date range. */
+  selectStatusFilter(value: ParcelStatus | null): void {
+    this.statusMenuOpen.set(false);
+    this.selectedStatusFilter.set(value);
+    this.selectedParcelPage.set(0);
+    this.loadParcels();
+  }
+
   /** Booking-date range for the history table, as YYYY-MM-DD ('' = no bound). */
   dateFrom = signal('');
   dateTo = signal('');
@@ -1844,6 +1907,16 @@ export class CustomerComponent implements OnInit {
   closeOnEscape(): void {
     this.showAddressModal.set(false);
     this.closeCancelModal();
+    this.statusMenuOpen.set(false);
+  }
+
+  /** Closes the status filter menu when clicking anywhere outside it. */
+  @HostListener('document:click', ['$event'])
+  closeStatusMenuOnOutsideClick(event: MouseEvent): void {
+    const target = event.target as Element | null;
+    if (this.statusMenuOpen() && !target?.closest('#status-filter')) {
+      this.statusMenuOpen.set(false);
+    }
   }
 
   customerInitials = computed(() => {
