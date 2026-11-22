@@ -209,6 +209,41 @@ describe('MerchantComponent', () => {
     expect(component.activeTab()).toBe('deliveries');
   });
 
+  it('groups webhook settings, delivery logs, and API credentials under Integrations', () => {
+    const integrationsButton = fixture.nativeElement.querySelector('[aria-label="Integrations"]') as HTMLButtonElement;
+    expect(integrationsButton.getAttribute('aria-expanded')).toBe('false');
+
+    integrationsButton.click();
+    fixture.detectChanges();
+
+    const menu = fixture.nativeElement.querySelector('#merchant-integrations-menu') as HTMLElement;
+    expect(menu.textContent).toContain('Webhook Settings');
+    expect(menu.textContent).toContain('Webhook Delivery Logs');
+    expect(menu.textContent).toContain('API Credentials');
+
+    const deliveryLogsButton = Array.from(menu.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('Webhook Delivery Logs')) as HTMLButtonElement;
+    deliveryLogsButton.click();
+    fixture.detectChanges();
+
+    expect(component.activeTab()).toBe('deliveries');
+    expect(integrationsButton.getAttribute('aria-expanded')).toBe('true');
+    expect(menu.querySelector('[aria-current="page"]')?.textContent).toContain('Webhook Delivery Logs');
+  });
+
+  it('closes the Integrations submenu when navigating back to orders', () => {
+    component.selectTab('credentials');
+    fixture.detectChanges();
+    expect(component.integrationsMenuOpen()).toBe(true);
+
+    const ordersButton = fixture.nativeElement.querySelector('[aria-label="Orders Dashboard"]') as HTMLButtonElement;
+    ordersButton.click();
+    fixture.detectChanges();
+
+    expect(component.activeTab()).toBe('orders');
+    expect(component.integrationsMenuOpen()).toBe(false);
+  });
+
   it('should reload orders on status filter change with page reset to 0', () => {
     component.onStatusFilterChange('DELIVERED');
 
