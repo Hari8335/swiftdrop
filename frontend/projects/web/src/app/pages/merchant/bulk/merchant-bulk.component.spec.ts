@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router, provideRouter } from '@angular/router';
 import { MerchantBulkComponent } from './merchant-bulk.component';
 import { MerchantNotificationsService } from '../merchant-notifications.service';
-import { CSV_HEADER, MAX_CSV_BYTES } from './merchant-csv';
+import { CSV_HEADER, MAX_CSV_BYTES, parseMerchantCsv } from './merchant-csv';
 import { TextDecoder } from 'util';
 
 const row = (ref: string) => `${ref},Asha,+94771234567,10 Main Road,,Colombo,Colombo,00100,20 Lake Road,,Gampaha,Gampaha,11000,SMALL,1.5`;
@@ -17,6 +17,34 @@ describe('Merchant bulk upload', () => {
   });
   afterEach(() => { http.verify(); jest.restoreAllMocks(); });
   const flushPortalNotifications = () => http.match('/api/v1/merchant/notifications').forEach((request) => request.flush({ items: [], totalElements: 0, unreadCount: 0 }));
+
+  it('shows the CSV guide between the download and upload with a valid example matching the template', () => {
+    const fixture = TestBed.createComponent(MerchantBulkComponent);
+    fixture.detectChanges();
+    flushPortalNotifications();
+
+    const page: HTMLElement = fixture.nativeElement;
+    const download = page.querySelector<HTMLAnchorElement>('a[download]')!;
+    const guide = page.querySelector<HTMLElement>('section[aria-labelledby="csv-guide-title"]')!;
+    const upload = page.querySelector<HTMLInputElement>('input[type="file"]')!;
+    expect(download.compareDocumentPosition(guide) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(guide.compareDocumentPosition(upload) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const points = Array.from(guide.querySelectorAll('ul > li'), (item) => item.textContent);
+    expect(points).toEqual(expect.arrayContaining([
+      expect.stringContaining('Replace the sample row'),
+      expect.stringContaining('Only pickupLine2 and dropoffLine2 can be blank'),
+      expect.stringContaining('100 orders per file'),
+    ]));
+
+    const href = download.getAttribute('href')!;
+    const downloadedCsv = decodeURIComponent(href.slice(href.indexOf(',') + 1));
+    const example = guide.querySelector('[data-testid="csv-example-row"]')!.textContent;
+    expect(downloadedCsv).toBe(`${CSV_HEADER}\n${example}\n`);
+    const rows = parseMerchantCsv(downloadedCsv);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].errors).toEqual([]);
+    fixture.destroy();
+  });
 
   it('previews valid and invalid rows, then confirms successful orders before navigating to the dashboard', () => {
     const fixture = TestBed.createComponent(MerchantBulkComponent), c = fixture.componentInstance;
