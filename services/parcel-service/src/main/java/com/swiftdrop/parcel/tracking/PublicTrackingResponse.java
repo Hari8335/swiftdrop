@@ -10,11 +10,16 @@ import java.util.List;
  * Adding a field here needs a masking review (docs/tracking-design.md section 2).
  */
 public record PublicTrackingResponse(
+        String parcelId,
         String trackingNumber,
         ParcelStatus status,
         String recipientNameMasked,
         String dropoffDistrict,
         Instant lastUpdatedAt,
-        List<PublicTimelineEntry> timeline
+        List<PublicTimelineEntry> timeline,
+        Double pickupLatitude,
+        Double pickupLongitude,
+        Double dropoffLatitude,
+        Double dropoffLongitude
 ) {
 }

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from 'shared-auth';
@@ -13,13 +13,19 @@ import {
   FailureReasonCode,
 } from './courier/courier.model';
 import { CourierService } from './courier/courier.service';
+import { CourierLocationService } from './courier/courier-location.service';
+import { TrackingMapComponent } from './tracking/tracking-map.component';
+import { CourierLocation } from './tracking/tracking.model';
+import { TrackingApiService } from './tracking/tracking-api.service';
+import { NavigationRoute, RoutingService } from './tracking/routing.service';
+import { EMPTY, Subject, catchError, switchMap, takeUntil, timer } from 'rxjs';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
 
 @Component({
   selector: 'app-courier',
   standalone: true,
-  imports: [CommonModule, FormsModule, NotificationBellComponent, CustomerChangePasswordComponent],
+  imports: [CommonModule, FormsModule, NotificationBellComponent, CustomerChangePasswordComponent, TrackingMapComponent],
   template: `
     <!-- Full-Screen Courier Dashboard Layout (Matching Admin/Customer Design) -->
     <div class="w-full min-h-screen bg-white">
@@ -110,7 +116,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
 
       <!-- Fixed Expandable Left Sidebar (Matching Admin Sidebar Design) -->
       <aside
-        class="fixed inset-y-0 left-0 z-40 hidden h-screen w-20 flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-[#ece9e4] bg-white py-5 px-3 transition-all duration-300 ease-in-out hover:w-[272px] hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)] group md:flex"
+        class="fixed inset-y-0 left-0 z-40 hidden h-screen w-20 flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-[#ece9e4] bg-white py-5 px-3 transition-all duration-300 ease-in-out hover:w-[272px] hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)] group lg:flex"
         aria-label="Courier sidebar"
       >
         <!-- Top Brand Header -->
@@ -122,7 +128,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
               aria-label="SwiftDrop courier home"
               class="flex items-center gap-3 cursor-pointer"
             >
-              <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#a53a26] text-white shadow-[0_8px_18px_rgba(165,58,38,0.25)]">
+              <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#9b432f] text-white shadow-[0_8px_18px_rgba(155,67,47,0.25)]">
                 <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                   <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
@@ -143,7 +149,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
               id="tab-runsheet-btn"
               (click)="activeTab.set('runsheet'); navigateTo('/courier')"
               aria-label="Courier run sheet"
-              [ngClass]="activeTab() === 'runsheet' ? 'bg-[#faf0ec] text-[#a53a26] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#a53a26]'"
+              [ngClass]="activeTab() === 'runsheet' ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
               class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200 cursor-pointer"
             >
               <div class="grid h-5 w-5 shrink-0 place-items-center">
@@ -185,7 +191,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
               id="tab-tracking-btn"
               (click)="activeTab.set('tracking')"
               aria-label="Live tracking"
-              [ngClass]="activeTab() === 'tracking' ? 'bg-[#faf0ec] text-[#a53a26] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#a53a26]'"
+              [ngClass]="activeTab() === 'tracking' ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
               class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200 cursor-pointer"
             >
               <div class="grid h-5 w-5 shrink-0 place-items-center">
@@ -211,7 +217,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
             id="courier-sidebar-settings-btn"
             (click)="activeTab.set('settings')"
             aria-label="Settings"
-            [ngClass]="activeTab() === 'settings' ? 'bg-[#faf0ec] text-[#a53a26] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#a53a26]'"
+            [ngClass]="activeTab() === 'settings' ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
             class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200 cursor-pointer"
           >
             <div class="grid h-5 w-5 shrink-0 place-items-center">
@@ -231,7 +237,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
             id="courier-signout-btn"
             (click)="openLogoutModal()"
             aria-label="Log out"
-            class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#a53a26] transition-all duration-200 cursor-pointer"
+            class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f] transition-all duration-200 cursor-pointer"
           >
             <div class="grid h-5 w-5 shrink-0 place-items-center">
               <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -248,7 +254,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
       </aside>
 
       <!-- Main Content Area (Edge-to-Edge Full Screen with md:ml-20 to clear fixed sidebar) -->
-      <main class="flex-1 md:ml-20 min-h-screen p-6 sm:p-8 lg:p-10 space-y-7 min-w-0 bg-white">
+      <main class="flex-1 lg:ml-20 min-h-screen p-6 sm:p-8 lg:p-10 space-y-7 min-w-0 bg-white">
         <!-- Top Header: Search Bar & User Profile (Vertically Aligned Matching Customer Portal) -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#f4efe9]">
           <!-- Search Input -->
@@ -286,7 +292,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
 
           <!-- Notification Bell & Static User Profile (No Dropdown, Vertically Centered) -->
           <div class="flex items-center gap-3 self-end sm:self-auto">
-            <app-notification-bell placement="below"></app-notification-bell>
+            <app-notification-bell *ngIf="authService?.hasRole('CUSTOMER')" placement="below"></app-notification-bell>
 
             <div
               id="profile-badge"
@@ -906,6 +912,25 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
 
                   <!-- Action Buttons -->
                   <div class="pt-2 space-y-2.5">
+                    <button
+                      type="button"
+                      [id]="'view-map-btn-' + delivery.parcelId"
+                      (click)="openDeliveryMap(delivery)"
+                      class="w-full py-2.5 px-4 rounded-full bg-white border border-[#a53a26] text-[#a53a26] hover:bg-[#fff5f1] font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span aria-hidden="true">🗺️</span>
+                      <span>View Map / Navigate</span>
+                    </button>
+                    <div class="flex items-center justify-between gap-2 rounded-xl border border-[#f0ebe5] bg-white px-3 py-2 text-[11px] text-[#6f6d85]">
+                      <span>{{ locationState(delivery.parcelId) }}</span>
+                      <button
+                        type="button"
+                        (click)="toggleLocationSharing(delivery.parcelId)"
+                        class="font-bold text-[#a53a26] hover:underline cursor-pointer"
+                      >
+                        {{ sharingParcelId() === delivery.parcelId ? 'Stop Sharing Location' : 'Start Sharing Location' }}
+                      </button>
+                    </div>
                     <!-- If CREATED or ASSIGNED -> Can Confirm Picked Up -->
                     <button
                       *ngIf="delivery.status === 'CREATED' || delivery.status === 'ASSIGNED'"
@@ -1656,6 +1681,37 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
             </div>
           </div>
 
+          <section *ngIf="selectedMapDelivery(); let mapDelivery" class="space-y-3" data-testid="courier-selected-map">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <h3 class="text-lg font-black text-[#1d1b2c]">{{ mapDelivery.trackingNumber }} route map</h3>
+                <p class="text-xs text-[#6f6d85]">Verified endpoints and genuine courier GPS only.</p>
+              </div>
+              <button type="button" (click)="closeDeliveryMap()" class="rounded-full border border-[#e8e2dc] px-4 py-2 text-xs font-bold text-[#6f6d85] hover:bg-[#faf8f6] cursor-pointer">Close map</button>
+              <button type="button" *ngIf="!navigationActive()" (click)="startNavigation()" class="rounded-full bg-[#2563eb] px-4 py-2 text-xs font-bold text-white hover:bg-[#1d4ed8]">Start Navigation</button>
+            </div>
+            <app-tracking-map
+              [pickup]="mapPickup()"
+              [destination]="mapDestination()"
+              [location]="mapLocation()"
+              [authorized]="true"
+              [navigation]="navigationActive()"
+              [route]="navigationRoute()"
+              [heading]="navigationHeading()"
+              [followLocation]="followLocation()"
+              [destinationAddress]="mapDelivery.dropoffAddress || mapDelivery.recipientAddress?.line1 || null"
+              [externalNavigationUrl]="mapDelivery.googleMapsUrl || null"
+              [locationLabel]="mapLocationLabel()"
+            />
+            <div *ngIf="navigationActive()" class="flex flex-wrap items-center gap-2 rounded-2xl bg-[#f4f7ff] p-3 text-xs font-bold text-[#1d1b2c]">
+              <span>{{ navigationMessage() }}</span>
+              <span *ngIf="navigationRoute()">{{ (navigationRoute()!.distanceMeters / 1000) | number:'1.1-1' }} km route</span>
+              <button type="button" (click)="recenterNavigation()" class="rounded-full border border-[#cbd5ff] px-3 py-1.5">Recenter</button>
+              <button type="button" (click)="followLocation.set(!followLocation())" class="rounded-full border border-[#cbd5ff] px-3 py-1.5">{{ followLocation() ? 'Following location' : 'Follow my location' }}</button>
+              <button type="button" (click)="stopNavigation()" class="rounded-full border border-[#cbd5ff] px-3 py-1.5">Stop Navigation</button>
+            </div>
+          </section>
+
           <!-- Empty State (No Parcel Selected) -->
           <div *ngIf="!effectiveTrackedDelivery()" class="bg-[#faf8f6] rounded-3xl border border-[#eee7e0] p-12 text-center space-y-3">
             <div class="w-14 h-14 rounded-2xl bg-[#faf6f0] text-[#a53a26] flex items-center justify-center mx-auto shadow-sm">
@@ -2157,11 +2213,15 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
     `,
   ],
 })
-export class CourierComponent implements OnInit {
+export class CourierComponent implements OnInit, OnDestroy {
   private courierService = inject(CourierService);
-  private authService = inject(AuthService, { optional: true });
+  readonly authService = inject(AuthService, { optional: true });
   private router = inject(Router, { optional: true });
   private activatedRoute = inject(ActivatedRoute, { optional: true });
+  private readonly routingService = inject(RoutingService);
+  private readonly locationService = inject(CourierLocationService);
+  private readonly trackingApi = inject(TrackingApiService);
+  private readonly mapStop$ = new Subject<void>();
 
   readonly stats = this.courierService.stats;
   readonly profile = this.courierService.profile;
@@ -2181,6 +2241,21 @@ export class CourierComponent implements OnInit {
   readonly selectedDate = signal<string>('');
   readonly showLogoutModal = signal<boolean>(false);
   readonly pendingStageAction = signal<{ delivery: CourierDelivery; nextStatus: DeliveryStatus } | null>(null);
+  readonly sharingParcelId = signal<string | null>(null);
+  private readonly locationStates = new Map<string, string>();
+  readonly selectedMapDelivery = signal<CourierDelivery | null>(null);
+  readonly mapPickup = signal<[number, number] | null>(null);
+  readonly mapDestination = signal<[number, number] | null>(null);
+  readonly mapLocation = signal<CourierLocation | null>(null);
+  readonly mapLocationLabel = signal('Loading verified parcel coordinates…');
+  readonly navigationActive = signal(false);
+  readonly navigationRoute = signal<NavigationRoute | null>(null);
+  readonly navigationHeading = signal<number | null>(null);
+  readonly followLocation = signal(false);
+  readonly navigationMessage = signal('Waiting for a real GPS position…');
+  private previousNavigationLocation: CourierLocation | null = null;
+  private navigationRequestInFlight = false;
+  private lastNavigationRequestAt = 0;
 
   trackingSearchNumber = signal<string>('');
   selectedTrackingDelivery = signal<CourierDelivery | null>(null);
@@ -2338,10 +2413,170 @@ export class CourierComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.locationService.stop();
+    this.mapStop$.next();
+    this.mapStop$.complete();
+  }
+
+  openDeliveryMap(delivery: CourierDelivery): void {
+    const parcelId = delivery?.parcelId?.trim();
+    const trackingNumber = delivery?.trackingNumber?.trim().toUpperCase();
+    if (!parcelId || !trackingNumber) {
+      this.showToast('This delivery does not have a valid tracking selection.');
+      return;
+    }
+    this.activeTab.set('tracking');
+    this.selectTrackingParcel(delivery);
+  }
+
+  closeDeliveryMap(): void {
+    this.stopNavigation();
+    this.mapStop$.next();
+    this.selectedMapDelivery.set(null);
+    this.mapLocation.set(null);
+  }
+
+  startNavigation(): void {
+    const delivery = this.selectedMapDelivery();
+    if (!delivery) return;
+    if (this.sharingParcelId() !== delivery.parcelId) this.toggleLocationSharing(delivery.parcelId);
+    this.navigationActive.set(true);
+    this.navigationRoute.set(null);
+    this.followLocation.set(true);
+    this.navigationMessage.set('Waiting for a real GPS position…');
+    const location = this.mapLocation();
+    if (location) this.requestNavigationRoute(location);
+  }
+
+  stopNavigation(): void {
+    this.navigationActive.set(false);
+    this.navigationRoute.set(null);
+    this.followLocation.set(false);
+    this.navigationHeading.set(null);
+    this.previousNavigationLocation = null;
+    this.navigationMessage.set('Navigation stopped.');
+  }
+
+  recenterNavigation(): void {
+    this.followLocation.set(true);
+  }
+
+  private requestNavigationRoute(location: CourierLocation): void {
+    const delivery = this.selectedMapDelivery();
+    if (!delivery) {
+      this.navigationMessage.set('Select an assigned delivery before starting navigation.');
+      return;
+    }
+    const destination = delivery && (delivery.status === 'CREATED' || delivery.status === 'ASSIGNED')
+      ? this.mapPickup()
+      : this.mapDestination();
+    if (!destination) {
+      this.navigationMessage.set('A verified next-stop coordinate is required for navigation.');
+      return;
+    }
+    if (this.routingService.providerName === 'unconfigured') {
+      this.navigationMessage.set('Road route unavailable: no approved routing provider is configured.');
+      return;
+    }
+    const now = Date.now();
+    if (this.navigationRequestInFlight || now - this.lastNavigationRequestAt < 15_000) return;
+    this.navigationRequestInFlight = true;
+    this.lastNavigationRequestAt = now;
+    this.navigationMessage.set('Calculating road route…');
+    this.routingService.route({ parcelId: delivery.parcelId, origin: [location.latitude, location.longitude], recordedAt: location.recordedAt }).pipe(
+      takeUntil(this.mapStop$),
+      catchError(() => {
+        this.navigationMessage.set('Road route unavailable. Use the validated external navigation link.');
+        return EMPTY;
+      }),
+    ).subscribe({
+      next: route => {
+        if (this.navigationActive()) {
+          this.navigationRoute.set(route);
+          this.navigationMessage.set('Road route ready.');
+        }
+      },
+      complete: () => { this.navigationRequestInFlight = false; },
+    });
+  }
+
+  private updateNavigationHeading(location: CourierLocation): void {
+    const previous = this.previousNavigationLocation;
+    this.previousNavigationLocation = location;
+    if (!previous) return;
+    const distance = this.distanceMeters(previous.latitude, previous.longitude, location.latitude, location.longitude);
+    if (distance < Math.max(10, location.accuracyMeters)) return;
+    const dLon = (location.longitude - previous.longitude) * Math.PI / 180;
+    const lat1 = previous.latitude * Math.PI / 180;
+    const lat2 = location.latitude * Math.PI / 180;
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    this.navigationHeading.set((Math.atan2(y, x) * 180 / Math.PI + 360) % 360);
+  }
+
+  private distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const earth = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return earth * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  locationState(parcelId: string): string {
+    return this.locationStates.get(parcelId) ?? 'Not sharing';
+  }
+
+  toggleLocationSharing(parcelId: string): void {
+    if (this.sharingParcelId() === parcelId) {
+      this.locationService.stop();
+      this.sharingParcelId.set(null);
+      this.locationStates.set(parcelId, 'Stopped');
+      return;
+    }
+    this.locationService.stop();
+    this.sharingParcelId.set(parcelId);
+    this.locationStates.set(parcelId, 'Starting…');
+    this.locationService.start(parcelId, state => this.locationStates.set(parcelId, state), message => {
+      this.locationStates.set(parcelId, message);
+      this.sharingParcelId.set(null);
+    });
+  }
+
   selectTrackingParcel(delivery: CourierDelivery): void {
+    this.mapStop$.next();
+    this.stopNavigation();
     this.selectedTrackingDelivery.set(delivery);
     this.trackingSearchNumber.set(delivery.trackingNumber);
     this.trackingSearchError.set(null);
+    this.selectedMapDelivery.set(delivery);
+    this.mapPickup.set(null);
+    this.mapDestination.set(null);
+    this.mapLocation.set(null);
+    this.mapLocationLabel.set('Loading verified parcel coordinates…');
+    this.trackingApi.parcel(delivery.parcelId).pipe(
+      takeUntil(this.mapStop$),
+      catchError(() => {
+        this.mapLocationLabel.set('Parcel coordinates are unavailable or access was denied.');
+        return EMPTY;
+      }),
+    ).subscribe((parcel) => {
+      const pickup = parcel.pickupAddress;
+      const destination = parcel.dropoffAddress;
+      this.mapPickup.set(pickup.latitude != null && pickup.longitude != null ? [pickup.latitude, pickup.longitude] : null);
+      this.mapDestination.set(destination.latitude != null && destination.longitude != null ? [destination.latitude, destination.longitude] : null);
+      this.mapLocationLabel.set('Waiting for courier GPS…');
+      timer(0, 10000).pipe(
+        switchMap(() => this.trackingApi.latestLocation(delivery.parcelId)),
+        catchError(() => { this.mapLocationLabel.set('Courier GPS unavailable or outdated.'); return EMPTY; }),
+        takeUntil(this.mapStop$),
+      ).subscribe((location) => {
+        this.mapLocation.set(location);
+        this.mapLocationLabel.set('Location live');
+        this.updateNavigationHeading(location);
+        if (this.navigationActive()) this.requestNavigationRoute(location);
+      });
+    });
   }
 
   performTrackingSearch(term?: string): void {

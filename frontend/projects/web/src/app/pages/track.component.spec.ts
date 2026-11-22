@@ -71,6 +71,31 @@ describe('TrackComponent (public tracking page)', () => {
     expect(rows().filter((li) => li.getAttribute('data-state') === 'pending')).toHaveLength(3);
   });
 
+  it('loads the selected courier delivery from /track navigation state', async () => {
+    const router = TestBed.inject(Router);
+    await router.navigate(['/track'], { state: { selectedParcelId: 'parcel-1', selectedTrackingNumber: TN } });
+
+    const parcelRequest = http.expectOne('/api/v1/parcels/parcel-1');
+    parcelRequest.flush({
+      id: 'parcel-1',
+      trackingNumber: TN,
+      status: 'IN_TRANSIT',
+      pickupAddress: { line1: 'Pickup', city: 'Colombo', district: 'Colombo', postalCode: '00100', latitude: 6.9271, longitude: 79.8612 },
+      dropoffAddress: { line1: 'Dropoff', city: 'Kandy', district: 'Kandy', postalCode: '20000', latitude: 7.2906, longitude: 80.6337 },
+      recipientName: 'Recipient',
+      weightKg: 1,
+      size: 'SMALL',
+      fee: 100,
+      createdAt: '2026-11-04T08:00:00Z',
+      updatedAt: '2026-11-04T09:00:00Z',
+    });
+    http.expectOne(`/api/v1/tracking/${TN}`).flush({ ...lookup(TN, 'IN_TRANSIT'), parcelId: 'parcel-1' });
+    harness.detectChanges();
+
+    expect(text('tracking-number')).toBe(TN);
+    expect(text('current-status')).toBe('In transit');
+  });
+
   it('connects the stream for this parcel and only says Live once it is open', async () => {
     await open(TN);
     expect(FakeEventSource.latest().url).toBe(`/api/v1/tracking/${TN}/stream`);

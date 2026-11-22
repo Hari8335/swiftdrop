@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { CourierComponent } from './courier.component';
 import { CourierService } from './courier/courier.service';
@@ -12,6 +13,7 @@ describe('CourierComponent', () => {
   let component: CourierComponent;
   let fixture: ComponentFixture<CourierComponent>;
   let httpMock: HttpTestingController;
+  let router: { navigate: jest.Mock };
 
   const mockDeliveriesResponse: CourierDeliveriesResponse = {
     date: '2026-10-28',
@@ -83,12 +85,14 @@ describe('CourierComponent', () => {
   };
 
   beforeEach(async () => {
+    router = { navigate: jest.fn().mockResolvedValue(true) };
     await TestBed.configureTestingModule({
       imports: [CourierComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         CourierService,
+        { provide: Router, useValue: router },
         { provide: NotificationService, useValue: mockNotificationService },
       ],
     }).compileComponents();
@@ -122,6 +126,48 @@ describe('CourierComponent', () => {
     expect(component.stats().delivered).toBe(1);
     expect(component.stats().created).toBe(1);
     expect(component.stats().outForDelivery).toBe(1);
+  });
+
+  it('opens the selected delivery in the internal courier tracking tab without changing the shell', () => {
+    const delivery = component.filteredDeliveries()[0];
+
+    component.openDeliveryMap(delivery);
+
+    const parcelReq = httpMock.expectOne(`/api/v1/parcels/${delivery.parcelId}`);
+    parcelReq.flush({
+      id: delivery.parcelId,
+      trackingNumber: delivery.trackingNumber,
+      status: delivery.status,
+      pickupAddress: { line1: 'Pickup', city: 'Colombo', district: 'Colombo', postalCode: '00200', latitude: 6.9271, longitude: 79.8612 },
+      dropoffAddress: { line1: 'Dropoff', city: 'Colombo', district: 'Colombo', postalCode: '00400', latitude: 6.9147, longitude: 79.8737 },
+      recipientName: delivery.recipientName,
+      weightKg: delivery.weightKg,
+      size: 'SMALL',
+      fee: 100,
+      createdAt: '2026-10-28T10:00:00Z',
+      updatedAt: '2026-10-28T10:00:00Z',
+    });
+    expect(component.activeTab()).toBe('tracking');
+    expect(component.selectedMapDelivery()?.parcelId).toBe(delivery.parcelId);
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the courier sidebar on /courier and activates the internal tracking section', () => {
+    fixture.nativeElement.querySelector('#tab-tracking-btn').click();
+    fixture.detectChanges();
+    expect(component.activeTab()).toBe('tracking');
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('#courier-tracking-panel')).toBeTruthy();
+  });
+
+  it('uses the established admin sidebar rail styling without changing courier navigation', () => {
+    const sidebar = fixture.nativeElement.querySelector('[aria-label="Courier sidebar"]') as HTMLElement;
+    const main = fixture.nativeElement.querySelector('main') as HTMLElement;
+    expect(sidebar.className).toContain('w-20');
+    expect(sidebar.className).toContain('hover:w-[272px]');
+    expect(sidebar.className).toContain('lg:flex');
+    expect(main.className).toContain('lg:ml-20');
+    expect(sidebar.textContent).toContain('Live Tracking');
   });
 
   it('loads and displays the authenticated courier profile in the dashboard header', () => {
@@ -427,7 +473,22 @@ describe('CourierComponent', () => {
 
     const delivery = mockDeliveriesResponse.deliveries[0];
     component.selectTrackingParcel(delivery);
+    const parcelReq = httpMock.expectOne(`/api/v1/parcels/${delivery.parcelId}`);
+    parcelReq.flush({
+      id: delivery.parcelId,
+      trackingNumber: delivery.trackingNumber,
+      status: delivery.status,
+      pickupAddress: { line1: 'Pickup', city: 'Colombo', district: 'Colombo', postalCode: '00200', latitude: 6.9271, longitude: 79.8612 },
+      dropoffAddress: { line1: 'Dropoff', city: 'Colombo', district: 'Colombo', postalCode: '00400', latitude: 6.9147, longitude: 79.8737 },
+      recipientName: delivery.recipientName,
+      weightKg: delivery.weightKg,
+      size: 'SMALL',
+      fee: 100,
+      createdAt: '2026-10-28T10:00:00Z',
+      updatedAt: '2026-10-28T10:00:00Z',
+    });
     expect(component.selectedTrackingDelivery()?.trackingNumber).toBe(delivery.trackingNumber);
+    expect(component.selectedMapDelivery()?.parcelId).toBe(delivery.parcelId);
     expect(component.trackingSearchNumber()).toBe(delivery.trackingNumber);
 
     component.performTrackingSearch('SD-20261028-002');

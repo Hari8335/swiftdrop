@@ -61,8 +61,8 @@ class ParcelQueryServiceIntegrationTest {
         p.setStatus(ParcelStatus.PICKED_UP);
         p.setCustomerId(OWNER);
         p.setCourierId(COURIER);
-        p.setPickupAddress(AddressSnapshot.from(new AddressDto("45 Galle Road", null, "Colombo 03", "Colombo", "00300")));
-        p.setDropoffAddress(AddressSnapshot.from(new AddressDto("12 Temple Road", null, "Kandy", "Kandy", "20000")));
+        p.setPickupAddress(AddressSnapshot.from(new AddressDto("45 Galle Road", null, "Colombo 03", "Colombo", "00300", 6.9271, 79.8612)));
+        p.setDropoffAddress(AddressSnapshot.from(new AddressDto("12 Temple Road", null, "Kandy", "Kandy", "20000", 7.2906, 80.6337)));
         p.setWeightKg(new BigDecimal("2.50"));
         p.setSize(ParcelSize.MEDIUM);
         p.setFee(new BigDecimal("750.00"));
@@ -90,6 +90,8 @@ class ParcelQueryServiceIntegrationTest {
                     assertThat(found.id()).isEqualTo(parcel.getId());
                     assertThat(found.status()).isEqualTo(ParcelStatus.PICKED_UP);
                     assertThat(found.dropoffAddress().district()).isEqualTo("Kandy");
+                    assertThat(found.pickupAddress().latitude()).isEqualTo(6.9271);
+                    assertThat(found.dropoffAddress().longitude()).isEqualTo(80.6337);
                 });
         assertThat(queryService.findByTrackingNumber("SD-20990101-NOPE00")).isEmpty();
     }

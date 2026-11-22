@@ -40,6 +40,12 @@ public class Address {
     @Column(name = "postal_code", nullable = false, length = 20)
     private String postalCode;
 
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;
 

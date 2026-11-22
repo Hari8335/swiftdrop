@@ -63,7 +63,7 @@ class TrackingMapperTest {
                 new PublicTimelineEntry(ParcelStatus.IN_TRANSIT, T2));
         assertThat(view.toString())
                 .doesNotContain("Temple Road", "Flat 2", "20000", "+9477", "750", "cust-1", "courier-1",
-                        "Parcel order created", "Leave at the gate", "7e9b3a24");
+                        "Parcel order created", "Leave at the gate");
     }
 
     @Test

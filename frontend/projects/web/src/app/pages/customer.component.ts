@@ -20,6 +20,7 @@ import {
 } from './customer/customer.model';
 import { CustomerService } from './customer/customer.service';
 import { CustomerToastService } from './customer/customer-toast.service';
+import { CoordinatePickerComponent } from './customer/coordinate-picker.component';
 
 /** Rows per page in the "Your recent deliveries" table. */
 const RECENT_DELIVERIES_PAGE_SIZE = 10;
@@ -30,7 +31,7 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
 @Component({
   selector: 'app-customer',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent, CustomerChangePasswordComponent],
+  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent, CustomerChangePasswordComponent, CoordinatePickerComponent],
   template: `
     <!-- Full-Screen Customer Dashboard Layout -->
     <div class="w-full min-h-screen flex flex-col md:flex-row bg-white">
@@ -480,6 +481,14 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                         }
                       </select>
                     </div>
+                    <div class="pt-2">
+                      <p class="mb-2 text-[#3a384e]">Verified pickup point (optional)</p>
+                      <app-coordinate-picker
+                        [latitude]="wizardData.pickupAddress.latitude ?? null"
+                        [longitude]="wizardData.pickupAddress.longitude ?? null"
+                        (coordinatesChange)="setCoordinates('pickup', $event)"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -560,6 +569,14 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                         <option [value]="d">{{ d }}</option>
                         }
                       </select>
+                    </div>
+                    <div class="pt-2">
+                      <p class="mb-2 text-[#3a384e]">Verified dropoff point (optional)</p>
+                      <app-coordinate-picker
+                        [latitude]="wizardData.dropoffAddress.latitude ?? null"
+                        [longitude]="wizardData.dropoffAddress.longitude ?? null"
+                        (coordinatesChange)="setCoordinates('dropoff', $event)"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1952,6 +1969,12 @@ export class CustomerComponent implements OnInit {
       }
       this.updateFeePreview();
     }
+  }
+
+  setCoordinates(kind: 'pickup' | 'dropoff', coordinates: { latitude: number | null; longitude: number | null }): void {
+    const address = kind === 'pickup' ? this.wizardData.pickupAddress : this.wizardData.dropoffAddress;
+    address.latitude = coordinates.latitude;
+    address.longitude = coordinates.longitude;
   }
 
   isStep1Valid(): boolean {

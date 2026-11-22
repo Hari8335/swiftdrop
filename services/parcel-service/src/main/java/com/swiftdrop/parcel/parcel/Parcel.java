@@ -42,7 +42,9 @@ public class Parcel {
             @AttributeOverride(name = "line2", column = @Column(name = "pickup_line2")),
             @AttributeOverride(name = "city", column = @Column(name = "pickup_city", nullable = false)),
             @AttributeOverride(name = "district", column = @Column(name = "pickup_district", nullable = false)),
-            @AttributeOverride(name = "postalCode", column = @Column(name = "pickup_postal_code", nullable = false))
+            @AttributeOverride(name = "postalCode", column = @Column(name = "pickup_postal_code", nullable = false)),
+            @AttributeOverride(name = "latitude", column = @Column(name = "pickup_latitude")),
+            @AttributeOverride(name = "longitude", column = @Column(name = "pickup_longitude"))
     })
     private AddressSnapshot pickupAddress;
 
@@ -52,7 +54,9 @@ public class Parcel {
             @AttributeOverride(name = "line2", column = @Column(name = "dropoff_line2")),
             @AttributeOverride(name = "city", column = @Column(name = "dropoff_city", nullable = false)),
             @AttributeOverride(name = "district", column = @Column(name = "dropoff_district", nullable = false)),
-            @AttributeOverride(name = "postalCode", column = @Column(name = "dropoff_postal_code", nullable = false))
+            @AttributeOverride(name = "postalCode", column = @Column(name = "dropoff_postal_code", nullable = false)),
+            @AttributeOverride(name = "latitude", column = @Column(name = "dropoff_latitude")),
+            @AttributeOverride(name = "longitude", column = @Column(name = "dropoff_longitude"))
     })
     private AddressSnapshot dropoffAddress;
 

@@ -1,3 +1,33 @@
+@import 'leaflet/dist/leaflet.css';
+
+.swiftdrop-map-marker {
+  background: transparent;
+  border: 0;
+}
+
+.swiftdrop-map-marker span {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #fff;
+  border-radius: 9999px;
+  box-shadow: 0 1px 5px rgba(29, 27, 44, 0.35);
+}
+
+.swiftdrop-map-marker-pickup span { background: #2563eb; }
+.swiftdrop-map-marker-destination span { background: #a53a26; }
+.swiftdrop-map-marker-courier span {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 18px solid #2563eb;
+  border-radius: 0;
+  background: transparent;
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

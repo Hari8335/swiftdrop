@@ -359,9 +359,10 @@ class TrackingEndToEndIntegrationTest {
         List<String> fieldNames = new ArrayList<>();
         body.fieldNames().forEachRemaining(fieldNames::add);
         assertThat(fieldNames).containsExactlyInAnyOrder(
-                "trackingNumber", "status", "recipientNameMasked", "dropoffDistrict", "lastUpdatedAt", "timeline");
+                "parcelId", "trackingNumber", "status", "recipientNameMasked", "dropoffDistrict", "lastUpdatedAt", "timeline",
+                "pickupLatitude", "pickupLongitude", "dropoffLatitude", "dropoffLongitude");
         assertThat(response.body()).doesNotContain("Temple Road", "Flat 2", "20000", "Galle Road", "+9477",
-                "Gate code", "Sunil", OWNER, COURIER, parcel.getId());
+                "Gate code", "Sunil", OWNER, COURIER);
     }
 
     @Test

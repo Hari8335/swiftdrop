@@ -112,6 +112,8 @@ class TrackingIntegrationTest {
                 .andExpect(jsonPath("$.recipientNameMasked", is("S*** S***")))
                 .andExpect(jsonPath("$.dropoffDistrict", is("Kandy")))
                 .andExpect(jsonPath("$.lastUpdatedAt", is("2026-10-28T09:00:00Z")))
+                .andExpect(jsonPath("$.parcelId").isNotEmpty())
+                .andExpect(jsonPath("$.pickupLatitude").doesNotExist())
                 .andExpect(jsonPath("$.timeline", hasSize(2)))
                 .andExpect(jsonPath("$.timeline[0].status", is("CREATED")))
                 .andExpect(jsonPath("$.timeline[1].status", is("PICKED_UP")))
@@ -119,7 +121,7 @@ class TrackingIntegrationTest {
 
         assertThat(body)
                 .doesNotContain("Temple Road", "Flat 2", "20000", "Galle Road", "+9477", "750", "Leave at the gate",
-                        OWNER, COURIER, parcel.getId(), "Parcel order created", "Sunil", "sequence", "reason");
+                        OWNER, COURIER, "Parcel order created", "Sunil", "sequence", "reason");
     }
 
     @Test

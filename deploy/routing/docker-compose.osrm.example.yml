@@ -1,0 +1,26 @@
+# Optional OSRM-only stack. This file is intentionally not included by deploy/docker-compose.yml.
+# Activate only after routing approval, resource validation, and dataset preparation.
+services:
+  osrm:
+    image: ${OSRM_IMAGE:?Pin an approved OSRM image tag or digest before activation}
+    profiles: [routing]
+    command: ["osrm-routed", "--algorithm", "mld", "/data/sri-lanka.osrm"]
+    volumes:
+      - ${OSRM_DATA_DIR:?Provide a prepared OSRM data directory}:/data:ro
+    ports:
+      - "127.0.0.1:${OSRM_HOST_PORT:-5000}:5000"
+    mem_limit: ${OSRM_MEM_LIMIT:-4g}
+    cpus: ${OSRM_CPUS:-4}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:5000/route/v1/driving/79.8612,6.9271;79.8737,6.9147?overview=false"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - swiftdrop-routing
+
+networks:
+  swiftdrop-routing:
+    name: ${OSRM_NETWORK_NAME:-swiftdrop-m9-courier-qa_default}
+    external: true

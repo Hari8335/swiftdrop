@@ -15,9 +15,11 @@ import java.math.BigDecimal;
 public class ParcelController {
 
     private final ParcelService parcelService;
+    private final ParcelQueryService parcelQueryService;
 
-    public ParcelController(ParcelService parcelService) {
+    public ParcelController(ParcelService parcelService, ParcelQueryService parcelQueryService) {
         this.parcelService = parcelService;
+        this.parcelQueryService = parcelQueryService;
     }
 
     @PostMapping
@@ -51,8 +53,7 @@ public class ParcelController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ParcelResponse> getParcel(@PathVariable String id) {
-        String customerId = CurrentUser.require().userId();
-        return ResponseEntity.ok(parcelService.getParcel(id, customerId, false));
+        return ResponseEntity.ok(parcelQueryService.getAccessibleParcel(id, CurrentUser.require()));
     }
 
     @PostMapping("/{id}/cancel")
