@@ -1,17 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { Component, input, output, signal } from '@angular/core';
+import { Component, inject, input, output, signal } from '@angular/core';
 import { ButtonComponent, CardComponent, StatusBadgeComponent } from 'ui';
 import { MerchantApiCredentials } from './merchant.model';
+import { MerchantNotificationsService } from './merchant-notifications.service';
 
 @Component({
   selector: 'app-merchant-credentials',
   standalone: true,
   imports: [CommonModule, CardComponent, ButtonComponent, StatusBadgeComponent],
   template: `
-    <main class="mx-auto max-w-4xl space-y-6">
+    <section class="mx-auto w-full max-w-7xl min-w-0 space-y-6" aria-labelledby="merchant-api-credentials-title">
       <!-- Section Header -->
       <div>
-        <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
+        <h1 id="merchant-api-credentials-title" class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
           API Credentials & Authentication
         </h1>
         <p class="text-xs text-[#6f6d85] font-medium mt-1">
@@ -40,7 +41,7 @@ import { MerchantApiCredentials } from './merchant.model';
               Your merchant registration is awaiting administrator approval. An administrator will securely hand over your API credentials after approval.
             </div>
           } @else {
-            <div class="space-y-6 pt-2">
+            <div class="grid grid-cols-1 xl:grid-cols-2 items-start gap-4 pt-2">
               <!-- Client ID Row -->
               <div class="p-4 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] space-y-2">
                 <div class="flex items-center justify-between">
@@ -105,7 +106,7 @@ import { MerchantApiCredentials } from './merchant.model';
 
               @if (showTokenRequest()) {
                 <!-- Token Request Guide -->
-                <div class="rounded-2xl border border-[#eee7e0] p-5 bg-white space-y-3">
+                <div class="xl:col-span-2 rounded-2xl border border-[#eee7e0] p-5 bg-white space-y-3">
                   <div class="flex items-center justify-between">
                     <div>
                       <h3 class="text-xs font-black uppercase tracking-wider text-[#1d1b2c]">Token request</h3>
@@ -141,7 +142,7 @@ import { MerchantApiCredentials } from './merchant.model';
                 </div>
               }
 
-              <p class="text-xs text-slate-500 font-medium">
+              <p class="xl:col-span-2 text-xs text-slate-500 font-medium">
                 Hand over these credentials securely to the merchant. The secret cannot be retrieved again from this page.
               </p>
             </div>
@@ -192,7 +193,7 @@ import { MerchantApiCredentials } from './merchant.model';
           </div>
         }
       </ui-card>
-    </main>
+    </section>
   `,
 })
 export class MerchantCredentialsComponent {
@@ -200,9 +201,11 @@ export class MerchantCredentialsComponent {
   readonly showTokenRequest = input<boolean>(false);
   readonly secretSaved = output<void>();
   readonly copiedField = signal<string | null>(null);
+  private readonly notifications = inject(MerchantNotificationsService);
 
   hideSecret(): void {
     this.secretSaved.emit();
+    this.notifications.add('Client secret hidden', 'The one-time client secret was removed from this view.', 'info');
   }
 
   copyText(text: string | null | undefined, label: string): void {
@@ -210,8 +213,11 @@ export class MerchantCredentialsComponent {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(text).then(() => {
         this.copiedField.set(label);
+        this.notifications.add(`${label} copied`, `${label} copied to clipboard.`);
         setTimeout(() => this.copiedField.set(null), 2000);
-      });
+      }).catch(() => this.notifications.add(`${label} not copied`, 'Clipboard access was unavailable; copy the value manually.', 'error'));
+    } else {
+      this.notifications.add(`${label} not copied`, 'Clipboard access was unavailable; copy the value manually.', 'error');
     }
   }
 }
