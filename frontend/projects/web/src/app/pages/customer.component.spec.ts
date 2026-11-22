@@ -7,6 +7,7 @@ import { CustomerComponent } from './customer.component';
 import { CustomerAddress, CustomerParcel, QuoteResponse } from './customer/customer.model';
 import { CustomerService } from './customer/customer.service';
 import { CustomerToastService } from './customer/customer-toast.service';
+import { ReceiptService } from './tracking/receipt.service';
 
 describe('CustomerComponent', () => {
   let component: CustomerComponent;
@@ -190,6 +191,36 @@ describe('CustomerComponent', () => {
     expect(root.querySelector('#recent-deliveries-range')?.textContent?.replace(/\s+/g, ' ')).toContain('Showing 11–11 of 11');
     expect((root.querySelector('#parcel-page-next') as HTMLButtonElement).disabled).toBe(true);
   }));
+
+  describe('history receipt download', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+
+    it('shows a Download receipt button only on DELIVERED rows', fakeAsync(() => {
+      component.loadParcels();
+      tick(100);
+      fixture.detectChanges();
+
+      const buttons = root().querySelectorAll('app-receipt-button.history-receipt');
+      expect(buttons.length).toBe(1);
+      expect(buttons[0].getAttribute('data-parcel-id')).toBe('delivered-1');
+      expect(buttons[0].textContent).toContain('Download receipt');
+    }));
+
+    it('downloads the receipt for that parcel without opening its details', fakeAsync(() => {
+      const receipts = TestBed.inject(ReceiptService);
+      const download = jest.spyOn(receipts, 'download').mockReturnValue(of('receipt.pdf'));
+      const viewDetails = jest.spyOn(component, 'viewParcelDetails');
+      component.loadParcels();
+      tick(100);
+      fixture.detectChanges();
+
+      root().querySelector<HTMLElement>('app-receipt-button.history-receipt [data-testid="receipt-button"] button')!.click();
+      tick(100);
+
+      expect(download).toHaveBeenCalledWith('delivered-1');
+      expect(viewDetails).not.toHaveBeenCalled();
+    }));
+  });
 
   describe('history date filter', () => {
     const root = () => fixture.nativeElement as HTMLElement;

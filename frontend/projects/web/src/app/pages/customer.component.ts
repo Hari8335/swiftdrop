@@ -22,6 +22,7 @@ import {
 import { CustomerService } from './customer/customer.service';
 import { CustomerToastService } from './customer/customer-toast.service';
 import { CoordinatePickerComponent } from './customer/coordinate-picker.component';
+import { ReceiptButtonComponent } from './tracking/receipt-button.component';
 
 /** Rows per page in the "Your recent deliveries" table. */
 const RECENT_DELIVERIES_PAGE_SIZE = 10;
@@ -32,7 +33,7 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
 @Component({
   selector: 'app-customer',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent, CustomerChangePasswordComponent, CoordinatePickerComponent],
+  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent, CustomerChangePasswordComponent, CoordinatePickerComponent, ReceiptButtonComponent],
   template: `
     <!-- Full-Screen Customer Dashboard Layout -->
     <div class="w-full min-h-screen flex flex-col md:flex-row bg-white">
@@ -327,6 +328,16 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                           >
                             Cancel
                           </button>
+                          }
+                          @if (parcel.status === 'DELIVERED') {
+                          <app-receipt-button
+                            class="history-receipt"
+                            [attr.data-parcel-id]="parcel.id"
+                            [parcelId]="parcel.id"
+                            [trackingNumber]="parcel.trackingNumber"
+                            variant="secondary"
+                            size="sm"
+                          />
                           }
                           <button
                             type="button"
