@@ -1,10 +1,11 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, forkJoin, map, switchMap } from 'rxjs';
 import {
   CreateCustomerParcelRequest,
   CustomerAddress,
   CustomerParcel,
+  CustomerParcelCounts,
   CustomerParcelPage,
   District,
   ParcelDateRange,
@@ -112,6 +113,27 @@ export class CustomerService {
       params = params.set('to', dateRange.to);
     }
     return this.http.get<CustomerParcelPage>('/api/v1/parcels', { params });
+  }
+
+  /**
+   * Dashboard totals across all the customer's parcels. Uses the history API's totalElements
+   * (one row per status), so no extra backend endpoint is needed.
+   */
+  getParcelCounts(): Observable<CustomerParcelCounts> {
+    const total = (status: ParcelStatus) => this.listParcels(status, 0, 1).pipe(map((page) => page.totalElements));
+    return forkJoin({
+      created: total('CREATED'),
+      pickedUp: total('PICKED_UP'),
+      inTransit: total('IN_TRANSIT'),
+      outForDelivery: total('OUT_FOR_DELIVERY'),
+      delivered: total('DELIVERED'),
+    }).pipe(
+      map((t) => ({
+        created: t.created,
+        inTransit: t.pickedUp + t.inTransit + t.outForDelivery,
+        delivered: t.delivered,
+      }))
+    );
   }
 
   getParcel(id: string): Observable<CustomerParcel | undefined> {

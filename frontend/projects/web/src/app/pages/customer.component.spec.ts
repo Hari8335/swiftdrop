@@ -624,34 +624,62 @@ describe('CustomerComponent', () => {
     const summaryText = () =>
       (fixture.nativeElement as HTMLElement).querySelector('.hero-summary-card')!.textContent!.replace(/\s+/g, ' ');
 
+    const totals = (counts: { created: number; inTransit: number; delivered: number }) =>
+      jest.spyOn(customerService, 'getParcelCounts').mockReturnValue(of(counts));
+
     it('shows 0 and the "no active shipments" message when every parcel is cancelled or delivered', () => {
-      component.parcels.set([
-        { ...mockCreatedParcel, id: 'c1', status: 'CANCELLED' },
-        { ...mockCreatedParcel, id: 'c2', status: 'CANCELLED' },
-        { ...mockCreatedParcel, id: 'd1', status: 'DELIVERED' },
-      ]);
+      totals({ created: 0, inTransit: 0, delivered: 1 });
+      component.loadParcelCounts();
       fixture.detectChanges();
 
       expect(component.activeDeliveriesCount()).toBe(0);
-      expect(summaryText()).toContain('0 in delivery today');
+      expect(summaryText()).toContain('0 in delivery');
       expect(summaryText()).toContain('No active shipments');
     });
 
     it('shows 0 when the customer has no parcels at all', () => {
-      component.parcels.set([]);
+      totals({ created: 0, inTransit: 0, delivered: 0 });
+      component.loadParcelCounts();
       expect(component.activeDeliveriesCount()).toBe(0);
     });
 
     it('counts only parcels that are still moving', () => {
-      component.parcels.set([
-        { ...mockCreatedParcel, id: 'a', status: 'CREATED' },
-        { ...mockCreatedParcel, id: 'b', status: 'PICKED_UP' },
-        { ...mockCreatedParcel, id: 'c', status: 'IN_TRANSIT' },
-        { ...mockCreatedParcel, id: 'd', status: 'OUT_FOR_DELIVERY' },
-        { ...mockCreatedParcel, id: 'e', status: 'CANCELLED' },
-        { ...mockCreatedParcel, id: 'f', status: 'DELIVERED' },
-      ]);
+      totals({ created: 1, inTransit: 3, delivered: 1 });
+      component.loadParcelCounts();
       expect(component.activeDeliveriesCount()).toBe(4);
+    });
+
+    it('shows Created, In transit and Delivered totals', () => {
+      totals({ created: 2, inTransit: 5, delivered: 12 });
+      component.loadParcelCounts();
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+
+      expect(root.querySelector('#count-created')!.textContent!.trim()).toBe('2');
+      expect(root.querySelector('#count-in-transit')!.textContent!.trim()).toBe('5');
+      expect(root.querySelector('#count-delivered')!.textContent!.trim()).toBe('12');
+      expect(summaryText()).toContain('7 in delivery');
+    });
+
+    it('does not change with the table page or status filter shown below', () => {
+      totals({ created: 2, inTransit: 5, delivered: 12 });
+      component.loadParcelCounts();
+
+      component.parcels.set([{ ...mockCreatedParcel, id: 'only-one', status: 'DELIVERED' }]);
+      component.selectedStatusFilter.set('DELIVERED');
+
+      expect(component.activeDeliveriesCount()).toBe(7);
+    });
+
+    it('loads the totals on start and refreshes them after a cancellation', () => {
+      const getCounts = totals({ created: 1, inTransit: 0, delivered: 0 });
+      component.ngOnInit();
+      expect(getCounts).toHaveBeenCalledTimes(1);
+
+      jest.spyOn(customerService, 'cancelParcel').mockReturnValue(of({ ...mockCreatedParcel, status: 'CANCELLED' }));
+      component.cancelParcel(mockCreatedParcel.id);
+
+      expect(getCounts).toHaveBeenCalledTimes(2);
     });
   });
 

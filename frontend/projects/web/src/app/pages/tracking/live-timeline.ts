@@ -1,5 +1,5 @@
 import { computed, signal } from '@angular/core';
-import { ParcelStatus, PublicTrackingEvent, TimelineItem } from './tracking.model';
+import { ParcelStatus, PublicTrackingEvent, PublicTrackingResponse, TimelineItem } from './tracking.model';
 
 /**
  * Timeline state of one parcel: the history loaded over REST plus live stream events.
@@ -49,6 +49,33 @@ export class LiveTimeline {
     this._lastUpdatedAt.set(null);
     this._lastUpdateLive.set(false);
     this.lastSequence = 0;
+  }
+
+  /**
+   * Merges a polled public lookup (used when the live stream is unavailable). Only entries newer
+   * than the last row are added, so rows loaded with more detail (e.g. reasons) are kept.
+   * @returns true when the timeline changed
+   */
+  applySnapshot(snapshot: PublicTrackingResponse): boolean {
+    if (snapshot.trackingNumber !== this._trackingNumber()) {
+      return false;
+    }
+    const last = this._items().at(-1);
+    const lastTime = last ? Date.parse(last.occurredAt) : Number.NEGATIVE_INFINITY;
+    const newer = snapshot.timeline
+      .filter((entry) => Date.parse(entry.occurredAt) > lastTime)
+      .sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt));
+    if (newer.length === 0 && snapshot.status === this._status()) {
+      return false;
+    }
+    this._status.set(snapshot.status);
+    if (newer.length > 0) {
+      this._items.update((items) => [...items, ...newer.map((e) => ({ status: e.status, occurredAt: e.occurredAt }))]);
+    }
+    this._lastUpdatedAt.set(snapshot.lastUpdatedAt ?? newer.at(-1)?.occurredAt ?? this._lastUpdatedAt());
+    this._lastUpdateLive.set(true);
+    this._revision.update((n) => n + 1);
+    return true;
   }
 
   /** @returns true when the event added a timeline row */
