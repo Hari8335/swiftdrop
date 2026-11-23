@@ -26,6 +26,9 @@ import java.util.StringJoiner;
 
 /**
  * Builds the one-page receipt PDF with OpenPDF (docs/tracking-design.md section 8).
+ * Layout, in the SwiftDrop brand colours: header band, summary cards (tracking number with the
+ * Delivered badge, amount paid), route (pickup, drop-off, recipient), parcel details, charges with
+ * the total, and a footer. Only built-in Helvetica is used for Latin text, so receipts stay small.
  * Table cells wrap long text, and missing optional values are shown as a dash.
  * Values in Sinhala or Tamil use the bundled Noto fonts (ReceiptFonts); Latin text stays Helvetica.
  */
@@ -62,7 +65,7 @@ class ReceiptPdfRenderer {
     private final Font section = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INK);
     private final Font label = FontFactory.getFont(FontFactory.HELVETICA, 10, MUTED);
     private final Font value = FontFactory.getFont(FontFactory.HELVETICA, 10, INK);
-    private final Font strong = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, INK);
+    private final Font thanks = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, INK);
     private final Font footer = FontFactory.getFont(FontFactory.HELVETICA, 8, MUTED);
 
     byte[] render(ReceiptData data) {
@@ -91,11 +94,7 @@ class ReceiptPdfRenderer {
 
             addSection(document, "Charges", charges(data, size));
 
-            Paragraph generated = new Paragraph(
-                    "Generated " + date(data.generatedAt()) + " (Sri Lanka time). "
-                            + "This receipt confirms the delivery of the parcel above.", footer);
-            generated.setSpacingBefore(14);
-            document.add(generated);
+            document.add(footer(data));
 
             document.close();
         } catch (RuntimeException e) {
@@ -301,7 +300,7 @@ class ReceiptPdfRenderer {
     private void row(ReceiptFonts fonts, PdfPTable table, String name, String content, Font font) {
         boolean striped = (table.size() % 2) == 1;
         PdfPCell labelCell = cell(new Phrase(name, label));
-        PdfPCell valueCell = cell(fonts.phrase(content, font, font == strong));
+        PdfPCell valueCell = cell(fonts.phrase(content, font, false));
         if (striped) {
             labelCell.setBackgroundColor(SURFACE);
             valueCell.setBackgroundColor(SURFACE);
@@ -352,9 +351,24 @@ class ReceiptPdfRenderer {
         return cell;
     }
 
-    private static Paragraph spacer(float height) {
-        Paragraph spacer = new Paragraph(" ");
-        spacer.setSpacingAfter(height);
-        return spacer;
+    /** Divider, thank-you line, when the receipt was generated, and that no signature is needed. */
+    private PdfPTable footer(ReceiptData data) {
+        PdfPTable footerTable = new PdfPTable(1);
+        footerTable.setWidthPercentage(100);
+        footerTable.setSpacingBefore(16);
+        PdfPCell cell = new PdfPCell();
+        cell.setBorder(PdfPCell.TOP);
+        cell.setBorderColor(RULE);
+        cell.setPaddingTop(10);
+        cell.setPaddingLeft(0);
+        cell.addElement(new Paragraph("Thank you for shipping with SwiftDrop.", thanks));
+        Paragraph generated = new Paragraph(
+                "Generated " + date(data.generatedAt()) + " (Sri Lanka time). "
+                        + "This receipt confirms the delivery of the parcel above.", footer);
+        generated.setSpacingBefore(4);
+        cell.addElement(generated);
+        cell.addElement(new Paragraph("Computer-generated receipt; no signature required.", footer));
+        footerTable.addCell(cell);
+        return footerTable;
     }
 }
