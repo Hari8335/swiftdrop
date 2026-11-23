@@ -11,7 +11,6 @@ const TN = 'SD-20261104-A1B2C3';
 /** A public lookup result for TN with the given current status. */
 function snapshot(status: ParcelStatus, timeline = [{ status, occurredAt: '2026-11-04T12:00:00Z' }]): PublicTrackingResponse {
   return {
-    parcelId: 'p-1',
     trackingNumber: TN,
     status,
     recipientNameMasked: 'S*** S***',

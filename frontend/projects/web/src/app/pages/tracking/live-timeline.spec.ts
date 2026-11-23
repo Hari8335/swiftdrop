@@ -82,7 +82,6 @@ describe('LiveTimeline', () => {
 describe('LiveTimeline.applySnapshot (polling fallback)', () => {
   let timeline: LiveTimeline;
   const lookup = (status: ParcelStatus, timeline: PublicTimelineEntry[], trackingNumber = TN): PublicTrackingResponse => ({
-    parcelId: 'p-1',
     trackingNumber,
     status,
     recipientNameMasked: 'S*** S***',
