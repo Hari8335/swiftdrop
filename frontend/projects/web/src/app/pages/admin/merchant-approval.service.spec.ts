@@ -45,6 +45,18 @@ describe('MerchantApprovalService', () => {
     httpMock.expectOne('/api/v1/admin/merchants?status=APPROVED&page=0&size=20').flush(page);
   });
 
+  it('omits the optional status filter when listing all merchants and keeps it across refresh', () => {
+    service.loadMerchants(0, 20, 'ALL').subscribe();
+    httpMock.expectOne('/api/v1/admin/merchants?page=0&size=20').flush(page);
+    service.refresh().subscribe();
+    httpMock.expectOne('/api/v1/admin/merchants?page=0&size=20').flush(page);
+  });
+
+  it('loads rejected merchants with the rejected status filter', () => {
+    service.loadMerchants(0, 20, 'REJECTED').subscribe();
+    httpMock.expectOne('/api/v1/admin/merchants?status=REJECTED&page=0&size=20').flush(page);
+  });
+
   it('loads pending merchants using contract pagination', () => {
     service.loadMerchants(1, 10).subscribe();
     const request = httpMock.expectOne('/api/v1/admin/merchants?status=PENDING&page=1&size=10');
