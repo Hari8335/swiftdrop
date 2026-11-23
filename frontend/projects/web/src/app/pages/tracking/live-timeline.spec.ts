@@ -1,5 +1,6 @@
 import { LiveTimeline } from './live-timeline';
 import { statusEvent } from './testing';
+import { ParcelStatus, PublicTimelineEntry, PublicTrackingResponse } from './tracking.model';
 
 const TN = 'SD-20261104-A1B2C3';
 
@@ -75,5 +76,57 @@ describe('LiveTimeline', () => {
     expect(timeline.apply(statusEvent(TN, 9, 'DELIVERED'))).toBe(false);
     expect(timeline.items()).toEqual([]);
     expect(timeline.status()).toBeNull();
+  });
+});
+
+describe('LiveTimeline.applySnapshot (polling fallback)', () => {
+  let timeline: LiveTimeline;
+  const lookup = (status: ParcelStatus, timeline: PublicTimelineEntry[], trackingNumber = TN): PublicTrackingResponse => ({
+    parcelId: 'p-1',
+    trackingNumber,
+    status,
+    recipientNameMasked: 'S*** S***',
+    dropoffDistrict: 'Kandy',
+    lastUpdatedAt: timeline.at(-1)!.occurredAt,
+    timeline,
+  });
+  const created = { status: 'CREATED' as const, occurredAt: '2026-11-04T08:00:00Z' };
+  const pickedUp = { status: 'PICKED_UP' as const, occurredAt: '2026-11-04T09:00:00Z' };
+  const inTransit = { status: 'IN_TRANSIT' as const, occurredAt: '2026-11-04T10:00:00Z' };
+
+  beforeEach(() => {
+    timeline = new LiveTimeline();
+    // Loaded from the owner's history, with a reason the public lookup does not carry.
+    timeline.reset(TN, 'PICKED_UP', [created, { ...pickedUp, reason: 'Collected at depot' }], pickedUp.occurredAt);
+  });
+
+  it('adds only the entries newer than the last row and keeps loaded details', () => {
+    const changed = timeline.applySnapshot(lookup('IN_TRANSIT', [created, pickedUp, inTransit]));
+
+    expect(changed).toBe(true);
+    expect(timeline.status()).toBe('IN_TRANSIT');
+    expect(timeline.items().map((i) => i.status)).toEqual(['CREATED', 'PICKED_UP', 'IN_TRANSIT']);
+    expect(timeline.items()[1].reason).toBe('Collected at depot');
+    expect(timeline.lastUpdatedAt()).toBe(inTransit.occurredAt);
+    expect(timeline.lastUpdateLive()).toBe(true);
+  });
+
+  it('changes nothing when the lookup has nothing new', () => {
+    const revision = timeline.revision();
+
+    expect(timeline.applySnapshot(lookup('PICKED_UP', [created, pickedUp]))).toBe(false);
+    expect(timeline.items()).toHaveLength(2);
+    expect(timeline.revision()).toBe(revision);
+  });
+
+  it('ignores a lookup for another parcel', () => {
+    expect(timeline.applySnapshot(lookup('DELIVERED', [created, inTransit], 'SD-20261104-OTHER1'))).toBe(false);
+    expect(timeline.status()).toBe('PICKED_UP');
+  });
+
+  it('bumps the revision so dependent views reload', () => {
+    const revision = timeline.revision();
+    timeline.applySnapshot(lookup('IN_TRANSIT', [created, pickedUp, inTransit]));
+    expect(timeline.revision()).toBe(revision + 1);
   });
 });
