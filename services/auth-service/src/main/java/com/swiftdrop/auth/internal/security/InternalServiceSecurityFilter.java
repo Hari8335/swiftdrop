@@ -30,14 +30,24 @@ public class InternalServiceSecurityFilter extends OncePerRequestFilter {
 
     private final String notificationsServiceToken;
     private final String merchantServiceToken;
+    private final String parcelServiceToken;
 
+    /** Existing two-caller form (tests); parcel-service uses its default token. */
+    public InternalServiceSecurityFilter(String notificationsServiceToken, String merchantServiceToken) {
+        this(notificationsServiceToken, merchantServiceToken, "swiftdrop-internal-parcel-secret-2026");
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public InternalServiceSecurityFilter(
             @Value("${swiftdrop.security.internal.tokens.notifications-service:swiftdrop-internal-notif-secret-2026}")
             String notificationsServiceToken,
             @Value("${swiftdrop.security.internal.tokens.merchant-service:swiftdrop-internal-merchant-secret-2026}")
-            String merchantServiceToken) {
+            String merchantServiceToken,
+            @Value("${swiftdrop.security.internal.tokens.parcel-service:swiftdrop-internal-parcel-secret-2026}")
+            String parcelServiceToken) {
         this.notificationsServiceToken = notificationsServiceToken;
         this.merchantServiceToken = merchantServiceToken;
+        this.parcelServiceToken = parcelServiceToken;
     }
 
     @Override
@@ -62,6 +72,8 @@ public class InternalServiceSecurityFilter extends OncePerRequestFilter {
             caller = "notifications-service";
         } else if (token.equals(merchantServiceToken)) {
             caller = "merchant-service";
+        } else if (token.equals(parcelServiceToken)) {
+            caller = "parcel-service";
         } else {
             sendError(response, HttpStatus.UNAUTHORIZED, "Invalid internal service token");
             return;
@@ -73,7 +85,10 @@ public class InternalServiceSecurityFilter extends OncePerRequestFilter {
         // Least-privilege authorization matrix
         boolean authorized = false;
 
-        if (path.startsWith("/internal/v1/users/") && path.endsWith("/contact") && "GET".equalsIgnoreCase(method)) {
+        if (path.equals("/internal/v1/users/avatars") && "GET".equalsIgnoreCase(method)) {
+            // Courier profile pictures for parcel-service's driver assignment history: parcel-service only
+            authorized = "parcel-service".equals(caller);
+        } else if (path.startsWith("/internal/v1/users/") && path.endsWith("/contact") && "GET".equalsIgnoreCase(method)) {
             // User contact lookup: permitted for notifications-service and merchant-service
             authorized = "notifications-service".equals(caller) || "merchant-service".equals(caller);
         } else if (path.equals("/internal/v1/users") && "POST".equalsIgnoreCase(method)) {

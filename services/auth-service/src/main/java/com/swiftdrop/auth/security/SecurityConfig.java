@@ -81,6 +81,9 @@ public class SecurityConfig {
                     "/api/v1/auth/refresh",
                     "/api/v1/auth/logout",
                     "/api/v1/auth/me",
+                    // Bearer token is verified inside AuthController (same as /me)
+                    "/api/v1/auth/me/avatar",
+                    "/api/v1/auth/avatars",
                     "/api/v1/auth/oauth2/**",
                     "/api/v1/auth/password/**"
                 ).permitAll()

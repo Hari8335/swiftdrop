@@ -187,7 +187,8 @@ public class PasswordResetService {
         String accessToken = jwtIssuer.issueAccessToken(
                 user.getId(), user.getEmail(), user.getRole(), user.getMerchantId());
         UserSummary summary = new UserSummary(
-                user.getId(), user.getEmail(), user.getFullName(), user.getRole(), user.getMerchantId());
+                user.getId(), user.getEmail(), user.getFullName(), user.getPhoneNumber(),
+                user.getRole(), user.getMerchantId(), user.getAvatarData());
 
         return new PasswordResetResult(
                 new ResetPasswordResponse(

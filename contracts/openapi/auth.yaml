@@ -187,6 +187,123 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/v1/auth/me/avatar:
+    put:
+      summary: Set the current user's profile picture
+      description: |
+        Stores a profile picture for the authenticated user (shown as the business logo for MERCHANT users).
+        The image is sent as a base64 data URL. Only PNG, JPEG and WebP are accepted (SVG is rejected),
+        the decoded image must be 200 KB or smaller, and its file signature must match the declared type.
+        Clients are expected to resize to a small square (e.g. 256x256) before upload.
+        Identity is taken only from the bearer token; users can change only their own picture.
+      operationId: updateCurrentUserAvatar
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAvatarRequest'
+      responses:
+        '200':
+          description: Picture stored; returns the updated user including `avatarUrl`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '400':
+          description: Missing image, unsupported type, oversized, or content does not match type.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing, expired, or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: User account is disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Remove the current user's profile picture
+      description: Clears the stored picture; clients fall back to initials. Idempotent.
+      operationId: deleteCurrentUserAvatar
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Picture removed; returns the updated user with `avatarUrl` null.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '401':
+          description: Missing, expired, or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: User account is disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/avatars:
+    get:
+      summary: Look up other users' profile pictures
+      description: |
+        Returns the profile pictures of the given users so screens can show the people on them
+        (e.g. couriers in the dispatch workload). Any signed-in, enabled user may call it.
+        Users without a picture, unknown ids and disabled users are left out of the map.
+      operationId: getAvatars
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userIds
+          in: query
+          required: true
+          description: Comma-separated user ids (1-50).
+          schema:
+            type: string
+          example: usr-1,usr-2
+      responses:
+        '200':
+          description: Map of user id to image data URL, only for users that have a picture.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+              example:
+                usr-1: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
+        '400':
+          description: No ids or more than 50 ids.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing, expired, or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/auth/token:
     post:
       summary: OAuth 2.0 client credentials token exchange
@@ -726,6 +843,23 @@ components:
           type: string
           nullable: true
           example: null
+        avatarUrl:
+          type: string
+          nullable: true
+          description: |
+            Profile picture (business logo for merchants) as an image data URL
+            (`data:image/png|jpeg|webp;base64,...`). Null when the user has not set one.
+          example: null
+
+    UpdateAvatarRequest:
+      type: object
+      required:
+        - image
+      properties:
+        image:
+          type: string
+          description: Base64 image data URL. PNG, JPEG or WebP only; decoded size <= 200 KB.
+          example: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
 
     ForgotPasswordRequest:
       type: object

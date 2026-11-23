@@ -3,6 +3,7 @@ package com.swiftdrop.auth.internal;
 import com.swiftdrop.auth.internal.dto.InternalCreateUserRequest;
 import com.swiftdrop.auth.internal.dto.InternalUserResponse;
 import com.swiftdrop.auth.internal.dto.UserContactResponse;
+import com.swiftdrop.auth.user.AvatarLookup;
 import com.swiftdrop.auth.user.User;
 import com.swiftdrop.auth.user.UserRepository;
 import com.swiftdrop.common.Roles;
@@ -15,9 +16,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -46,6 +50,18 @@ public class InternalUserController {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.provisioningGuard = provisioningGuard;
+    }
+
+    /**
+     * Internal batch lookup of profile pictures (parcel-service: courier photos on driver assignment history).
+     */
+    @GetMapping("/avatars")
+    public ResponseEntity<Map<String, String>> getAvatars(@RequestParam("ids") List<String> ids) {
+        try {
+            return ResponseEntity.ok(AvatarLookup.find(userRepository, ids));
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
     }
 
     /**

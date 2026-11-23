@@ -6,6 +6,7 @@ import com.swiftdrop.auth.dto.LoginRequest;
 import com.swiftdrop.auth.dto.RefreshTokenRequest;
 import com.swiftdrop.auth.dto.RegisterRequest;
 import com.swiftdrop.auth.dto.TokenRefreshResponse;
+import com.swiftdrop.auth.dto.UpdateAvatarRequest;
 import com.swiftdrop.auth.dto.UpdateProfileRequest;
 import com.swiftdrop.auth.dto.UserSummary;
 import com.swiftdrop.auth.event.AuthEventPublisher;
@@ -16,6 +17,8 @@ import com.swiftdrop.auth.security.jwt.JwtIssuer;
 import com.swiftdrop.auth.security.jwt.JwtKeyProvider;
 import com.swiftdrop.auth.token.RefreshToken;
 import com.swiftdrop.auth.token.RefreshTokenRepository;
+import com.swiftdrop.auth.user.AvatarImagePolicy;
+import com.swiftdrop.auth.user.AvatarLookup;
 import com.swiftdrop.auth.user.User;
 import com.swiftdrop.auth.user.UserRepository;
 import com.swiftdrop.common.CorrelationIdFilter;
@@ -36,6 +39,7 @@ import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,6 +47,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -52,6 +57,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -263,7 +269,8 @@ public class AuthController {
                 user.getFullName(),
                 user.getPhoneNumber(),
                 user.getRole(),
-                user.getMerchantId()
+                user.getMerchantId(),
+                user.getAvatarData()
         );
 
         return ResponseEntity.ok()
@@ -401,6 +408,64 @@ public class AuthController {
         return ResponseEntity.ok(toUserSummary(savedUser));
     }
 
+    /**
+     * Sets the current user's profile picture (merchants: business logo).
+     * Identity comes only from the bearer token, so a user can change only their own avatar.
+     */
+    @PutMapping("/me/avatar")
+    @Transactional
+    public ResponseEntity<UserSummary> updateCurrentUserAvatar(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
+            @Valid @RequestBody UpdateAvatarRequest request) {
+        User user = resolveAuthenticatedUser(authorizationHeader);
+        String image;
+        try {
+            image = AvatarImagePolicy.validate(request.image());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
+        user.setAvatarData(image);
+        user.setUpdatedAt(Instant.now());
+        User savedUser = userRepository.save(user);
+        auditService.record(savedUser.getId(), savedUser.getRole(), "USER_AVATAR_UPDATED", "USER", savedUser.getId(), Map.of());
+        return ResponseEntity.ok(toUserSummary(savedUser));
+    }
+
+    /**
+     * Removes the current user's profile picture; the UI falls back to initials.
+     */
+    @DeleteMapping("/me/avatar")
+    @Transactional
+    public ResponseEntity<UserSummary> deleteCurrentUserAvatar(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
+        User user = resolveAuthenticatedUser(authorizationHeader);
+        if (user.getAvatarData() != null) {
+            user.setAvatarData(null);
+            user.setUpdatedAt(Instant.now());
+            user = userRepository.save(user);
+            auditService.record(user.getId(), user.getRole(), "USER_AVATAR_REMOVED", "USER", user.getId(), Map.of());
+        }
+        return ResponseEntity.ok(toUserSummary(user));
+    }
+
+    /**
+     * Profile pictures of other users shown on the caller's screen (e.g. couriers in the dispatch workload).
+     * Any signed-in, enabled user may call it; users without a picture are left out of the map.
+     */
+    @GetMapping("/avatars")
+    public ResponseEntity<Map<String, String>> getAvatars(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
+            @RequestParam("userIds") List<String> userIds) {
+        resolveAuthenticatedUser(authorizationHeader);
+        try {
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "private, max-age=60")
+                    .body(AvatarLookup.find(userRepository, userIds));
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
+    }
+
     private User resolveAuthenticatedUser(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
@@ -522,6 +587,7 @@ public class AuthController {
     }
 
     private UserSummary toUserSummary(User user) {
-        return new UserSummary(user.getId(), user.getEmail(), user.getFullName(), user.getPhoneNumber(), user.getRole(), user.getMerchantId());
+        return new UserSummary(user.getId(), user.getEmail(), user.getFullName(), user.getPhoneNumber(),
+                user.getRole(), user.getMerchantId(), user.getAvatarData());
     }
 }

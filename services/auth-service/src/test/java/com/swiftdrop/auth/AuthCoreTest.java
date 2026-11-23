@@ -37,18 +37,23 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -499,6 +504,121 @@ class AuthCoreTest {
             mockMvc.perform(get("/api/v1/auth/me")
                             .header("Authorization", "Bearer " + jwt))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("Profile picture (/api/v1/auth/me/avatar) Tests")
+    class AvatarTests {
+
+        private static final String PNG_DATA_URL = "data:image/png;base64," + Base64.getEncoder().encodeToString(
+                new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D});
+
+        private String registerAndGetToken(String email) throws Exception {
+            RegisterRequest reg = new RegisterRequest(email, "Secret123!", "Avatar User", null);
+            MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(reg)))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            return objectMapper.readTree(result.getResponse().getContentAsString()).get("accessToken").asText();
+        }
+
+        private String body(String image) throws Exception {
+            return objectMapper.writeValueAsString(Map.of("image", image));
+        }
+
+        @Test
+        @DisplayName("Upload stores the picture and it is returned by /me and login")
+        void uploadReturnsAvatarEverywhere() throws Exception {
+            String jwt = registerAndGetToken("avatar@swiftdrop.com");
+
+            mockMvc.perform(put("/api/v1/auth/me/avatar")
+                            .header("Authorization", "Bearer " + jwt)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body(PNG_DATA_URL)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.avatarUrl", is(PNG_DATA_URL)));
+
+            mockMvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + jwt))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.avatarUrl", is(PNG_DATA_URL)));
+
+            mockMvc.perform(post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new LoginRequest("avatar@swiftdrop.com", "Secret123!"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.user.avatarUrl", is(PNG_DATA_URL)));
+        }
+
+        @Test
+        @DisplayName("Delete clears the picture")
+        void deleteClearsAvatar() throws Exception {
+            String jwt = registerAndGetToken("avatar.delete@swiftdrop.com");
+            mockMvc.perform(put("/api/v1/auth/me/avatar")
+                            .header("Authorization", "Bearer " + jwt)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body(PNG_DATA_URL)))
+                    .andExpect(status().isOk());
+
+            mockMvc.perform(delete("/api/v1/auth/me/avatar").header("Authorization", "Bearer " + jwt))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.avatarUrl", nullValue()));
+
+            assertThat(userRepository.findByEmailIgnoreCase("avatar.delete@swiftdrop.com").orElseThrow().getAvatarData()).isNull();
+        }
+
+        @Test
+        @DisplayName("SVG and mismatched content are rejected with 400")
+        void rejectsUnsafeImages() throws Exception {
+            String jwt = registerAndGetToken("avatar.bad@swiftdrop.com");
+            String svg = "data:image/svg+xml;base64," + Base64.getEncoder().encodeToString("<svg onload=alert(1)/>".getBytes());
+            String fakePng = "data:image/png;base64," + Base64.getEncoder().encodeToString("<html></html>".getBytes());
+
+            for (String image : List.of(svg, fakePng)) {
+                mockMvc.perform(put("/api/v1/auth/me/avatar")
+                                .header("Authorization", "Bearer " + jwt)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body(image)))
+                        .andExpect(status().isBadRequest());
+            }
+            assertThat(userRepository.findByEmailIgnoreCase("avatar.bad@swiftdrop.com").orElseThrow().getAvatarData()).isNull();
+        }
+
+        @Test
+        @DisplayName("Signed-in users can look up other users' pictures; users without one are left out")
+        void lookupOtherUsersPictures() throws Exception {
+            String courierJwt = registerAndGetToken("avatar.courier@swiftdrop.com");
+            mockMvc.perform(put("/api/v1/auth/me/avatar")
+                            .header("Authorization", "Bearer " + courierJwt)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body(PNG_DATA_URL)))
+                    .andExpect(status().isOk());
+            String courierId = userRepository.findByEmailIgnoreCase("avatar.courier@swiftdrop.com").orElseThrow().getId();
+
+            String viewerJwt = registerAndGetToken("avatar.viewer@swiftdrop.com");
+            String viewerId = userRepository.findByEmailIgnoreCase("avatar.viewer@swiftdrop.com").orElseThrow().getId();
+
+            mockMvc.perform(get("/api/v1/auth/avatars")
+                            .param("userIds", courierId + "," + viewerId)
+                            .header("Authorization", "Bearer " + viewerJwt))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$['" + courierId + "']", is(PNG_DATA_URL)))
+                    .andExpect(jsonPath("$['" + viewerId + "']").doesNotExist());
+
+            mockMvc.perform(get("/api/v1/auth/avatars").param("userIds", courierId))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Missing or invalid bearer token returns 401")
+        void requiresAuthentication() throws Exception {
+            mockMvc.perform(put("/api/v1/auth/me/avatar")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body(PNG_DATA_URL)))
+                    .andExpect(status().isUnauthorized());
+            mockMvc.perform(delete("/api/v1/auth/me/avatar").header("Authorization", "Bearer invalid.jwt.token"))
+                    .andExpect(status().isUnauthorized());
         }
     }
 }

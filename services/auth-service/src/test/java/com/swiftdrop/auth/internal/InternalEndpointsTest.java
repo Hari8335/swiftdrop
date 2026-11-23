@@ -67,6 +67,7 @@ class InternalEndpointsTest {
     private static final String NOTIF_TOKEN = "swiftdrop-internal-notif-secret-2026";
     /** Merchant-service token (matches default in application.yml). */
     private static final String MERCHANT_TOKEN = "swiftdrop-internal-merchant-secret-2026";
+    private static final String PARCEL_TOKEN = "swiftdrop-internal-parcel-secret-2026";
 
     /** Expected token TTL in seconds — must match JwtIssuer.CLIENT_CREDENTIALS_TTL (15 min). */
     private static final int EXPECTED_EXPIRES_IN = 900;
@@ -75,6 +76,45 @@ class InternalEndpointsTest {
     void setUp() {
         clientCredentialRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    @Nested
+    @DisplayName("GET /internal/v1/users/avatars")
+    class GetAvatarsTests {
+
+        @Test
+        @DisplayName("parcel-service gets pictures only for users that have one")
+        void returnsOnlyUsersWithPictures() throws Exception {
+            User withPhoto = new User("crr-1", "c1@swiftdrop.lk", "hash", "Saman Perera", null, Roles.COURIER, true, null);
+            withPhoto.setAvatarData("data:image/png;base64,AAAA");
+            userRepository.save(withPhoto);
+            userRepository.save(new User("crr-2", "c2@swiftdrop.lk", "hash", "Nimal Silva", null, Roles.COURIER, true, null));
+
+            mockMvc.perform(get("/internal/v1/users/avatars").param("ids", "crr-1,crr-2,unknown")
+                            .header(INTERNAL_TOKEN_HEADER, PARCEL_TOKEN))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$['crr-1']", is("data:image/png;base64,AAAA")))
+                    .andExpect(jsonPath("$['crr-2']").doesNotExist())
+                    .andExpect(jsonPath("$.unknown").doesNotExist());
+        }
+
+        @Test
+        @DisplayName("Other internal callers and missing tokens are rejected")
+        void onlyParcelServiceMayRead() throws Exception {
+            mockMvc.perform(get("/internal/v1/users/avatars").param("ids", "crr-1")
+                            .header(INTERNAL_TOKEN_HEADER, NOTIF_TOKEN))
+                    .andExpect(status().isForbidden());
+            mockMvc.perform(get("/internal/v1/users/avatars").param("ids", "crr-1"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("parcel-service cannot use any other internal endpoint")
+        void parcelServiceIsLeastPrivilege() throws Exception {
+            mockMvc.perform(get("/internal/v1/users/{id}/contact", "crr-1")
+                            .header(INTERNAL_TOKEN_HEADER, PARCEL_TOKEN))
+                    .andExpect(status().isForbidden());
+        }
     }
 
     @Nested
