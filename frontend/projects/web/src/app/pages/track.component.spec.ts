@@ -122,7 +122,7 @@ describe('TrackComponent (public tracking page)', () => {
     expect(doneRows()[2].getAttribute('data-state')).toBe('current');
   });
 
-  it('shows reconnecting and, when the browser gives up, offers a new connection', async () => {
+  it('shows reconnecting and, when the browser gives up, polls and offers a new live connection', async () => {
     await open(TN);
     const first = FakeEventSource.latest();
     first.open();
@@ -132,12 +132,39 @@ describe('TrackComponent (public tracking page)', () => {
 
     first.fail(2);
     harness.detectChanges();
-    expect(indicator()).toBe('disconnected');
+    expect(indicator()).toBe('polling');
+    expect(el().querySelector('app-live-indicator')?.textContent).toContain('Updating every 10 s');
 
-    (el().querySelector('app-live-indicator button') as HTMLButtonElement).click();
+    const retry = el().querySelector('app-live-indicator button') as HTMLButtonElement;
+    expect(retry.textContent).toContain('Try live again');
+    retry.click();
     harness.detectChanges();
     expect(FakeEventSource.instances).toHaveLength(2);
     expect(FakeEventSource.latest().url).toBe(`/api/v1/tracking/${TN}/stream`);
+  });
+
+  it('when the live stream is unavailable, shows status changes from the 10-second lookup', async () => {
+    await open(TN);
+    FakeEventSource.latest().fail(2);
+    harness.detectChanges();
+
+    await new Promise((resolve) => setTimeout(resolve, 0)); // first lookup is immediate
+    http.expectOne(`/api/v1/tracking/${TN}`).flush({
+      ...lookup(TN, 'DELIVERED'),
+      lastUpdatedAt: '2026-11-04T12:00:00Z',
+      timeline: [
+        { status: 'CREATED', occurredAt: '2026-11-04T08:00:00Z' },
+        { status: 'PICKED_UP', occurredAt: '2026-11-04T09:00:00Z' },
+        { status: 'IN_TRANSIT', occurredAt: '2026-11-04T10:00:00Z' },
+        { status: 'OUT_FOR_DELIVERY', occurredAt: '2026-11-04T11:00:00Z' },
+        { status: 'DELIVERED', occurredAt: '2026-11-04T12:00:00Z' },
+      ],
+    });
+    harness.detectChanges();
+
+    expect(text('current-status')).toBe('Delivered');
+    expect(doneRows()).toHaveLength(5);
+    expect(indicator()).toBe('ended');
   });
 
   it('does not open a stream for a delivered parcel', async () => {
