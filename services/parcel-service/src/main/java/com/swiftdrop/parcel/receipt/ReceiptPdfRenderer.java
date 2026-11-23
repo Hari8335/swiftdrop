@@ -45,11 +45,17 @@ class ReceiptPdfRenderer {
     private static final Color MUTED = new Color(0x6F, 0x6D, 0x85);
     private static final Color RULE = new Color(0xEE, 0xE7, 0xE0);
     private static final Color ON_BRAND_MUTED = new Color(0xF2, 0xDE, 0xD8);
+    private static final Color SUCCESS = new Color(0x1E, 0x7A, 0x43);
+    private static final Color SUCCESS_TINT = new Color(0xE6, 0xF4, 0xEA);
 
     private final Font brandName = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, Color.WHITE);
     private final Font brandTagline = FontFactory.getFont(FontFactory.HELVETICA, 9, ON_BRAND_MUTED);
     private final Font docTitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13, Color.WHITE);
     private final Font docReference = FontFactory.getFont(FontFactory.HELVETICA, 9, ON_BRAND_MUTED);
+    private final Font eyebrow = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, MUTED);
+    private final Font headline = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, INK);
+    private final Font amountFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, BRAND);
+    private final Font badgeFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, SUCCESS);
     private final Font section = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INK);
     private final Font label = FontFactory.getFont(FontFactory.HELVETICA, 10, MUTED);
     private final Font value = FontFactory.getFont(FontFactory.HELVETICA, 10, INK);
@@ -67,12 +73,11 @@ class ReceiptPdfRenderer {
             document.open();
 
             document.add(header(data));
-            document.add(spacer(6));
+            document.add(spacer(2));
+            document.add(summary(data));
 
             PdfPTable parcel = table();
-            row(fonts, parcel, "Tracking number", text(data.trackingNumber()), strong);
             row(fonts, parcel, "Parcel ID", text(data.parcelId()), value);
-            row(fonts, parcel, "Status", "Delivered", value);
             row(fonts, parcel, "Created", date(data.createdAt()), value);
             row(fonts, parcel, "Delivered", date(data.deliveredAt()), value);
             addSection(document, "Parcel", parcel);
@@ -164,6 +169,66 @@ class ReceiptPdfRenderer {
         title.addElement(reference);
         band.addCell(title);
         return band;
+    }
+
+    /** Two cards under the header: tracking number with the Delivered badge, and the amount paid. */
+    private PdfPTable summary(ReceiptData data) {
+        PdfPTable cards = new PdfPTable(3);
+        cards.setWidthPercentage(100);
+        cards.setWidths(new float[] {1f, 0.06f, 1f});
+        cards.setSpacingBefore(12);
+
+        PdfPCell tracking = card();
+        tracking.addElement(new Paragraph("TRACKING NUMBER", eyebrow));
+        Paragraph number = new Paragraph(text(data.trackingNumber()), headline);
+        number.setSpacingBefore(4);
+        tracking.addElement(number);
+        tracking.addElement(statusBadge("Delivered"));
+        cards.addCell(tracking);
+
+        cards.addCell(gap());
+
+        PdfPCell amount = card();
+        amount.addElement(new Paragraph("AMOUNT PAID", eyebrow));
+        Paragraph total = new Paragraph(fee(data.fee()), amountFont);
+        total.setSpacingBefore(2);
+        amount.addElement(total);
+        Paragraph when = new Paragraph("Delivered on " + date(data.deliveredAt()), label);
+        when.setSpacingBefore(4);
+        amount.addElement(when);
+        cards.addCell(amount);
+        return cards;
+    }
+
+    private PdfPTable statusBadge(String status) {
+        PdfPTable badge = new PdfPTable(1);
+        badge.setHorizontalAlignment(Element.ALIGN_LEFT);
+        badge.setTotalWidth(72);
+        badge.setLockedWidth(true);
+        badge.setSpacingBefore(8);
+        PdfPCell cell = new PdfPCell(new Phrase(status, badgeFont));
+        cell.setBorder(PdfPCell.NO_BORDER);
+        cell.setBackgroundColor(SUCCESS_TINT);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setPaddingTop(3);
+        cell.setPaddingBottom(5);
+        badge.addCell(cell);
+        return badge;
+    }
+
+    private static PdfPCell card() {
+        PdfPCell cell = new PdfPCell();
+        cell.setBorderColor(RULE);
+        cell.setBorderWidth(1);
+        cell.setPadding(14);
+        cell.setPaddingTop(10);
+        return cell;
+    }
+
+    private static PdfPCell gap() {
+        PdfPCell cell = new PdfPCell();
+        cell.setBorder(PdfPCell.NO_BORDER);
+        return cell;
     }
 
     private static PdfPCell bandCell(int alignment) {
