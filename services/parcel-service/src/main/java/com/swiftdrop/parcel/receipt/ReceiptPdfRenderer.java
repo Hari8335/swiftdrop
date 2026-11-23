@@ -38,16 +38,22 @@ class ReceiptPdfRenderer {
     private static final DateTimeFormatter DATE_TIME =
             DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.ENGLISH).withZone(BUSINESS_ZONE);
 
-    private static final Color BRAND = new Color(0x1D, 0x4E, 0xD8);
-    private static final Color MUTED = new Color(0x55, 0x5F, 0x6D);
-    private static final Color RULE = new Color(0xD5, 0xDA, 0xE1);
+    // SwiftDrop brand palette, matching the web app (terracotta accent on warm neutrals).
+    private static final Color BRAND = new Color(0x9B, 0x43, 0x2F);
+    private static final Color BRAND_TINT = new Color(0xFA, 0xF0, 0xEC);
+    private static final Color INK = new Color(0x21, 0x1F, 0x32);
+    private static final Color MUTED = new Color(0x6F, 0x6D, 0x85);
+    private static final Color RULE = new Color(0xEE, 0xE7, 0xE0);
+    private static final Color ON_BRAND_MUTED = new Color(0xF2, 0xDE, 0xD8);
 
-    private final Font title = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, BRAND);
-    private final Font subtitle = FontFactory.getFont(FontFactory.HELVETICA, 11, MUTED);
-    private final Font section = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.BLACK);
+    private final Font brandName = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, Color.WHITE);
+    private final Font brandTagline = FontFactory.getFont(FontFactory.HELVETICA, 9, ON_BRAND_MUTED);
+    private final Font docTitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13, Color.WHITE);
+    private final Font docReference = FontFactory.getFont(FontFactory.HELVETICA, 9, ON_BRAND_MUTED);
+    private final Font section = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INK);
     private final Font label = FontFactory.getFont(FontFactory.HELVETICA, 10, MUTED);
-    private final Font value = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.BLACK);
-    private final Font strong = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Color.BLACK);
+    private final Font value = FontFactory.getFont(FontFactory.HELVETICA, 10, INK);
+    private final Font strong = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, INK);
     private final Font footer = FontFactory.getFont(FontFactory.HELVETICA, 8, MUTED);
 
     byte[] render(ReceiptData data) {
@@ -60,9 +66,8 @@ class ReceiptPdfRenderer {
             document.addCreator("SwiftDrop parcel-service");
             document.open();
 
-            document.add(new Paragraph("SwiftDrop", title));
-            document.add(new Paragraph("Delivery receipt", subtitle));
-            document.add(spacer(12));
+            document.add(header(data));
+            document.add(spacer(6));
 
             PdfPTable parcel = table();
             row(fonts, parcel, "Tracking number", text(data.trackingNumber()), strong);
@@ -138,6 +143,39 @@ class ReceiptPdfRenderer {
     }
 
     // ------------------------------------------------------------------ layout
+
+    /** Brand band: name and tagline on the left, document title and tracking number on the right. */
+    private PdfPTable header(ReceiptData data) {
+        PdfPTable band = new PdfPTable(2);
+        band.setWidthPercentage(100);
+        band.setWidths(new float[] {1.4f, 1f});
+
+        PdfPCell brand = bandCell(Element.ALIGN_LEFT);
+        brand.addElement(new Paragraph("SwiftDrop", brandName));
+        brand.addElement(new Paragraph("Parcel delivery across Sri Lanka", brandTagline));
+        band.addCell(brand);
+
+        PdfPCell title = bandCell(Element.ALIGN_RIGHT);
+        Paragraph heading = new Paragraph("Delivery receipt", docTitle);
+        heading.setAlignment(Element.ALIGN_RIGHT);
+        title.addElement(heading);
+        Paragraph reference = new Paragraph(text(data.trackingNumber()), docReference);
+        reference.setAlignment(Element.ALIGN_RIGHT);
+        title.addElement(reference);
+        band.addCell(title);
+        return band;
+    }
+
+    private static PdfPCell bandCell(int alignment) {
+        PdfPCell cell = new PdfPCell();
+        cell.setBorder(PdfPCell.NO_BORDER);
+        cell.setBackgroundColor(BRAND);
+        cell.setPadding(16);
+        cell.setPaddingTop(12);
+        cell.setHorizontalAlignment(alignment);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        return cell;
+    }
 
     private void addSection(Document document, String heading, PdfPTable table) throws DocumentException {
         Paragraph title = new Paragraph(heading, section);
