@@ -328,6 +328,30 @@ interface HomeResults {
                   </svg>
                 </div>
 
+                <!-- Booking date filter (contract: GET /api/v1/dispatch/parcels?date=YYYY-MM-DD) -->
+                <div class="relative w-full sm:w-auto flex items-center gap-1">
+                  <input
+                    type="date"
+                    id="queue-date-filter"
+                    [value]="selectedDate()"
+                    (change)="onQueueDateChange($any($event.target).value)"
+                    aria-label="Filter by booking date"
+                    title="Booking date"
+                    class="w-full sm:w-44 px-4 h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors"
+                  />
+                  <button
+                    *ngIf="selectedDate()"
+                    type="button"
+                    id="queue-date-clear"
+                    (click)="onQueueDateChange('')"
+                    aria-label="Clear date filter"
+                    title="Clear date filter"
+                    class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs text-[#6f6d85] hover:bg-[#f3eee9] hover:text-[#a53a26] transition-colors cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
                 <label class="inline-flex items-center gap-2 px-4 cursor-pointer hover:bg-[#f3eee9] h-10 rounded-full border border-[#e8e2dc] bg-[#faf8f6] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-colors">
                   <input
                     type="checkbox"
@@ -467,13 +491,13 @@ interface HomeResults {
 
               <ng-template #emptyQueueTemplate>
                 <div class="bg-white rounded-2xl border border-[#f0ebe5] p-12 text-center space-y-3">
-                  <div *ngIf="searchQuery() || selectedZone()">
+                  <div *ngIf="searchQuery() || selectedZone() || selectedDate()">
                     <h3 class="text-base font-bold text-[#1d1b2c]">No matching parcels found</h3>
                     <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
-                      No unassigned parcels matched your current search query or zone filter. Try clearing your filters.
+                      No unassigned parcels matched your current search, zone or date filter. Try clearing your filters.
                     </p>
                   </div>
-                  <div *ngIf="!searchQuery() && !selectedZone()">
+                  <div *ngIf="!searchQuery() && !selectedZone() && !selectedDate()">
                     <h3 class="text-base font-bold text-[#1d1b2c]">No Unassigned Parcels / All caught up!</h3>
                     <p class="text-xs text-[#6f6d85] max-w-sm mx-auto">
                       All parcels have been dispatched. There are currently no parcels in the unassigned queue awaiting courier assignment.
@@ -1095,6 +1119,8 @@ export class DispatchComponent implements OnInit, OnDestroy {
 
   // Zone filters
   public selectedZone = signal('');
+  /** Queue booking-date filter as YYYY-MM-DD ('' = any date). */
+  public selectedDate = signal('');
   public workloadZone = signal('');
   public availableOnly = signal(false);
   public failedSelectedZone = signal('');
@@ -1287,7 +1313,8 @@ export class DispatchComponent implements OnInit, OnDestroy {
 
   public retryLoadQueue(): void {
     const backendZone = this.resolveBackendDistrict(this.selectedZone());
-    this.dispatchService.loadUnassignedParcels(backendZone, undefined, 0, QUEUE_FETCH_SIZE).subscribe({
+    const date = this.selectedDate() || undefined;
+    this.dispatchService.loadUnassignedParcels(backendZone, date, 0, QUEUE_FETCH_SIZE).subscribe({
       error: () => {},
     });
   }
@@ -1308,6 +1335,13 @@ export class DispatchComponent implements OnInit, OnDestroy {
 
   public onQueueZoneChange(zone: string): void {
     this.selectedZone.set(zone);
+    this.clearSelection();
+    this.retryLoadQueue();
+  }
+
+  /** Filters the queue to parcels booked on one day (YYYY-MM-DD, Sri Lanka time); '' clears it. */
+  public onQueueDateChange(date: string): void {
+    this.selectedDate.set(date ?? '');
     this.clearSelection();
     this.retryLoadQueue();
   }
