@@ -1204,7 +1204,7 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
           <!-- Address Modal -->
           @if (showAddressModal()) {
           <div
-            class="fixed inset-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            class="fixed inset-0 !mt-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <div
               class="bg-white rounded-3xl border border-[#e8e2dc] shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-4 animate-in fade-in zoom-in-95 duration-150"
@@ -1333,7 +1333,7 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
           <!-- Cancel Delivery Confirmation Modal -->
           @if (parcelToCancel(); as parcel) {
           <div
-            class="fixed inset-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            class="fixed inset-0 !mt-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             (click)="closeCancelModal()"
             role="dialog"
             aria-modal="true"

@@ -278,7 +278,7 @@ export type CourierSettingsSection = 'profile' | 'duty' | 'security';
         <div
           *ngIf="showLogoutModal()"
           id="logout-confirmation-modal"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in"
+          class="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in"
         >
           <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-4">
             <div class="w-12 h-12 rounded-2xl bg-[#faf2f0] flex items-center justify-center text-[#a53a26]">

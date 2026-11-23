@@ -13,9 +13,9 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, MerchantNotificationBellComponent],
   template: `
-    <div class="rounded-3xl bg-[#faf8f6] text-[#1d1b2c] flex flex-col font-sans">
-      <!-- Top Navigation Bar -->
-      <header class="bg-white border-b border-[#f4efe9] px-6 sm:px-10 py-4 flex items-center justify-between sticky top-0 z-20">
+    <div class="min-h-screen bg-[#faf8f6] text-[#1d1b2c] flex flex-col font-sans">
+      <!-- Top Navigation Bar: same 80px bar as the portal dashboard so it centres on the sidebar logo. -->
+      <header class="bg-white/95 backdrop-blur border-b border-[#f0ebe5] px-6 sm:px-8 lg:px-10 py-3 lg:py-0 min-h-20 lg:h-20 flex items-center justify-between gap-3 sticky top-0 z-30">
         <div class="flex items-center gap-4">
           <a
             routerLink="/merchant"
@@ -285,7 +285,7 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
 
         <!-- Success confirmation appears only after every submitted order is accepted. -->
         @if (showSuccessPopup()) {
-          <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#1d1b2c]/50 p-4" role="presentation">
+          <div class="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-[#1d1b2c]/50 p-4" role="presentation">
             <section class="w-full max-w-md rounded-3xl border border-[#eee7e0] bg-white p-6 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="bulk-upload-success-title">
               <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700" aria-hidden="true">
                 <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
