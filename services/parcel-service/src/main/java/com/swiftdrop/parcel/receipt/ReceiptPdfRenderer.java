@@ -58,6 +58,7 @@ class ReceiptPdfRenderer {
     private final Font amountFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, BRAND);
     private final Font badgeFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, SUCCESS);
     private final Font arrowFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, BRAND);
+    private final Font totalFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, BRAND);
     private final Font section = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INK);
     private final Font label = FontFactory.getFont(FontFactory.HELVETICA, 10, MUTED);
     private final Font value = FontFactory.getFont(FontFactory.HELVETICA, 10, INK);
@@ -66,7 +67,7 @@ class ReceiptPdfRenderer {
 
     byte[] render(ReceiptData data) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        Document document = new Document(PageSize.A4, 48, 48, 48, 48);
+        Document document = new Document(PageSize.A4, 48, 48, 36, 36);
         try {
             ReceiptFonts fonts = ReceiptFonts.get();
             PdfWriter.getInstance(document, out);
@@ -75,27 +76,25 @@ class ReceiptPdfRenderer {
             document.open();
 
             document.add(header(data));
-            document.add(spacer(2));
             document.add(summary(data));
-
-            PdfPTable parcel = table();
-            row(fonts, parcel, "Parcel ID", text(data.parcelId()), value);
-            row(fonts, parcel, "Created", date(data.createdAt()), value);
-            row(fonts, parcel, "Delivered", date(data.deliveredAt()), value);
-            addSection(document, "Parcel", parcel);
 
             addSection(document, "Route", route(fonts, data));
 
-            PdfPTable details = table();
-            row(fonts, details, "Size", data.size() != null ? capitalize(data.size().name()) : MISSING, value);
-            row(fonts, details, "Weight", weight(data.weightKg()), value);
-            row(fonts, details, "Delivery fee", fee(data.fee()), strong);
-            addSection(document, "Charges", details);
+            String size = data.size() != null ? capitalize(data.size().name()) : MISSING;
+            PdfPTable parcel = table();
+            row(fonts, parcel, "Parcel ID", text(data.parcelId()), value);
+            row(fonts, parcel, "Size", size, value);
+            row(fonts, parcel, "Weight", weight(data.weightKg()), value);
+            row(fonts, parcel, "Created", date(data.createdAt()), value);
+            row(fonts, parcel, "Delivered", date(data.deliveredAt()), value);
+            addSection(document, "Parcel details", parcel);
+
+            addSection(document, "Charges", charges(data, size));
 
             Paragraph generated = new Paragraph(
                     "Generated " + date(data.generatedAt()) + " (Sri Lanka time). "
                             + "This receipt confirms the delivery of the parcel above.", footer);
-            generated.setSpacingBefore(18);
+            generated.setSpacingBefore(14);
             document.add(generated);
 
             document.close();
@@ -174,7 +173,7 @@ class ReceiptPdfRenderer {
         PdfPTable cards = new PdfPTable(3);
         cards.setWidthPercentage(100);
         cards.setWidths(new float[] {1f, 0.06f, 1f});
-        cards.setSpacingBefore(12);
+        cards.setSpacingBefore(14);
 
         PdfPCell tracking = card();
         tracking.addElement(new Paragraph("TRACKING NUMBER", eyebrow));
@@ -282,7 +281,7 @@ class ReceiptPdfRenderer {
 
     private void addSection(Document document, String heading, PdfPTable table) throws DocumentException {
         Paragraph title = new Paragraph(heading, section);
-        title.setSpacingBefore(10);
+        title.setSpacingBefore(8);
         title.setSpacingAfter(4);
         document.add(title);
         document.add(table);
@@ -295,10 +294,51 @@ class ReceiptPdfRenderer {
         return table;
     }
 
-    /** Labels are fixed English text; values may contain Sinhala or Tamil (names, addresses). */
+    /**
+     * Labels are fixed English text; values may contain Sinhala or Tamil (names, addresses).
+     * Every other row gets a light background so long tables are easy to follow.
+     */
     private void row(ReceiptFonts fonts, PdfPTable table, String name, String content, Font font) {
-        table.addCell(cell(new Phrase(name, label)));
-        table.addCell(cell(fonts.phrase(content, font, font == strong)));
+        boolean striped = (table.size() % 2) == 1;
+        PdfPCell labelCell = cell(new Phrase(name, label));
+        PdfPCell valueCell = cell(fonts.phrase(content, font, font == strong));
+        if (striped) {
+            labelCell.setBackgroundColor(SURFACE);
+            valueCell.setBackgroundColor(SURFACE);
+        }
+        table.addCell(labelCell);
+        table.addCell(valueCell);
+    }
+
+    /** Invoice-style charges: the delivery fee line, then a highlighted total. */
+    private PdfPTable charges(ReceiptData data, String size) {
+        PdfPTable charges = new PdfPTable(2);
+        charges.setWidthPercentage(100);
+        charges.setWidths(new float[] {3f, 1.2f});
+
+        StringJoiner basis = new StringJoiner(" · ", " (", ")").setEmptyValue("");
+        if (data.size() != null) {
+            basis.add(size);
+        }
+        if (data.weightKg() != null) {
+            basis.add(weight(data.weightKg()));
+        }
+        charges.addCell(cell(new Phrase("Delivery fee" + basis, value)));
+        PdfPCell feeCell = cell(new Phrase(fee(data.fee()), value));
+        feeCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        charges.addCell(feeCell);
+
+        PdfPCell totalLabel = cell(new Phrase("Total paid", totalFont));
+        PdfPCell totalValue = cell(new Phrase(fee(data.fee()), totalFont));
+        totalValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        for (PdfPCell total : new PdfPCell[] {totalLabel, totalValue}) {
+            total.setBackgroundColor(BRAND_TINT);
+            total.setBorder(PdfPCell.NO_BORDER);
+            total.setPaddingTop(8);
+            total.setPaddingBottom(9);
+            charges.addCell(total);
+        }
+        return charges;
     }
 
     private static PdfPCell cell(Phrase phrase) {
