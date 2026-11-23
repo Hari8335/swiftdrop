@@ -59,6 +59,11 @@ spec:
                 secretKeyRef:
                   name: swiftdrop-secrets
                   key: INTERNAL_MERCHANT_SERVICE_TOKEN
+            - name: MERCHANT_CREDENTIAL_HANDOFF_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: swiftdrop-secrets
+                  key: MERCHANT_CREDENTIAL_HANDOFF_ENCRYPTION_KEY
             - name: SPRING_MAIL_HOST
               valueFrom:
                 configMapKeyRef:

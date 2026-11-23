@@ -93,6 +93,16 @@ describe('MerchantService', () => {
     expect(result.totalElements).toBe(0);
   });
 
+  it('fetches the signed-in merchant profile without sending identity headers or params', async () => {
+    const promise = firstValueFrom(service.getMerchantProfile());
+    const req = httpMock.expectOne('/api/v1/merchant/profile');
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.keys()).toHaveLength(0);
+    expect(req.request.headers.has('X-Merchant-Id')).toBe(false);
+    req.flush({ merchantId: 'm-1', businessName: 'Acme Stores', contactName: 'Alice', status: 'APPROVED' });
+    await expect(promise).resolves.toEqual(expect.objectContaining({ businessName: 'Acme Stores' }));
+  });
+
   it('fetches order status counts from the counts endpoint', async () => {
     const mockCounts: OrderCounts = {
       total: 15,

@@ -36,7 +36,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest(properties = "swiftdrop.merchant.credentials.handoff-encryption-key=test-only-key-long-enough-for-aes-gcm-123456")
+@SpringBootTest(properties = {
+        "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://127.0.0.1:9/jwks",
+        "swiftdrop.merchant.credentials.handoff-encryption-key=test-only-key-long-enough-for-aes-gcm-123456"
+})
 @AutoConfigureMockMvc
 @Testcontainers
 class MerchantOnboardingIntegrationTest {
@@ -308,6 +311,39 @@ class MerchantOnboardingIntegrationTest {
         mockMvc.perform(post("/api/v1/admin/merchants/{id}/recover-credentials",merchant.getId()).header("Idempotency-Key",key)
                 .contentType("application/json").content("{\"confirmReplacement\":true}"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.clientSecret").doesNotExist());
+    }
+
+    @Test
+    void merchantProfileReturnsOnlyTheRegisteredNameToItsPortalUser() throws Exception {
+        Merchant merchant = register("portal-profile@example.test");
+        merchant.recordProvisioned("portal-profile-user", "portal-profile-client");
+        merchant.approve("portal-profile-client");
+        merchantRepository.saveAndFlush(merchant);
+
+        String path = "/api/v1/merchant/profile";
+        var merchantRole = new SimpleGrantedAuthority("ROLE_MERCHANT");
+        mockMvc.perform(get(path))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get(path).with(jwt().jwt(token -> token.subject("portal-profile-user")
+                        .claim("role", "MERCHANT").claim("merchantId", merchant.getId().toString()))
+                        .authorities(merchantRole)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.merchantId").value(merchant.getId().toString()))
+                .andExpect(jsonPath("$.businessName").value("Store"))
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.phoneNumber").doesNotExist())
+                .andExpect(jsonPath("$.clientId").doesNotExist())
+                .andExpect(jsonPath("$.authUserId").doesNotExist());
+        mockMvc.perform(get(path).with(jwt().jwt(token -> token.subject("another-merchant-user")
+                        .claim("role", "MERCHANT").claim("merchantId", merchant.getId().toString()))
+                        .authorities(merchantRole)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(path).with(jwt().jwt(token -> token.subject("portal-profile-client")
+                        .claim("role", "MERCHANT").claim("merchantId", merchant.getId().toString()))
+                        .authorities(merchantRole)))
+                .andExpect(status().isForbidden());
     }
 
     @Test @WithMockUser(roles="ADMIN")

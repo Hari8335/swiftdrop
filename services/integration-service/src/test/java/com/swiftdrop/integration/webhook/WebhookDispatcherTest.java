@@ -113,6 +113,65 @@ class WebhookDispatcherTest {
     }
 
     @Test
+    void configuredEndpointReceivesParcelCreatedContractPayloadAndVerifiableSignature() throws Exception {
+        HttpServer receiver = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicReference<String> receivedBody = new AtomicReference<>();
+        AtomicReference<String> receivedSignature = new AtomicReference<>();
+        AtomicReference<String> receivedTimestamp = new AtomicReference<>();
+        AtomicReference<String> receivedDeliveryId = new AtomicReference<>();
+        CountDownLatch received = new CountDownLatch(1);
+        receiver.createContext("/hook", exchange -> {
+            receivedBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            receivedSignature.set(exchange.getRequestHeaders().getFirst(WebhookSigner.SIGNATURE_HEADER));
+            receivedTimestamp.set(exchange.getRequestHeaders().getFirst(WebhookSigner.TIMESTAMP_HEADER));
+            receivedDeliveryId.set(exchange.getRequestHeaders().getFirst(WebhookSigner.DELIVERY_ID_HEADER));
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+            received.countDown();
+        });
+        receiver.start();
+
+        try {
+            Instant occurredAt = Instant.parse("2026-11-20T10:00:00Z");
+            UUID deliveryId = UUID.randomUUID();
+            UUID eventId = UUID.randomUUID();
+            UUID merchantId = UUID.randomUUID();
+            String secret = "merchant-test-secret-parcel-created";
+            ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+            WebhookPayload payload = new WebhookPayload(deliveryId, eventId,
+                    "PARCEL_CREATED", occurredAt, 1L, merchantId,
+                    new WebhookParcelFields(UUID.randomUUID().toString(), "SD-20261120-000001",
+                            "CREATED", "NONE", "CREATED", null, "Test Recipient", "123 Main St", occurredAt, null));
+            WebhookDispatcher dispatcher = new WebhookDispatcher(new SsrfGuard(true, true), mapper,
+                    HttpClient.newHttpClient(), Clock.fixed(occurredAt, ZoneOffset.UTC));
+
+            WebhookDispatcher.DispatchResult result = dispatcher.dispatch(
+                    "http://127.0.0.1:" + receiver.getAddress().getPort() + "/hook",
+                    secret, deliveryId.toString(), payload);
+
+            assertThat(result.success()).isTrue();
+            assertThat(result.statusCode()).isEqualTo(200);
+            assertThat(received.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(receivedDeliveryId.get()).isEqualTo(deliveryId.toString());
+            assertThat(receivedTimestamp.get()).isEqualTo(Long.toString(occurredAt.getEpochSecond()));
+            assertThat(WebhookSigner.verify(receivedBody.get(), receivedSignature.get(), secret,
+                    300, occurredAt.getEpochSecond())).isTrue();
+            assertThat(mapper.readTree(receivedBody.get()).path("parcel").path("status").asText())
+                    .isEqualTo("CREATED");
+            assertThat(mapper.readTree(receivedBody.get()).path("parcel").path("fromStatus").asText())
+                    .isEqualTo("NONE");
+            assertThat(mapper.readTree(receivedBody.get()).path("parcel").path("toStatus").asText())
+                    .isEqualTo("CREATED");
+            assertThat(mapper.readTree(receivedBody.get()).path("eventType").asText())
+                    .isEqualTo("PARCEL_CREATED");
+            assertThat(mapper.readTree(receivedBody.get()).path("sequence").asLong())
+                    .isEqualTo(1L);
+        } finally {
+            receiver.stop(0);
+        }
+    }
+
+    @Test
     void eachAttemptSignsItsOutgoingBodyWithANewTimestamp() throws Exception {
         SsrfGuard guard = mock(SsrfGuard.class);
         HttpClient client = mock(HttpClient.class);

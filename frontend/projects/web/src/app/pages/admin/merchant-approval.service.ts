@@ -3,9 +3,9 @@ import { inject, Injectable, signal } from '@angular/core';
 import { catchError, finalize, map, Observable, of, tap, throwError } from 'rxjs';
 import {
   MerchantApprovalResponse,
+  MerchantListFilter,
   MerchantPage,
   MerchantRejectionRequest,
-  MerchantStatus,
   MerchantSummary,
 } from './merchant-approval.model';
 
@@ -36,19 +36,21 @@ export class MerchantApprovalService {
 
   private lastPage = 0;
   private lastSize = 20;
-  private lastStatus: MerchantStatus = 'PENDING';
+  private lastStatus: MerchantListFilter = 'PENDING';
 
-  loadMerchants(page = 0, size = 20, status: MerchantStatus = this.lastStatus): Observable<MerchantPage> {
+  loadMerchants(page = 0, size = 20, status: MerchantListFilter = this.lastStatus): Observable<MerchantPage> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     this.lastPage = page;
     this.lastSize = size;
     this.lastStatus = status;
 
-    const params = new HttpParams()
-      .set('status', status)
-      .set('page', page.toString())
-      .set('size', size.toString());
+    // `status` is optional in the contract; omitting it lists merchants in every status.
+    let params = new HttpParams();
+    if (status !== 'ALL') {
+      params = params.set('status', status);
+    }
+    params = params.set('page', page.toString()).set('size', size.toString());
 
     return this.http.get<MerchantPage>(this.baseUrl, { params }).pipe(
       tap((response) => {
@@ -62,7 +64,7 @@ export class MerchantApprovalService {
         }
       }),
       catchError((error) => {
-        this.errorSignal.set(this.messageFor(error, 'Pending merchants could not be loaded.'));
+        this.errorSignal.set(this.messageFor(error, 'Merchants could not be loaded.'));
         return throwError(() => error);
       }),
       finalize(() => this.loadingSignal.set(false))

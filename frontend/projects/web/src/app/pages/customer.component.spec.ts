@@ -7,6 +7,7 @@ import { CustomerComponent } from './customer.component';
 import { CustomerAddress, CustomerParcel, QuoteResponse } from './customer/customer.model';
 import { CustomerService } from './customer/customer.service';
 import { CustomerToastService } from './customer/customer-toast.service';
+import { ReceiptService } from './tracking/receipt.service';
 
 describe('CustomerComponent', () => {
   let component: CustomerComponent;
@@ -190,6 +191,190 @@ describe('CustomerComponent', () => {
     expect(root.querySelector('#recent-deliveries-range')?.textContent?.replace(/\s+/g, ' ')).toContain('Showing 11–11 of 11');
     expect((root.querySelector('#parcel-page-next') as HTMLButtonElement).disabled).toBe(true);
   }));
+
+  describe('history status filter dropdown', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const openMenu = () => {
+      root().querySelector<HTMLButtonElement>('#status-filter-btn')!.click();
+      fixture.detectChanges();
+    };
+
+    it('shows only the current choice until the dropdown is opened', () => {
+      fixture.detectChanges();
+
+      expect(root().querySelector('#status-filter-btn')!.textContent).toContain('All');
+      expect(root().querySelector('#status-filter-menu')).toBeNull();
+
+      openMenu();
+
+      const options = Array.from(root().querySelectorAll('#status-filter-menu [role="option"]')).map((o) => o.textContent!.trim());
+      expect(options).toEqual(['All', 'Created', 'In Transit', 'Delivered']);
+      expect(root().querySelector('#status-filter-btn')!.getAttribute('aria-expanded')).toBe('true');
+      expect(root().querySelector('#status-filter-option-ALL')!.getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('picking a status filters from page 1, keeps the dates, closes the menu and relabels the button', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedParcelPage.set(1);
+      component.dateFrom.set('2026-11-01');
+      fixture.detectChanges();
+      openMenu();
+
+      root().querySelector<HTMLButtonElement>('#status-filter-option-DELIVERED')!.click();
+      tick(100);
+      fixture.detectChanges();
+
+      expect(listParcels).toHaveBeenLastCalledWith('DELIVERED', 0, 10, { from: '2026-11-01' });
+      expect(root().querySelector('#status-filter-menu')).toBeNull();
+      expect(root().querySelector('#status-filter-btn')!.textContent).toContain('Delivered');
+    }));
+
+    it('choosing All clears the status filter', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedStatusFilter.set('CREATED');
+      fixture.detectChanges();
+      openMenu();
+
+      root().querySelector<HTMLButtonElement>('#status-filter-option-ALL')!.click();
+      tick(100);
+
+      expect(component.selectedStatusFilter()).toBeNull();
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10);
+    }));
+
+    it('closes on an outside click and on Escape without changing the filter', () => {
+      fixture.detectChanges();
+      openMenu();
+      document.body.click();
+      fixture.detectChanges();
+      expect(root().querySelector('#status-filter-menu')).toBeNull();
+
+      openMenu();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(root().querySelector('#status-filter-menu')).toBeNull();
+      expect(component.selectedStatusFilter()).toBeNull();
+    });
+  });
+
+  describe('history receipt download', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+
+    it('shows a Download receipt button only on DELIVERED rows', fakeAsync(() => {
+      component.loadParcels();
+      tick(100);
+      fixture.detectChanges();
+
+      const buttons = root().querySelectorAll('app-receipt-button.history-receipt');
+      expect(buttons.length).toBe(1);
+      expect(buttons[0].getAttribute('data-parcel-id')).toBe('delivered-1');
+      expect(buttons[0].textContent).toContain('Download receipt');
+    }));
+
+    it('downloads the receipt for that parcel without opening its details', fakeAsync(() => {
+      const receipts = TestBed.inject(ReceiptService);
+      const download = jest.spyOn(receipts, 'download').mockReturnValue(of('receipt.pdf'));
+      const viewDetails = jest.spyOn(component, 'viewParcelDetails');
+      component.loadParcels();
+      tick(100);
+      fixture.detectChanges();
+
+      root().querySelector<HTMLElement>('app-receipt-button.history-receipt [data-testid="receipt-button"] button')!.click();
+      tick(100);
+
+      expect(download).toHaveBeenCalledWith('delivered-1');
+      expect(viewDetails).not.toHaveBeenCalled();
+    }));
+  });
+
+  describe('history date filter', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const pick = (id: string, value: string) => {
+      const input = root().querySelector<HTMLInputElement>(id)!;
+      input.value = value;
+      input.dispatchEvent(new Event('change'));
+    };
+
+    it('reloads the table from the first page with the picked booking dates', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedParcelPage.set(1);
+      fixture.detectChanges();
+
+      pick('#history-date-from', '2026-11-01');
+      tick(100);
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10, { from: '2026-11-01' });
+
+      pick('#history-date-to', '2026-11-15');
+      tick(100);
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10, { from: '2026-11-01', to: '2026-11-15' });
+      expect(component.selectedParcelPage()).toBe(0);
+    }));
+
+    it('combines the date range with the status filter', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      component.selectedStatusFilter.set('DELIVERED');
+      fixture.detectChanges();
+
+      pick('#history-date-to', '2026-11-15');
+      tick(100);
+
+      expect(listParcels).toHaveBeenLastCalledWith('DELIVERED', 0, 10, { to: '2026-11-15' });
+    }));
+
+    it('Clear dates removes the range and reloads all deliveries', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      fixture.detectChanges();
+      expect(root().querySelector('#history-date-clear')).toBeNull();
+
+      pick('#history-date-from', '2026-11-01');
+      tick(100);
+      fixture.detectChanges();
+      root().querySelector<HTMLButtonElement>('#history-date-clear')!.click();
+      tick(100);
+      fixture.detectChanges();
+
+      expect(component.dateFrom()).toBe('');
+      expect(listParcels).toHaveBeenLastCalledWith(undefined, 0, 10);
+      expect(root().querySelector('#history-date-clear')).toBeNull();
+    }));
+
+    it('shows an error and does not reload when From is typed after To', fakeAsync(() => {
+      const listParcels = customerService.listParcels as jest.Mock;
+      fixture.detectChanges();
+      pick('#history-date-to', '2026-11-01');
+      tick(100);
+      const callsBefore = listParcels.mock.calls.length;
+
+      pick('#history-date-from', '2026-11-20');
+      tick(100);
+      fixture.detectChanges();
+
+      expect(listParcels.mock.calls.length).toBe(callsBefore);
+      expect(root().querySelector('#history-date-error')?.textContent).toContain('must be on or before');
+    }));
+
+    it('says no deliveries match when a date range returns nothing', fakeAsync(() => {
+      (customerService.listParcels as jest.Mock).mockReturnValue(
+        of({ content: [], totalElements: 0, totalPages: 0, page: 0, size: 10 })
+      );
+      fixture.detectChanges();
+
+      pick('#history-date-from', '2030-01-01');
+      tick(100);
+      fixture.detectChanges();
+
+      expect(root().querySelector('#history-empty-date')?.textContent).toContain('No deliveries in this date range');
+    }));
+
+    it('limits each picker so From cannot be after To', () => {
+      component.dateFrom.set('2026-11-01');
+      component.dateTo.set('2026-11-15');
+      fixture.detectChanges();
+
+      expect(root().querySelector('#history-date-from')!.getAttribute('max')).toBe('2026-11-15');
+      expect(root().querySelector('#history-date-to')!.getAttribute('min')).toBe('2026-11-01');
+    });
+  });
 
   it('collapses long page lists with gaps', () => {
     component.parcelPage.set({ content: [], totalElements: 200, totalPages: 20, page: 9, size: 10 });
@@ -439,34 +624,62 @@ describe('CustomerComponent', () => {
     const summaryText = () =>
       (fixture.nativeElement as HTMLElement).querySelector('.hero-summary-card')!.textContent!.replace(/\s+/g, ' ');
 
+    const totals = (counts: { created: number; inTransit: number; delivered: number }) =>
+      jest.spyOn(customerService, 'getParcelCounts').mockReturnValue(of(counts));
+
     it('shows 0 and the "no active shipments" message when every parcel is cancelled or delivered', () => {
-      component.parcels.set([
-        { ...mockCreatedParcel, id: 'c1', status: 'CANCELLED' },
-        { ...mockCreatedParcel, id: 'c2', status: 'CANCELLED' },
-        { ...mockCreatedParcel, id: 'd1', status: 'DELIVERED' },
-      ]);
+      totals({ created: 0, inTransit: 0, delivered: 1 });
+      component.loadParcelCounts();
       fixture.detectChanges();
 
       expect(component.activeDeliveriesCount()).toBe(0);
-      expect(summaryText()).toContain('0 in delivery today');
+      expect(summaryText()).toContain('0 in delivery');
       expect(summaryText()).toContain('No active shipments');
     });
 
     it('shows 0 when the customer has no parcels at all', () => {
-      component.parcels.set([]);
+      totals({ created: 0, inTransit: 0, delivered: 0 });
+      component.loadParcelCounts();
       expect(component.activeDeliveriesCount()).toBe(0);
     });
 
     it('counts only parcels that are still moving', () => {
-      component.parcels.set([
-        { ...mockCreatedParcel, id: 'a', status: 'CREATED' },
-        { ...mockCreatedParcel, id: 'b', status: 'PICKED_UP' },
-        { ...mockCreatedParcel, id: 'c', status: 'IN_TRANSIT' },
-        { ...mockCreatedParcel, id: 'd', status: 'OUT_FOR_DELIVERY' },
-        { ...mockCreatedParcel, id: 'e', status: 'CANCELLED' },
-        { ...mockCreatedParcel, id: 'f', status: 'DELIVERED' },
-      ]);
+      totals({ created: 1, inTransit: 3, delivered: 1 });
+      component.loadParcelCounts();
       expect(component.activeDeliveriesCount()).toBe(4);
+    });
+
+    it('shows Created, In transit and Delivered totals', () => {
+      totals({ created: 2, inTransit: 5, delivered: 12 });
+      component.loadParcelCounts();
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+
+      expect(root.querySelector('#count-created')!.textContent!.trim()).toBe('2');
+      expect(root.querySelector('#count-in-transit')!.textContent!.trim()).toBe('5');
+      expect(root.querySelector('#count-delivered')!.textContent!.trim()).toBe('12');
+      expect(summaryText()).toContain('7 in delivery');
+    });
+
+    it('does not change with the table page or status filter shown below', () => {
+      totals({ created: 2, inTransit: 5, delivered: 12 });
+      component.loadParcelCounts();
+
+      component.parcels.set([{ ...mockCreatedParcel, id: 'only-one', status: 'DELIVERED' }]);
+      component.selectedStatusFilter.set('DELIVERED');
+
+      expect(component.activeDeliveriesCount()).toBe(7);
+    });
+
+    it('loads the totals on start and refreshes them after a cancellation', () => {
+      const getCounts = totals({ created: 1, inTransit: 0, delivered: 0 });
+      component.ngOnInit();
+      expect(getCounts).toHaveBeenCalledTimes(1);
+
+      jest.spyOn(customerService, 'cancelParcel').mockReturnValue(of({ ...mockCreatedParcel, status: 'CANCELLED' }));
+      component.cancelParcel(mockCreatedParcel.id);
+
+      expect(getCounts).toHaveBeenCalledTimes(2);
     });
   });
 

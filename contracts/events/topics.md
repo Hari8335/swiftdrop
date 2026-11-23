@@ -8,7 +8,7 @@ This document specifies the Kafka topics, consumer groups, message contracts, re
 
 | Topic | Partition Key | Producer | Primary Consumers (Group ID) | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `parcel.created.v1` | `parcelId` | `parcel-service` | `integration-notification` (`integration-service`),<br>`operations-reports` (`operations-service`) | Emitted when a new parcel order is created and validated. Triggers initial customer confirmation email. |
+| `parcel.created.v1` | `parcelId` | `parcel-service` | `integration-notification` (`integration-service`),<br>`operations-reports` (`operations-service`),<br>`integration-webhook` (`integration-service`) | Emitted when a new parcel order is created and validated. Triggers initial customer confirmation email and merchant webhooks. |
 | `parcel.assigned.v1` | `parcelId` | `parcel-service` | `integration-notification` (`integration-service`),<br>`operations-workload` (`operations-service`) | Emitted when a parcel is assigned or reassigned to a courier. Triggers courier assignment notification and updates courier workload. |
 | `parcel.status-changed.v1` | `parcelId` | `parcel-service` | `parcel-tracking` (`parcel-service`),<br>`integration-notification` (`integration-service`),<br>`integration-webhook` (`integration-service`),<br>`operations-reports` (`operations-service`) | Emitted on every state transition (`PICKED_UP`, `IN_TRANSIT`, `OUT_FOR_DELIVERY`, `DELIVERED`, `FAILED`, `CANCELLED`). Drives live tracking SSE, notifications, webhooks, and daily statistics. |
 | `user.registered.v1` | `userId` | `auth-service` | `integration-notification` (`integration-service`),<br>`operations-courier` (`operations-service`) | Emitted when a new user registers or is created by an admin. Triggers welcome email or courier profile provisioning. |
@@ -21,7 +21,8 @@ To ensure resilient message processing without blocking broker partitions, consu
 
 | Base Topic | Retry Topic | Dead Letter Topic (DLT) | Target Consumer Service |
 | :--- | :--- | :--- | :--- |
-| `parcel.created.v1` | `parcel.created.v1.retry` | `parcel.created.v1.dlt` | `integration-service` |
+| `parcel.created.v1` | `parcel.created.v1.retry` | `parcel.created.v1.dlt` | `integration-service` (`integration-notification`) |
+| `parcel.created.v1` | `parcel.created.v1.webhook.retry` | `parcel.created.v1.webhook.dlt` | M7 webhooks (`integration-webhook`) |
 | `parcel.assigned.v1` | `parcel.assigned.v1.retry` | `parcel.assigned.v1.dlt` | `integration-service`, `operations-service` |
 | `parcel.status-changed.v1` | `parcel.status-changed.v1.retry` | `parcel.status-changed.v1.dlt` | Existing non-webhook consumers, including M3 notifications (`integration-notification`); unchanged for parcel tracking and operations |
 | `parcel.status-changed.v1` | `parcel.status-changed.v1.webhook.retry` | `parcel.status-changed.v1.webhook.dlt` | M7 webhooks (`integration-webhook`) |

@@ -400,6 +400,21 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
 
+  /api/v1/merchant/profile:
+    get:
+      summary: Get the signed-in merchant's business identity
+      description: >-
+        Returns display identity for the authenticated merchant only (resolved from the signed
+        token's merchantId claim). Used by the merchant portal header. Never returns credentials,
+        secrets, contact email or phone, or any other merchant's data.
+      operationId: getMerchantProfile
+      tags: [Merchant Onboarding]
+      security: [{BearerAuth: []}]
+      responses:
+        '200': {description: The authenticated merchant's profile., content: {application/json: {schema: {$ref: '#/components/schemas/MerchantProfile'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Merchant credentials are required.}
+        '404': {description: The merchant record no longer exists.}
   /api/v1/merchant/notifications:
     get:
       summary: List notifications for the signed-in merchant portal user
@@ -523,6 +538,14 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
   schemas:
+    MerchantProfile:
+      type: object
+      required: [merchantId, businessName, status]
+      properties:
+        merchantId: {type: string, format: uuid}
+        businessName: {type: string, example: Acme Stores (Pvt) Ltd}
+        contactName: {type: string, nullable: true, example: Alice Perera}
+        status: {type: string, enum: [PENDING, APPROVED, REJECTED, SUSPENDED], example: APPROVED}
     MerchantPortalNotificationPage:
       type: object
       required: [items, totalElements, unreadCount]

@@ -549,7 +549,9 @@ components:
           example: 200
         attempts:
           type: integer
-          description: Number of attempts executed so far (1 to 5).
+          description: >-
+            Attempts executed in the current retry cycle (1 to 5). A manual retry starts a new
+            cycle and resets this counter to 1; see totalAttempts and manualRetryCount.
           example: 1
         lastAttemptAt:
           type: string
@@ -569,6 +571,31 @@ components:
           type: string
           format: date-time
           example: "2026-10-24T18:45:00Z"
+        parcelStatus:
+          type: string
+          nullable: true
+          description: >-
+            Optional, additive. The parcel lifecycle status carried by this delivery's signed
+            payload (parcel.toStatus), so clients can describe the update without fetching each
+            delivery. Null for events without a parcel status (for example TEST_EVENT) or when
+            the stored payload cannot be read. Describes the physical parcel, not whether the
+            notification was delivered (see status).
+          enum: [CREATED, PICKED_UP, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, FAILED, CANCELLED, null]
+          example: OUT_FOR_DELIVERY
+        totalAttempts:
+          type: integer
+          minimum: 0
+          description: >-
+            Optional, additive. All recorded attempts for this delivery across every retry cycle
+            (automatic attempts plus manual retries).
+          example: 6
+        manualRetryCount:
+          type: integer
+          minimum: 0
+          description: >-
+            Optional, additive. Number of manual retry cycles started by the merchant. Each manual
+            retry restarts the attempt counter at 1.
+          example: 1
 
     WebhookDeliveryLogPage:
       type: object

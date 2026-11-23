@@ -16,7 +16,7 @@ The SwiftDrop Webhook System enables merchant partners to receive real-time, asy
        │
        │ publishes (phase = AFTER_COMMIT)
        ▼
- [Kafka: parcel.status-changed.v1]
+ [Kafka: parcel.status-changed.v1, parcel.created.v1]
        │
        ├─────────────────────────────────────────┐
        ▼ (group: integration-webhook)            ▼ (group: integration-notification)
@@ -44,7 +44,7 @@ To guarantee multi-tenant safety and enterprise-grade resilience, the webhook su
 
 ### 2.1 Topic Subscription
 The webhook engine consumes from:
-* **Topic:** `parcel.status-changed.v1`
+* **Topics:** `parcel.status-changed.v1`, `parcel.created.v1`
 * **Partition Key:** `parcelId` (guarantees partition-level in-order delivery of transitions for any single parcel).
 
 ### 2.2 Consumer Group Agreement with Member M3
