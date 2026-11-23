@@ -361,7 +361,7 @@ import { AdminUsersService } from './admin-users.service';
       <!-- ================================================================= -->
       @if (pendingConfirmUser(); as confirmUser) {
         <div
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in"
+          class="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in"
           (click)="cancelConfirmToggle()"
         >
           <div
@@ -432,7 +432,7 @@ import { AdminUsersService } from './admin-users.service';
       <!-- ================================================================= -->
       <div
         *ngIf="isCreateUserModalOpen()"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm animate-fade-in"
+        class="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm animate-fade-in"
       >
         <div
           class="w-full max-w-md space-y-5 rounded-[1.5rem] border border-[#e9e3dd] bg-[#fbfaf8] p-7 shadow-[0_20px_50px_rgba(42,32,25,0.2)]"

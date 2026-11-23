@@ -312,7 +312,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
         <div
           *ngIf="toastMessage()"
           id="toast-notification"
-          class="fixed top-6 right-6 z-50 max-w-md bg-white border border-[#e8e2dc] shadow-xl rounded-2xl p-4 flex items-center justify-between gap-3 animate-fade-in"
+          class="fixed !mt-0 top-6 right-6 z-50 max-w-md bg-white border border-[#e8e2dc] shadow-xl rounded-2xl p-4 flex items-center justify-between gap-3 animate-fade-in"
         >
           <div class="flex items-center gap-3 font-semibold text-xs text-[#1d1b2c]">
             <div class="w-7 h-7 rounded-full bg-[#a53a26]/10 text-[#a53a26] flex items-center justify-center flex-shrink-0">
@@ -339,7 +339,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
         <div
           *ngIf="showLogoutModal()"
           id="logout-confirmation-modal"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in"
+          class="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in"
         >
           <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl space-y-4">
             <div class="w-12 h-12 rounded-2xl bg-[#faf2f0] flex items-center justify-center text-[#a53a26]">
@@ -380,7 +380,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
         <div
           *ngIf="pendingStageAction()"
           id="stage-confirmation-modal"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in"
+          class="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in"
           (click)="cancelStageConfirmation()"
         >
           <div
@@ -1732,7 +1732,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
         <!-- MODAL: EDIT PROFILE (COURIER) -->
         <div
           *ngIf="isEditModalOpen()"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm animate-fade-in"
+          class="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm animate-fade-in"
         >
           <div class="w-full max-w-md space-y-5 rounded-[1.5rem] border border-[#e9e3dd] bg-[#fbfaf8] p-7 shadow-2xl">
             <div class="flex items-center justify-between border-b border-[#e9e3dd] pb-4">
@@ -1815,7 +1815,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
         <!-- Proof of Delivery Modal Dialog -->
         <div
           *ngIf="selectedDeliveryForProof()"
-          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/60 backdrop-blur-xs animate-fade-in"
+          class="fixed inset-0 !mt-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/60 backdrop-blur-xs animate-fade-in"
         >
           <div
             class="bg-white rounded-3xl shadow-xl border border-[#e8e2dc] w-full max-w-md overflow-hidden transform transition-all"
@@ -1961,7 +1961,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
         <!-- Failure Modal Dialog -->
         <div
           *ngIf="selectedDeliveryForFailure()"
-          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/60 backdrop-blur-xs animate-fade-in"
+          class="fixed inset-0 !mt-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/60 backdrop-blur-xs animate-fade-in"
         >
           <div
             class="bg-white rounded-3xl shadow-xl border border-[#e8e2dc] w-full max-w-md overflow-hidden transform transition-all"
@@ -2059,7 +2059,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
         <!-- View Proof Modal Dialog -->
         <div
           *ngIf="selectedDeliveryForProofView()"
-          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/60 backdrop-blur-xs animate-fade-in"
+          class="fixed inset-0 !mt-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/60 backdrop-blur-xs animate-fade-in"
         >
           <div
             class="bg-white rounded-3xl shadow-xl border border-[#e8e2dc] w-full max-w-lg overflow-hidden transform transition-all"

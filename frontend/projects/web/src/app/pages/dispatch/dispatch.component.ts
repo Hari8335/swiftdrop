@@ -822,7 +822,7 @@ interface HomeResults {
       <!-- ================================================================= -->
       <div
         *ngIf="selectedParcelForAssign()"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/40 backdrop-blur-sm animate-fade-in"
+        class="fixed inset-0 !mt-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/40 backdrop-blur-sm animate-fade-in"
       >
         <div class="bg-white rounded-2xl shadow-xl border border-[#f0ebe5] w-full max-w-lg p-6 space-y-5">
           <div class="flex items-center justify-between border-b border-[#f0ebe5] pb-3">
@@ -945,7 +945,7 @@ interface HomeResults {
       <!-- ================================================================= -->
       <div
         *ngIf="bulkResult()"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/40 backdrop-blur-sm animate-fade-in"
+        class="fixed inset-0 !mt-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/40 backdrop-blur-sm animate-fade-in"
       >
         <div class="bg-white rounded-2xl shadow-xl border border-[#f0ebe5] w-full max-w-lg p-6 space-y-4">
           <div class="flex items-center justify-between border-b border-[#f0ebe5] pb-3">
@@ -1023,7 +1023,7 @@ interface HomeResults {
       <!-- ================================================================= -->
       <div
         *ngIf="selectedParcelForRequeue()"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/40 backdrop-blur-sm animate-fade-in"
+        class="fixed inset-0 !mt-0 z-50 flex items-center justify-center p-4 bg-[#1d1b2c]/40 backdrop-blur-sm animate-fade-in"
       >
         <div class="bg-white rounded-2xl shadow-xl border border-[#f0ebe5] w-full max-w-lg p-6 space-y-5">
           <div class="flex items-center justify-between border-b border-[#f0ebe5] pb-3">
