@@ -27,10 +27,12 @@ import {
 } from './merchant/merchant.model';
 import { MerchantService } from './merchant/merchant.service';
 import { MerchantCredentialsComponent } from './merchant/merchant-credentials.component';
+import { MERCHANT_STATUS_LABELS, MerchantSettingsComponent } from './merchant/merchant-settings.component';
 import { MerchantNotificationBellComponent } from './merchant/merchant-notification-bell.component';
 import { MerchantNotificationsService } from './merchant/merchant-notifications.service';
 
-type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
+/** 'settings' is Webhook Settings; 'account' is the merchant's own account Settings page. */
+type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials' | 'account';
 type DiagnosticTab = 'overview' | 'headers' | 'payload' | 'response';
 
 /** One row of the diagnostics attempt history, labelled by retry cycle. */
@@ -71,6 +73,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
     FormsModule,
     RouterOutlet,
     MerchantCredentialsComponent,
+    MerchantSettingsComponent,
     MerchantNotificationBellComponent,
     PaginationComponent,
     StatusBadgeComponent,
@@ -129,7 +132,16 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
           </nav>
         </div>
 
-        <div class="border-t border-[#f0ece8] pt-3">
+        <div class="flex flex-col gap-1.5 border-t border-[#f0ece8] pt-3">
+          <button
+            type="button" id="merchant-sidebar-settings-btn" (click)="selectTab('account')" aria-label="Settings"
+            [attr.aria-current]="!bulkPageActive() && activeTab() === 'account' ? 'page' : null"
+            [ngClass]="!bulkPageActive() && activeTab() === 'account' ? 'bg-[#faf0ec] text-[#9b432f] font-bold shadow-xs ring-1 ring-[#f2ded8]' : 'text-[#6f6d85] hover:bg-[#fbf7f5] hover:text-[#9b432f]'"
+            class="relative flex h-11 w-full items-center rounded-2xl px-3 transition-all duration-200"
+          >
+            <ng-container *ngTemplateOutlet="settingsIcon" />
+            <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100">Settings</span>
+          </button>
           <button type="button" id="merchant-sidebar-logout-btn" (click)="openLogoutConfirm()" aria-label="Log out" class="relative flex h-11 w-full items-center rounded-2xl px-3 text-[#6f6d85] transition-all duration-200 hover:bg-[#faf0ec] hover:text-[#9b432f]">
             <span class="grid h-5 w-5 shrink-0 place-items-center"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
             <span class="ml-3.5 whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">Log out</span>
@@ -155,7 +167,22 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
         <button type="button" (click)="navigateToBulk()" aria-label="Bulk CSV Orders" [attr.aria-current]="bulkPageActive() ? 'page' : null" class="grid h-11 w-11 place-items-center rounded-xl text-[#6f6d85] hover:bg-[#faf0ec] hover:text-[#9b432f]">
           <ng-container *ngTemplateOutlet="bulkPlusIcon" />
         </button>
+        <button type="button" id="merchant-mobile-settings-btn" (click)="selectTab('account')" aria-label="Settings"
+          [attr.aria-current]="!bulkPageActive() && activeTab() === 'account' ? 'page' : null"
+          [ngClass]="!bulkPageActive() && activeTab() === 'account' ? 'bg-[#faf0ec] text-[#9b432f]' : 'text-[#6f6d85]'"
+          class="grid h-11 w-11 place-items-center rounded-xl hover:bg-[#faf0ec] hover:text-[#9b432f]">
+          <ng-container *ngTemplateOutlet="settingsIcon" />
+        </button>
       </nav>
+
+      <ng-template #settingsIcon>
+        <span class="grid h-5 w-5 shrink-0 place-items-center">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </span>
+      </ng-template>
 
       <ng-template #integrationsIcon>
         <span class="flex shrink-0 items-center gap-1" aria-hidden="true">
@@ -193,13 +220,14 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
       </ng-template>
 
       <!-- Main Content Area (Edge-to-Edge Full Screen) -->
-      <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 pb-24 lg:pb-7 lg:py-7 space-y-7 min-w-0 bg-white lg:ml-20">
+      <main class="flex-1 min-h-screen min-w-0 bg-white pb-24 lg:pb-0 lg:ml-20">
         <router-outlet [routerOutletData]="headerName()" (activate)="onBulkOpened()" (deactivate)="onBulkClosed()" />
         @if (!bulkPageActive()) {
-        <!-- Top Header: Search Bar & Merchant Profile -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#f4efe9]">
-          <!-- Search Input -->
-          <div class="relative flex-1 max-w-lg">
+        <!-- Top Header: Search Bar & Merchant Profile. 80px tall so it centres on the sidebar logo. -->
+        <header id="merchant-top-bar" class="sticky top-0 z-30 flex min-h-20 items-center justify-between gap-3 border-b border-[#f0ebe5] bg-white/95 px-6 py-3 backdrop-blur sm:px-8 lg:h-20 lg:px-10 lg:py-0">
+          <!-- Search Input: it only filters the orders list, so it is shown on the Orders Dashboard only. -->
+          @if (activeTab() === 'orders') {
+          <div class="relative min-w-0 flex-1 max-w-lg">
             <svg
               class="w-4 h-4 text-[#a09eaf] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
               viewBox="0 0 24 24"
@@ -221,15 +249,21 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
               class="w-full h-11 pl-11 pr-4 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
             />
           </div>
+          } @else {
+            <!-- Keeps the bell and profile chip pinned to the right. -->
+            <div class="flex-1" aria-hidden="true"></div>
+          }
 
-          <div class="flex min-w-0 items-center gap-3 self-end sm:self-auto">
+          <div class="flex shrink-0 items-center gap-3">
             <app-merchant-notification-bell />
-            <div id="merchant-profile-chip" class="h-11 flex min-w-0 max-w-[14rem] items-center gap-2 rounded-full bg-[#faf8f6] border border-[#e8e2dc] pl-1.5 pr-4 select-none" [attr.title]="headerName()">
+            <div id="merchant-profile-chip" class="h-11 flex min-w-0 max-w-[14rem] items-center gap-2 rounded-full bg-[#faf8f6] border border-[#e8e2dc] pl-1.5 pr-1.5 sm:pr-4 select-none" [attr.title]="headerName()">
               <span aria-hidden="true" class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#a53a26] text-[10px] font-black text-white">{{ merchantInitials() }}</span>
-              <span class="truncate text-xs font-bold text-[#1d1b2c]">{{ headerName() }}</span>
+              <span class="hidden truncate text-xs font-bold text-[#1d1b2c] sm:inline">{{ headerName() }}</span>
             </div>
           </div>
-        </div>
+        </header>
+
+        <div class="space-y-7 px-6 pt-7 pb-8 sm:px-8 lg:px-10 lg:pb-10">
 
         <!-- Toast Feedback -->
         <!-- ========================================================================= -->
@@ -547,40 +581,72 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
         <!-- ========================================================================= -->
         <div *ngIf="activeTab() === 'settings'" class="mx-auto w-full max-w-7xl space-y-6">
           <!-- Account Profile Card -->
-          <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Account Profile</span>
-                <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight mt-0.5">Merchant Details</h2>
+          <section id="merchant-details-card" aria-labelledby="merchant-details-title" class="overflow-hidden rounded-3xl border border-[#eee7e0] bg-white shadow-sm">
+            <div class="flex flex-col gap-4 bg-gradient-to-r from-[#fbf3ef] via-[#fdf8f5] to-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+              <div class="flex min-w-0 items-center gap-4">
+                <span aria-hidden="true" class="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#a53a26] text-base font-black text-white shadow-[0_10px_22px_rgba(165,58,38,0.25)]">{{ merchantInitials() }}</span>
+                <div class="min-w-0">
+                  <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Merchant details</span>
+                  <h2 id="merchant-details-title" class="mt-0.5 flex flex-wrap items-center gap-2 text-lg font-black tracking-tight text-[#1d1b2c] sm:text-xl">
+                    <span class="min-w-0 break-words">{{ merchantProfile()?.businessName || headerName() }}</span>
+                    @if (merchantProfile()?.status; as status) {
+                      <span id="merchant-details-status" class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold" [ngClass]="merchantStatusClass(status)">
+                        <span class="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true"></span>{{ merchantStatusLabel(status) }}
+                      </span>
+                    }
+                  </h2>
+                  <p class="mt-0.5 text-xs font-medium text-[#6f6d85]">Webhooks below are sent on behalf of this business.</p>
+                </div>
               </div>
               <button
                 type="button"
                 id="merchant-edit-profile-btn"
-                (click)="openEditProfileModal()"
-                class="px-4 py-1.5 bg-white border border-[#eee7e0] hover:border-[#a53a26] text-[#a53a26] text-xs font-bold rounded-full transition-colors cursor-pointer"
+                (click)="openAccountSettings(true)"
+                class="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-[#eee7e0] bg-white px-4 py-2 text-xs font-bold text-[#a53a26] transition-colors hover:border-[#a53a26] sm:self-auto cursor-pointer"
               >
-                Edit Profile
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                Edit profile
               </button>
             </div>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-              <div class="min-w-0">
-                <dt class="text-[#6f6d85] font-medium">Business name</dt>
-                <dd id="merchant-profile-business-name" class="font-bold text-[#1d1b2c] mt-0.5 break-words">{{ merchantProfile()?.businessName || 'Not available' }}</dd>
+            <dl class="grid grid-cols-1 gap-3 border-t border-[#f4efe9] p-5 sm:grid-cols-2 sm:px-7 xl:grid-cols-4">
+              <div class="flex min-w-0 items-start gap-3 rounded-2xl bg-[#faf8f6] p-3.5">
+                <span aria-hidden="true" class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#a53a26] shadow-xs">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
+                </span>
+                <div class="min-w-0">
+                  <dt class="text-[11px] font-semibold text-[#6f6d85]">Business name</dt>
+                  <dd id="merchant-profile-business-name" class="mt-0.5 break-words text-sm font-bold text-[#1d1b2c]">{{ merchantProfile()?.businessName || 'Not available' }}</dd>
+                </div>
               </div>
-              <div>
-                <dt class="text-[#6f6d85] font-medium">Full name</dt>
-                <dd id="merchant-profile-name" class="font-bold text-[#1d1b2c] mt-0.5">{{ merchantName() }}</dd>
+              <div class="flex min-w-0 items-start gap-3 rounded-2xl bg-[#faf8f6] p-3.5">
+                <span aria-hidden="true" class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#a53a26] shadow-xs">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                </span>
+                <div class="min-w-0">
+                  <dt class="text-[11px] font-semibold text-[#6f6d85]">Account holder</dt>
+                  <dd id="merchant-profile-name" class="mt-0.5 break-words text-sm font-bold text-[#1d1b2c]">{{ merchantName() }}</dd>
+                </div>
               </div>
-              <div>
-                <dt class="text-[#6f6d85] font-medium">Phone number</dt>
-                <dd id="merchant-profile-phone" class="font-bold text-[#1d1b2c] mt-0.5">{{ merchantPhone() || 'Not provided' }}</dd>
+              <div class="flex min-w-0 items-start gap-3 rounded-2xl bg-[#faf8f6] p-3.5">
+                <span aria-hidden="true" class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#a53a26] shadow-xs">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+                </span>
+                <div class="min-w-0">
+                  <dt class="text-[11px] font-semibold text-[#6f6d85]">Email</dt>
+                  <dd id="merchant-profile-email" class="mt-0.5 truncate text-sm font-bold text-[#1d1b2c]" [attr.title]="merchantEmail()">{{ merchantEmail() }}</dd>
+                </div>
               </div>
-              <div class="min-w-0">
-                <dt class="text-[#6f6d85] font-medium">Email</dt>
-                <dd id="merchant-profile-email" class="font-bold text-[#1d1b2c] mt-0.5 truncate">{{ merchantEmail() }}</dd>
+              <div class="flex min-w-0 items-start gap-3 rounded-2xl bg-[#faf8f6] p-3.5">
+                <span aria-hidden="true" class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#a53a26] shadow-xs">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </span>
+                <div class="min-w-0">
+                  <dt class="text-[11px] font-semibold text-[#6f6d85]">Phone number</dt>
+                  <dd id="merchant-profile-phone" class="mt-0.5 break-words text-sm font-bold" [ngClass]="merchantPhone() ? 'text-[#1d1b2c]' : 'text-[#a09eaf]'">{{ merchantPhone() || 'Not provided' }}</dd>
+                </div>
               </div>
             </dl>
-          </div>
+          </section>
 
           <!-- Section A: Page Header -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1280,7 +1346,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
           </div>
 
           <!-- Enterprise Tabbed Diagnostic Inspection Modal -->
-          <div *ngIf="selectedDelivery() as sd" class="fixed inset-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" (click)="closeDiagnostics()">
+          <div *ngIf="selectedDelivery() as sd" class="fixed inset-0 !mt-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" (click)="closeDiagnostics()">
             <div
               role="dialog"
               aria-modal="true"
@@ -1292,7 +1358,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
               class="bg-white rounded-t-3xl sm:rounded-3xl shadow-xl max-w-2xl w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden border border-[#eee7e0] focus:outline-none"
             >
               <!-- Modal Header: merchant-facing summary -->
-              <div class="p-5 sm:p-6 border-b border-[#f4efe9] flex justify-between items-start gap-4 bg-[#faf8f6]">
+              <div class="shrink-0 p-5 sm:p-6 border-b border-[#f4efe9] flex justify-between items-start gap-4 bg-[#faf8f6]">
                 <div class="min-w-0">
                   <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Webhook Diagnostics</span>
                   <h3 id="webhook-diagnostics-title" class="text-base sm:text-lg font-black text-[#1d1b2c] mt-0.5">{{ deliveryEventLabel(sd) }}</h3>
@@ -1315,7 +1381,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
               </div>
 
               <!-- Modal Tab Navigation (WAI-ARIA tabs pattern) -->
-              <div role="tablist" aria-label="Diagnostic sections" class="diag-tablist flex items-stretch gap-1 px-3 sm:px-5 border-b border-[#f0ebe5] bg-white overflow-x-auto">
+              <div role="tablist" aria-label="Diagnostic sections" class="diag-tablist shrink-0 flex items-stretch gap-1 px-3 sm:px-5 border-b border-[#f0ebe5] bg-white overflow-x-auto">
                 <button
                   *ngFor="let tab of diagnosticTabs"
                   type="button"
@@ -1334,7 +1400,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
               </div>
 
               <!-- Modal Body Content -->
-              <div class="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs flex-1">
+              <div class="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs flex-1 min-h-0">
                 <!-- Tab: Overview -->
                 <div *ngIf="diagnosticTab() === 'overview'" role="tabpanel" id="diag-panel-overview" aria-labelledby="diag-tab-overview" tabindex="0" class="space-y-4 focus:outline-none">
                   <!-- Merchant-facing summary -->
@@ -1466,7 +1532,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
               </div>
 
               <!-- Modal Footer -->
-              <div class="p-4 border-t border-[#f4efe9] bg-[#faf8f6] flex justify-end">
+              <div class="shrink-0 p-4 border-t border-[#f4efe9] bg-[#faf8f6] flex justify-end">
                 <button
                   type="button"
                   (click)="closeDiagnostics()"
@@ -1483,11 +1549,26 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
         <!-- TAB 4: API CREDENTIALS                                                   -->
         <!-- ========================================================================= -->
         <app-merchant-credentials *ngIf="activeTab() === 'credentials'"></app-merchant-credentials>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 5: ACCOUNT SETTINGS                                                  -->
+        <!-- ========================================================================= -->
+        @if (activeTab() === 'account') {
+          <app-merchant-settings
+            [businessName]="merchantProfile()?.businessName"
+            [status]="merchantProfile()?.status"
+            [emailFallback]="merchantEmail()"
+            [startInEditMode]="accountEditRequested()"
+            (profileSaved)="onProfileSaved()"
+            (profileSaveFailed)="onProfileSaveFailed($event)"
+          />
+        }
+        </div>
         }
       </main>
 
       @if (logoutConfirmOpen()) {
-        <div class="fixed inset-0 z-[100] flex items-center justify-center bg-[#1d1b2c]/40 backdrop-blur-sm p-4"
+        <div class="fixed inset-0 !mt-0 z-[100] flex items-center justify-center bg-[#1d1b2c]/40 backdrop-blur-sm p-4"
           (click)="cancelLogout()">
           <div role="alertdialog" aria-modal="true" aria-labelledby="merchant-logout-title"
             aria-describedby="merchant-logout-description"
@@ -1516,7 +1597,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
 
       <!-- Order Detail Modal for Dashboard -->
       @if (selectedOrder()) {
-        <div class="fixed inset-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 !mt-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div class="bg-white rounded-3xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-[#eee7e0]">
             <div class="p-6 border-b border-[#f4efe9] flex justify-between items-center bg-[#faf8f6]">
               <div>
@@ -1614,89 +1695,9 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
         </div>
       }
 
-      <!-- MODAL: EDIT PROFILE (MERCHANT) -->
-      <div
-        *ngIf="isEditProfileModalOpen()"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm animate-fade-in"
-      >
-        <div class="w-full max-w-md space-y-5 rounded-[1.5rem] border border-[#e9e3dd] bg-[#fbfaf8] p-7 shadow-2xl">
-          <div class="flex items-center justify-between border-b border-[#e9e3dd] pb-4">
-            <div>
-              <p class="text-xs font-bold uppercase tracking-[0.16em] text-[#a53a26]">Merchant profile</p>
-              <h3 class="mt-1 text-xl font-black tracking-[-0.03em] text-[#1d1b2c]">Edit Profile</h3>
-              <p class="mt-1 text-xs text-[#6f6d85]">Update your business contact details.</p>
-            </div>
-            <button
-              type="button"
-              (click)="closeEditProfileModal()"
-              class="flex h-9 w-9 items-center justify-center rounded-full text-[#6f6d85] hover:bg-[#f2e4de] hover:text-[#a53a26]"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div *ngIf="editProfileError()" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">
-            {{ editProfileError() }}
-          </div>
-
-          <form (ngSubmit)="saveProfile()" class="space-y-3.5">
-            <div>
-              <label class="mb-1 block text-xs font-bold text-[#6f6d85]">Full Name / Merchant Name</label>
-              <input
-                type="text"
-                id="merchant-edit-fullname"
-                [(ngModel)]="editProfileFullName"
-                name="editFullName"
-                required
-                class="w-full rounded-xl border border-[#eee7e0] bg-white px-3 py-2.5 text-sm text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#f2e4de]"
-              />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-bold text-[#6f6d85]">Phone Number</label>
-              <input
-                type="tel"
-                id="merchant-edit-phone"
-                [(ngModel)]="editProfilePhone"
-                name="editPhone"
-                placeholder="0771234567"
-                class="w-full rounded-xl border border-[#eee7e0] bg-white px-3 py-2.5 text-sm text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#f2e4de]"
-              />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-bold text-[#6f6d85]">Email Address</label>
-              <input
-                type="email"
-                id="merchant-edit-email"
-                [(ngModel)]="editProfileEmail"
-                name="editEmail"
-                required
-                class="w-full rounded-xl border border-[#eee7e0] bg-white px-3 py-2.5 text-sm text-[#1d1b2c] outline-none focus:border-[#a53a26] focus:ring-2 focus:ring-[#f2e4de]"
-              />
-            </div>
-            <div class="flex items-center justify-end gap-2 border-t border-[#e9e3dd] pt-4">
-              <button
-                type="button"
-                (click)="closeEditProfileModal()"
-                class="rounded-full px-4 py-2 text-xs font-bold text-[#6f6d85] hover:bg-[#eee7e0]"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                id="save-merchant-profile-btn"
-                [disabled]="!editProfileFullName.trim() || !editProfileEmail.trim() || isSavingProfile()"
-                class="rounded-full bg-[#a53a26] hover:bg-[#7e2615] px-5 py-2.5 text-xs font-bold text-white shadow-sm disabled:opacity-50"
-              >
-                {{ isSavingProfile() ? 'Saving...' : 'Save Changes' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
       <!-- MODAL: CONFIRM WEBHOOK SIGNING-SECRET REGENERATION -->
       @if (isRegenerateConfirmOpen()) {
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm" (click)="cancelRegenerateSecret()">
+        <div class="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm" (click)="cancelRegenerateSecret()">
           <div
             #regenerateDialog
             id="regenerate-secret-dialog"
@@ -1924,55 +1925,34 @@ export class MerchantComponent implements OnInit, OnDestroy {
   });
   readonly merchantPhone = computed(() => this.authService?.currentUser()?.phoneNumber || '');
 
-  isEditProfileModalOpen = signal(false);
-  editProfileFullName = '';
-  editProfilePhone = '';
-  editProfileEmail = '';
-  editProfileError = signal<string | null>(null);
-  isSavingProfile = signal(false);
+  /** True when Settings was opened from an "Edit profile" shortcut, so it starts in edit mode. */
+  readonly accountEditRequested = signal(false);
 
-  openEditProfileModal(): void {
-    const user = this.authService?.currentUser();
-    this.editProfileFullName = user?.fullName || (this.merchantName() !== 'Merchant Partner' ? this.merchantName() : '');
-    this.editProfilePhone = user?.phoneNumber || this.merchantPhone();
-    this.editProfileEmail = user?.email || '';
-    this.editProfileError.set(null);
-    this.isEditProfileModalOpen.set(true);
+  /** Opens Settings › Personal information; profile editing lives only there. */
+  openAccountSettings(edit = false): void {
+    this.selectTab('account');
+    this.accountEditRequested.set(edit);
   }
 
-  closeEditProfileModal(): void {
-    this.isEditProfileModalOpen.set(false);
-    this.editProfileError.set(null);
+  onProfileSaved(): void {
+    this.accountEditRequested.set(false);
+    this.notifyMerchant('Profile updated', 'Your profile was updated successfully.');
   }
 
-  saveProfile(): void {
-    if (!this.editProfileFullName.trim() || !this.editProfileEmail.trim()) return;
-    this.isSavingProfile.set(true);
-    this.editProfileError.set(null);
+  onProfileSaveFailed(message: string): void {
+    this.notifyMerchant('Profile update failed', message, 'error');
+  }
 
-    const update$ = this.authService?.updateProfile({
-      fullName: this.editProfileFullName.trim(),
-      phoneNumber: this.editProfilePhone.trim() || undefined,
-      email: this.editProfileEmail.trim(),
-    });
+  merchantStatusLabel(status: MerchantProfile['status']): string {
+    return MERCHANT_STATUS_LABELS[status] ?? status;
+  }
 
-    if (!update$) {
-      this.isSavingProfile.set(false);
-      return;
+  merchantStatusClass(status: MerchantProfile['status']): string {
+    switch (status) {
+      case 'APPROVED': return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100';
+      case 'PENDING': return 'bg-amber-50 text-amber-700 ring-1 ring-amber-100';
+      default: return 'bg-rose-50 text-rose-700 ring-1 ring-rose-100';
     }
-
-    update$.subscribe({
-      next: () => {
-        this.isSavingProfile.set(false);
-        this.closeEditProfileModal();
-        this.notifyMerchant('Profile updated', 'Your profile was updated successfully.');
-      },
-      error: (err: any) => {
-        this.isSavingProfile.set(false);
-        this.editProfileError.set(err?.error?.message || err?.message || 'Failed to update profile.');
-        this.notifyMerchant('Profile update failed', this.editProfileError()!, 'error');
-      },
-    });
   }
 
   loadProfile(): void {
@@ -2278,6 +2258,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
     }
     const previous = this.activeTab();
     this.activeTab.set(tab);
+    this.accountEditRequested.set(false);
     this.integrationsMenuOpen.set(this.isIntegrationTab(tab));
     if (tab === 'orders' && previous !== 'orders' && this.hasLoadedOrders()) {
       // Data may have changed while another section was open; revalidate silently.

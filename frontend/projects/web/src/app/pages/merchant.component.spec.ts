@@ -4,7 +4,9 @@ import { WritableSignal, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 import { AuthService, User } from 'shared-auth';
+import { By } from '@angular/platform-browser';
 import { MERCHANT_DASHBOARD_REFRESH_MS, MerchantComponent } from './merchant.component';
+import { MerchantSettingsComponent } from './merchant/merchant-settings.component';
 import {
   DeliveryAttempt,
   MerchantOrderDetails,
@@ -818,7 +820,16 @@ describe('MerchantComponent', () => {
       expect(authFixture.nativeElement.textContent).not.toContain('merchant@swiftdrop.lk');
     });
 
-    it('openEditProfileModal pre-populates actual user email and never placeholder or fallback text', () => {
+    /** Clicks "Edit profile" on the Merchant Details card and returns the Settings page it opens. */
+    function openSettingsFromDetailsCard(): MerchantSettingsComponent {
+      authComponent.selectTab('settings');
+      authFixture.detectChanges();
+      (authFixture.nativeElement.querySelector('#merchant-edit-profile-btn') as HTMLButtonElement).click();
+      authFixture.detectChanges();
+      return authFixture.debugElement.query(By.directive(MerchantSettingsComponent)).componentInstance;
+    }
+
+    it('Edit profile opens Settings in edit mode with the actual user details, never placeholder or fallback text', () => {
       currentUserSig.set({
         id: 'user-merchant-1',
         email: 'store@swiftdrop.lk',
@@ -826,38 +837,74 @@ describe('MerchantComponent', () => {
         phoneNumber: '+94771234567',
         role: 'MERCHANT',
       });
-      authComponent.openEditProfileModal();
+      let settings = openSettingsFromDetailsCard();
 
-      expect(authComponent.editProfileEmail).toBe('store@swiftdrop.lk');
-      expect(authComponent.editProfileFullName).toBe('Store One');
-      expect(authComponent.editProfilePhone).toBe('+94771234567');
+      expect(authComponent.activeTab()).toBe('account');
+      expect(settings.isEditing()).toBe(true);
+      expect(settings.email).toBe('store@swiftdrop.lk');
+      expect(settings.fullName).toBe('Store One');
+      expect(settings.phone).toBe('+94771234567');
+      // The old edit-profile modal is gone: Settings is the only place to edit the profile.
+      expect(authFixture.nativeElement.querySelector('#merchant-edit-email')).toBeNull();
 
-      // When user has no email, modal opens with empty string, not a fallback or display message
+      // When user has no email, the form opens with an empty string, not a fallback or display message
       currentUserSig.set({ id: 'user-merchant-2', email: '', fullName: '', role: 'MERCHANT' });
-      authComponent.openEditProfileModal();
+      settings = openSettingsFromDetailsCard();
 
-      expect(authComponent.editProfileEmail).toBe('');
-      expect(authComponent.editProfileEmail).not.toContain('merchant@swiftdrop.lk');
-      expect(authComponent.editProfileEmail).not.toContain('Email unavailable');
-      expect(authComponent.editProfileEmail).not.toContain('Loading');
+      expect(settings.email).toBe('');
+      expect(settings.email).not.toContain('merchant@swiftdrop.lk');
+      expect(settings.email).not.toContain('Email unavailable');
+      expect(settings.email).not.toContain('Loading');
     });
 
-    it('saveProfile updates profile and refreshes merchant notification', () => {
-      authComponent.openEditProfileModal();
-      authComponent.editProfileFullName = 'Updated Merchant Name';
-      authComponent.editProfileEmail = 'updated@merchant.lk';
-      authComponent.editProfilePhone = '+94779998877';
+    it('saving from Settings updates the profile and refreshes the merchant notification', () => {
+      const settings = openSettingsFromDetailsCard();
+      settings.fullName = 'Updated Merchant Name';
+      settings.email = 'updated@merchant.lk';
+      settings.phone = '+94779998877';
 
-      authComponent.saveProfile();
+      settings.saveProfile();
 
       expect(authMock.updateProfile).toHaveBeenCalledWith({
         fullName: 'Updated Merchant Name',
         phoneNumber: '+94779998877',
         email: 'updated@merchant.lk',
       });
-      expect(authComponent.isSavingProfile()).toBe(false);
-      expect(authComponent.isEditProfileModalOpen()).toBe(false);
+      expect(settings.isSaving()).toBe(false);
+      expect(settings.isEditing()).toBe(false);
       expect(authComponent.notification()).toBe('Your profile was updated successfully.');
+    });
+
+    it('shows the order search bar only on the Orders Dashboard, keeping the bell and chip in the top bar', () => {
+      const search = () => authFixture.nativeElement.querySelector('#merchant-order-search');
+      expect(search()).toBeTruthy();
+
+      for (const tab of ['settings', 'deliveries', 'credentials', 'account'] as const) {
+        authComponent.selectTab(tab);
+        authFixture.detectChanges();
+        expect(search()).toBeNull();
+        expect(authFixture.nativeElement.querySelector('#merchant-top-bar #merchant-profile-chip')).toBeTruthy();
+      }
+
+      authComponent.selectTab('orders');
+      authFixture.detectChanges();
+      expect(search()).toBeTruthy();
+    });
+
+    it('opens Settings from the sidebar gear placed above Log out', () => {
+      const footer = authFixture.nativeElement.querySelector('#merchant-sidebar-logout-btn')!.parentElement as HTMLElement;
+      const buttons = Array.from(footer.querySelectorAll('button')).map((button) => button.id);
+      expect(buttons).toEqual(['merchant-sidebar-settings-btn', 'merchant-sidebar-logout-btn']);
+
+      (footer.querySelector('#merchant-sidebar-settings-btn') as HTMLButtonElement).click();
+      authFixture.detectChanges();
+
+      expect(authComponent.activeTab()).toBe('account');
+      expect(footer.querySelector('#merchant-sidebar-settings-btn')?.getAttribute('aria-current')).toBe('page');
+      const settings = authFixture.debugElement.query(By.directive(MerchantSettingsComponent)).componentInstance as MerchantSettingsComponent;
+      expect(settings.isEditing()).toBe(false);
+      expect(authFixture.nativeElement.querySelector('#merchant-settings-business-name')?.textContent).toContain('Acme Stores (Pvt) Ltd');
+      expect(authFixture.nativeElement.querySelector('#merchant-settings-status')?.textContent).toContain('Approved');
     });
 
     it('unsubscribes profile request on component destroy preventing memory leaks or stale updates', () => {
@@ -1732,6 +1779,10 @@ describe('MerchantComponent', () => {
         expect(dialog.querySelector('#diag-raw-event-type')?.textContent).toContain('PARCEL_STATUS_CHANGED');
         expect(dialog.textContent).toContain('d-ofd');
         expect(dialog.textContent).toContain('t=1729857600,v1=abc123');
+        // Layout regressions: the backdrop must not inherit the log container's space-y top margin
+        // (white strip above the overlay), and the tab row must not be squashed by a tall body.
+        expect(dialog.parentElement?.classList).toContain('!mt-0');
+        expect(dialog.querySelector('[role="tablist"]')?.classList).toContain('shrink-0');
       });
     });
 
