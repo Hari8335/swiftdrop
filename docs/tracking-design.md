@@ -42,6 +42,9 @@ The public page needs no login, so anyone who knows or guesses a tracking number
 | Courier ID or name | **Never** | Staff privacy |
 | Failure or cancellation `reason` | **Never** | Cancellation reasons are free text and may hold personal data (Q4) |
 | Fee, weight, size, notes, proof, internal IDs, `sequence` in the JSON body | **Never** | Internal or commercial data |
+| Parcel ID (`parcelId`) | **Never** | Internal identifier; it is the key of the authenticated parcel APIs |
+| Coordinates of pickup or drop-off (`latitude`, `longitude`), exact **or rounded** | **Never** | An exact pin locates a home just like a street address |
+| Courier live GPS position | **Never** | Staff and recipient safety |
 
 **Masking rule (proposal, Q3):** split the name on spaces and replace each part with its first letter followed by exactly three `*`. A fixed `***` hides the name length. `Sunil Silva` becomes `S*** S***`; `Kavindu` becomes `K***`.
 
@@ -50,6 +53,10 @@ The public page needs no login, so anyone who knows or guesses a tracking number
 **Probing:** an unknown and a malformed tracking number both return the same `404` body, so responses never reveal which numbers exist. The number has 6 random base-36 characters per day (about 2.2 billion combinations), and gateway rate limiting (section 6) makes guessing impractical.
 
 The authenticated parcel detail page shows the full addresses and phone number from M1's `GET /api/v1/parcels/{id}`; masking applies to the public views only.
+
+**Exact locations and courier GPS (map).** The map with exact pickup and drop-off pins and the courier's live position is shown only to callers who may see that parcel: its owner customer, the assigned courier, a DISPATCHER or an ADMIN. The `/track` page takes the pins from the authenticated `GET /api/v1/parcels/{id}` and polls `GET /api/v1/parcels/{id}/location/latest` only for a delivery picked from the signed-in user's own list, or a typed tracking number that is in that list. A public lookup (signed out, or someone else's parcel) shows the masked fields above with a short privacy note instead of the map, and makes no location request.
+
+**History (November 2026).** PR #361 briefly added `parcelId` and the four pickup/drop-off coordinates to `PublicTrackingResponse`. They were removed again by agreement between M2 and M9 (option 1). Tests now assert the public allow-list, so the fields cannot come back unnoticed. Publishing even rounded coordinates (for example a district-level map) needs a separate privacy review first.
 
 ---
 

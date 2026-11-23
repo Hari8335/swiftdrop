@@ -499,8 +499,11 @@ components:
       description: |
         Everything the public page may show. Adding a field here needs a
         masking review (see `docs/tracking-design.md`, section 2).
+        It never carries coordinates (exact or rounded), the internal parcel
+        id, phone numbers or full addresses; exact locations and courier GPS
+        are only served by authenticated endpoints.
+      additionalProperties: false
       required:
-        - parcelId
         - trackingNumber
         - status
         - recipientNameMasked
@@ -508,10 +511,6 @@ components:
         - lastUpdatedAt
         - timeline
       properties:
-        parcelId:
-          type: string
-          format: uuid
-          description: Opaque parcel identifier used only for authenticated detail requests; it does not grant access.
         trackingNumber:
           type: string
           example: "SD-20261026-A1B2C3"
@@ -532,10 +531,6 @@ components:
           description: Status changes, oldest first. No reasons, courier or actor data.
           items:
             $ref: '#/components/schemas/PublicTimelineEntry'
-        pickupLatitude: { type: number, minimum: -90, maximum: 90, nullable: true }
-        pickupLongitude: { type: number, minimum: -180, maximum: 180, nullable: true }
-        dropoffLatitude: { type: number, minimum: -90, maximum: 90, nullable: true }
-        dropoffLongitude: { type: number, minimum: -180, maximum: 180, nullable: true }
 
     PublicTimelineEntry:
       type: object

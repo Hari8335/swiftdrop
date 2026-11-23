@@ -112,8 +112,12 @@ class TrackingIntegrationTest {
                 .andExpect(jsonPath("$.recipientNameMasked", is("S*** S***")))
                 .andExpect(jsonPath("$.dropoffDistrict", is("Kandy")))
                 .andExpect(jsonPath("$.lastUpdatedAt", is("2026-10-28T09:00:00Z")))
-                .andExpect(jsonPath("$.parcelId").isNotEmpty())
+                // Never public: the internal id and any coordinates (docs/tracking-design.md section 2).
+                .andExpect(jsonPath("$.parcelId").doesNotExist())
                 .andExpect(jsonPath("$.pickupLatitude").doesNotExist())
+                .andExpect(jsonPath("$.pickupLongitude").doesNotExist())
+                .andExpect(jsonPath("$.dropoffLatitude").doesNotExist())
+                .andExpect(jsonPath("$.dropoffLongitude").doesNotExist())
                 .andExpect(jsonPath("$.timeline", hasSize(2)))
                 .andExpect(jsonPath("$.timeline[0].status", is("CREATED")))
                 .andExpect(jsonPath("$.timeline[1].status", is("PICKED_UP")))

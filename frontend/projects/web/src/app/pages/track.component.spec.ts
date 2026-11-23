@@ -6,6 +6,9 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { TrackComponent } from './track.component';
 import { FakeEventSource, fakeEventSourceProvider, statusEvent } from './tracking/testing';
 import { PublicTrackingResponse } from './tracking/tracking.model';
+import { AuthService } from 'shared-auth';
+import { of } from 'rxjs';
+import { CustomerService } from './customer/customer.service';
 
 const TN = 'SD-20261104-A1B2C3';
 const OTHER = 'SD-20261104-Z9Y8X7';
@@ -89,7 +92,7 @@ describe('TrackComponent (public tracking page)', () => {
       createdAt: '2026-11-04T08:00:00Z',
       updatedAt: '2026-11-04T09:00:00Z',
     });
-    http.expectOne(`/api/v1/tracking/${TN}`).flush({ ...lookup(TN, 'IN_TRANSIT'), parcelId: 'parcel-1' });
+    http.expectOne(`/api/v1/tracking/${TN}`).flush(lookup(TN, 'IN_TRANSIT'));
     harness.detectChanges();
 
     expect(text('tracking-number')).toBe(TN);
@@ -288,5 +291,110 @@ describe('TrackComponent (public tracking page)', () => {
     http.expectOne(`/api/v1/tracking/${OTHER}`).flush(lookup(OTHER));
     harness.detectChanges();
     expect(text('tracking-number')).toBe(OTHER);
+  });
+});
+
+describe('TrackComponent location privacy (docs/tracking-design.md section 2)', () => {
+  let harness: RouterTestingHarness;
+  let http: HttpTestingController;
+  const PARCEL_ID = 'parcel-1';
+  const ownParcel = {
+    id: PARCEL_ID,
+    trackingNumber: TN,
+    status: 'IN_TRANSIT',
+    pickupAddress: { line1: 'Pickup', city: 'Colombo', district: 'Colombo', postalCode: '00100', latitude: 6.9271, longitude: 79.8612 },
+    dropoffAddress: { line1: 'Dropoff', city: 'Kandy', district: 'Kandy', postalCode: '20000', latitude: 7.2906, longitude: 80.6337 },
+    recipientName: 'Recipient',
+    weightKg: 1,
+    size: 'SMALL',
+    fee: 100,
+    createdAt: '2026-11-04T08:00:00Z',
+    updatedAt: '2026-11-04T09:00:00Z',
+  };
+  const el = () => harness.routeNativeElement as HTMLElement;
+  const gpsRequests = () => http.match((r) => r.url.includes('/location/'));
+  const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  /** `role` null = signed out; `ownTrackingNumbers` = the customer's own deliveries. */
+  async function setUp(role: 'CUSTOMER' | null, ownTrackingNumbers: string[] = []) {
+    FakeEventSource.reset();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: 'track', component: TrackComponent },
+          { path: 'track/:trackingNo', component: TrackComponent },
+        ]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        fakeEventSourceProvider,
+        { provide: AuthService, useValue: { currentUser: () => (role ? { role } : null) } },
+        {
+          provide: CustomerService,
+          useValue: {
+            listParcels: () => of({
+              content: ownTrackingNumbers.map((trackingNumber) => ({ id: PARCEL_ID, trackingNumber, status: 'IN_TRANSIT' })),
+              totalElements: ownTrackingNumbers.length, totalPages: 1, page: 0, size: 100,
+            }),
+          },
+        },
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+    harness = await RouterTestingHarness.create();
+  }
+
+  afterEach(() => http.verify());
+
+  it('a signed-out visitor sees no map and no exact location, and no GPS is requested', async () => {
+    await setUp(null);
+    await harness.navigateByUrl(`/track/${TN}`);
+    http.expectOne(`/api/v1/tracking/${TN}`).flush(lookup(TN, 'IN_TRANSIT'));
+    harness.detectChanges();
+    await nextTick();
+
+    expect(el().querySelector('[data-testid="public-location-note"]')).not.toBeNull();
+    expect(el().querySelector('app-tracking-map')).toBeNull();
+    expect(gpsRequests()).toHaveLength(0);
+  });
+
+  it('a signed-in user looking up someone else\'s parcel gets the public view and no GPS request', async () => {
+    await setUp('CUSTOMER', ['SD-20261104-Z9Y8X7']);
+    await harness.navigateByUrl(`/track/${TN}`);
+    http.expectOne(`/api/v1/tracking/${TN}`).flush(lookup(TN, 'IN_TRANSIT'));
+    harness.detectChanges();
+    await nextTick();
+
+    expect(el().querySelector('app-tracking-map')).toBeNull();
+    expect(http.match((r) => r.url === `/api/v1/parcels/${PARCEL_ID}`)).toHaveLength(0);
+    expect(gpsRequests()).toHaveLength(0);
+  });
+
+  it('the owner typing their own number gets the map from the authenticated parcel and live GPS', async () => {
+    await setUp('CUSTOMER', [TN]);
+    await harness.navigateByUrl(`/track/${TN}`);
+    http.expectOne(`/api/v1/parcels/${PARCEL_ID}`).flush(ownParcel);
+    http.expectOne(`/api/v1/tracking/${TN}`).flush(lookup(TN, 'IN_TRANSIT'));
+    harness.detectChanges();
+    await nextTick();
+
+    expect(el().querySelector('app-tracking-map')).not.toBeNull();
+    expect(el().querySelector('[data-testid="public-location-note"]')).toBeNull();
+    const gps = gpsRequests();
+    expect(gps.map((r) => r.request.url)).toEqual([`/api/v1/parcels/${PARCEL_ID}/location/latest`]);
+    gps[0].flush({ parcelId: PARCEL_ID, latitude: 7, longitude: 80, accuracyMeters: 10, recordedAt: '2026-11-04T09:00:00Z', receivedAt: '2026-11-04T09:00:01Z' });
+  });
+
+  it('a delivery picked from the list (e.g. by a courier) uses the authenticated parcel for the map', async () => {
+    await setUp(null);
+    await TestBed.inject(Router).navigate(['/track'], { state: { selectedParcelId: PARCEL_ID, selectedTrackingNumber: TN } });
+    http.expectOne(`/api/v1/parcels/${PARCEL_ID}`).flush(ownParcel);
+    http.expectOne(`/api/v1/tracking/${TN}`).flush(lookup(TN, 'IN_TRANSIT'));
+    harness.detectChanges();
+    await nextTick();
+
+    expect(el().querySelector('app-tracking-map')).not.toBeNull();
+    const gps = gpsRequests();
+    expect(gps.map((r) => r.request.url)).toEqual([`/api/v1/parcels/${PARCEL_ID}/location/latest`]);
+    gps[0].flush(null, { status: 404, statusText: 'Not Found' });
   });
 });

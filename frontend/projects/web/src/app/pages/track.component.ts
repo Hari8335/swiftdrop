@@ -19,6 +19,7 @@ import { LiveTimeline } from './tracking/live-timeline';
 import { TrackingApiService } from './tracking/tracking-api.service';
 import { StreamState, TrackingStreamService } from './tracking/tracking-stream.service';
 import { TrackingTimelineComponent } from './tracking/tracking-timeline.component';
+import { ParcelAddress, ParcelDetail } from './tracking/tracking.model';
 import { TrackingMapComponent } from './tracking/tracking-map.component';
 import { CourierService } from './courier/courier.service';
 import { CustomerService } from './customer/customer.service';
@@ -389,6 +390,8 @@ interface DeliverySelection {
                 </div>
               </div>
 
+              @if (exactView()) {
+              <!-- Exact pins and live courier GPS: only for the parcel's owner or assigned courier (authenticated APIs). -->
               <app-tracking-map
                 [pickup]="pickup()"
                 [destination]="destination()"
@@ -396,6 +399,22 @@ interface DeliverySelection {
                 [authorized]="authorizedLocation()"
                 [locationLabel]="locationLabel()"
               />
+              } @else {
+              <div
+                id="public-location-note"
+                data-testid="public-location-note"
+                class="bg-white rounded-3xl border border-[#eee7e0] p-5 sm:p-6 shadow-sm flex items-start gap-3"
+              >
+                <svg class="w-5 h-5 flex-shrink-0 text-[#a53a26] mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <p class="text-xs font-semibold text-[#6f6d85] leading-relaxed">
+                  To protect the recipient's privacy, exact pickup and drop-off locations and the courier's live position are only
+                  shown to the sender and the assigned courier. Sign in and choose your delivery to see the live map.
+                </p>
+              </div>
+              }
 
               <!-- Timeline Card (Matching Table Card Styling) -->
               <div class="timeline-card bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-8 shadow-sm space-y-6">
@@ -508,6 +527,8 @@ export class TrackComponent {
   readonly destination = signal<[number, number] | null>(null);
   readonly location = signal<import('./tracking/tracking.model').CourierLocation | null>(null);
   readonly authorizedLocation = signal(false);
+  /** True only for the signed-in owner's or assigned courier's own delivery (authenticated data). */
+  readonly exactView = signal(false);
   readonly locationLabel = signal('Location unavailable');
   readonly availableDeliveries = signal<DeliveryOption[]>([]);
   readonly selectedDeliveryId = signal(this.selectedParcelId ?? '');
@@ -529,9 +550,16 @@ export class TrackComponent {
         distinctUntilChanged((a, b) => a.parcelId === b.parcelId && a.trackingNumber === b.trackingNumber),
         switchMap((selection) => this.reload$.pipe(
           startWith(undefined),
-          switchMap(() => selection.parcelId
-            ? this.loadSelectedParcel(selection.parcelId, selection.trackingNumber)
-            : this.load(selection.trackingNumber ?? '')),
+          switchMap(() => {
+            if (selection.parcelId) {
+              return this.loadSelectedParcel(selection.parcelId, selection.trackingNumber);
+            }
+            // A typed number that is one of the user's own deliveries goes through the authenticated path.
+            const own = this.ownDelivery(selection.trackingNumber);
+            return own
+              ? this.loadSelectedParcel(own.parcelId, own.trackingNumber)
+              : this.load(selection.trackingNumber ?? '');
+          }),
         )),
         takeUntilDestroyed(),
       )
@@ -606,10 +634,45 @@ export class TrackComponent {
       if (this.selectedParcelId && unique.has(this.selectedParcelId)) {
         this.selectedDeliveryId.set(this.selectedParcelId);
       }
+      // The list can arrive after a typed number was shown publicly: reload it with the exact view.
+      if (!this.exactView() && this.ownDelivery(this.timeline.trackingNumber())) {
+        this.reload();
+      }
     });
   }
 
-  private load(trackingNumber: string) {
+  /**
+   * Exact pins and live courier GPS come only from the authenticated parcel (`owned`, loaded with
+   * GET /api/v1/parcels/{id}, which checks the caller). Public lookups get neither, and no GPS
+   * request is made for them (docs/tracking-design.md section 2).
+   */
+  private showExactLocations(owned: ParcelDetail | null): void {
+    const point = (address: ParcelAddress | null | undefined): [number, number] | null =>
+      address && address.latitude != null && address.longitude != null ? [address.latitude, address.longitude] : null;
+    this.exactView.set(Boolean(owned));
+    this.authorizedLocation.set(Boolean(owned));
+    this.pickup.set(owned ? point(owned.pickupAddress) : null);
+    this.destination.set(owned ? point(owned.dropoffAddress) : null);
+    if (!owned) {
+      this.locationLabel.set('Location unavailable');
+      return;
+    }
+    this.locationLabel.set('Waiting for the courier location');
+    timer(0, 10000).pipe(
+      switchMap(() => this.api.latestLocation(owned.id).pipe(
+        catchError(() => { this.locationLabel.set('Location unavailable or not authorized'); return EMPTY; }),
+      )),
+      takeUntil(this.locationStop$),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(location => { this.location.set(location); this.locationLabel.set('Location live'); });
+  }
+
+  /** The signed-in customer's or courier's own delivery with this tracking number, if any. */
+  private ownDelivery(trackingNumber: string | null): DeliveryOption | undefined {
+    return trackingNumber ? this.availableDeliveries().find((d) => d.trackingNumber === trackingNumber) : undefined;
+  }
+
+  private load(trackingNumber: string, owned: ParcelDetail | null = null) {
     this.query.setValue(trackingNumber);
     this.timeline.clear();
     if (!trackingNumber) {
@@ -636,22 +699,9 @@ export class TrackComponent {
         this.timeline.reset(tracking.trackingNumber, tracking.status, tracking.timeline, tracking.lastUpdatedAt);
         this.recipient.set(tracking.recipientNameMasked);
         this.district.set(tracking.dropoffDistrict);
-        this.pickup.set(tracking.pickupLatitude != null && tracking.pickupLongitude != null ? [tracking.pickupLatitude, tracking.pickupLongitude] : null);
-        this.destination.set(tracking.dropoffLatitude != null && tracking.dropoffLongitude != null ? [tracking.dropoffLatitude, tracking.dropoffLongitude] : null);
         this.location.set(null);
         this.locationStop$.next();
-        const signedIn = Boolean(this.auth?.currentUser());
-        this.authorizedLocation.set(signedIn);
-        if (signedIn) {
-          timer(0, 10000).pipe(
-            switchMap(() => this.api.latestLocation(tracking.parcelId)),
-            catchError(() => { this.locationLabel.set('Location unavailable or not authorized'); return EMPTY; }),
-            takeUntil(this.locationStop$),
-            takeUntilDestroyed(this.destroyRef),
-          ).subscribe(location => { this.location.set(location); this.locationLabel.set('Location live'); });
-        } else {
-          this.locationLabel.set('Sign in for precise GPS');
-        }
+        this.showExactLocations(owned);
         this.page.set('ready');
       }),
       switchMap((tracking) =>
@@ -665,13 +715,12 @@ export class TrackComponent {
     this.page.set('loading');
     this.error.set('');
     return this.api.parcel(parcelId).pipe(
-      map((parcel) => parcel.trackingNumber),
       catchError(() => {
         this.page.set('error');
         this.error.set('The selected delivery could not be opened or is not authorized for this account.');
         return EMPTY;
       }),
-      switchMap((resolvedTrackingNumber) => this.load(normalizeTrackingNumber(resolvedTrackingNumber))),
+      switchMap((parcel) => this.load(normalizeTrackingNumber(parcel.trackingNumber), parcel)),
     );
   }
 
