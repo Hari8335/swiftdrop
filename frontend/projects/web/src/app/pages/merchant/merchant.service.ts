@@ -18,6 +18,10 @@ export class MerchantService {
   private readonly http = inject(HttpClient);
   private readonly webhookUrl = '/api/v1/merchant/webhooks';
 
+  getMerchantProfile(): Observable<{ businessName: string }> {
+    return this.http.get<{ businessName: string }>('/api/v1/merchant/profile');
+  }
+
   getOrders(
     paramsOrStatus?: MerchantOrderFilterParams | string,
     search?: string

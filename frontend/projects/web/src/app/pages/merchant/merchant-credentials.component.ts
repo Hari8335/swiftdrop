@@ -168,18 +168,18 @@ export type ConnectionStatusType =
 
       <!-- Section D: Credential Management -->
       <ui-card
-        title="API credentials"
-        subtitle="Use these OAuth 2.0 client credentials to request an access token for your merchant integration."
+        [title]="credentials() ? 'API credentials' : 'Connect to the merchant API'"
+        [subtitle]="credentials() ? 'Use these OAuth 2.0 client credentials to request an access token for your merchant integration.' : ''"
       >
-        <div uiCardActions>
-          @if (credentials(); as item) {
+        @if (credentials(); as item) {
+          <div uiCardActions>
             <ui-status-badge
               [status]="item.status"
               [tone]="item.status === 'APPROVED' ? 'success' : 'warning'"
               [label]="item.status"
             />
-          }
-        </div>
+          </div>
+        }
 
         @if (credentials(); as item) {
           @if (item.status === 'PENDING') {
