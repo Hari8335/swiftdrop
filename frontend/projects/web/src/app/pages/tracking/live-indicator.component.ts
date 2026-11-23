@@ -6,6 +6,7 @@ const TEXT: Record<StreamState, { label: string; hint: string; dot: string }> = 
   connecting: { label: 'Connecting…', hint: 'Starting live updates', dot: 'bg-neutral-400' },
   live: { label: 'Live', hint: 'New updates appear automatically', dot: 'bg-success-500 animate-pulse' },
   reconnecting: { label: 'Reconnecting…', hint: 'Connection lost, trying again', dot: 'bg-warning-500' },
+  polling: { label: 'Updating every 10 s', hint: 'Live connection unavailable', dot: 'bg-warning-500' },
   disconnected: { label: 'Live updates off', hint: 'Could not connect', dot: 'bg-danger-500' },
   ended: { label: 'Tracking complete', hint: 'This parcel will not change any more', dot: 'bg-neutral-400' },
 };
@@ -22,8 +23,8 @@ const TEXT: Record<StreamState, { label: string; hint: string; dot: string }> = 
       <span class="font-medium text-ink">{{ text().label }}</span>
       <span class="text-ink-muted">· {{ text().hint }}</span>
     </span>
-    @if (state() === 'disconnected') {
-      <ui-button variant="secondary" size="sm" (click)="retry.emit()">Try again</ui-button>
+    @if (state() === 'disconnected' || state() === 'polling') {
+      <ui-button variant="secondary" size="sm" (click)="retry.emit()">{{ state() === 'polling' ? 'Try live again' : 'Try again' }}</ui-button>
     }
   `,
 })

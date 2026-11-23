@@ -29,3 +29,18 @@ export interface MerchantApprovalResponse {
   clientId: string;
   clientSecret?: string;
 }
+
+/** List filter for the admin merchant table. `ALL` omits the optional `status` query parameter. */
+export type MerchantListFilter = MerchantStatus | 'ALL';
+
+/**
+ * One-time credential handoff held only in component memory after an approve or recover response.
+ * Never persisted, logged, or re-fetched.
+ */
+export interface MerchantCredentialHandoff {
+  merchantId: string;
+  businessName: string;
+  clientId: string;
+  clientSecret: string | null;
+  kind: 'approval' | 'recovery';
+}

@@ -58,11 +58,14 @@ public class MerchantIdentityResolver {
 
     /** Portal notifications and one-time secrets are for the provisioned human user, never API clients. */
     public UUID requirePortalUserMerchantId(CurrentUser user) {
+        return requirePortalUserMerchant(user).getId();
+    }
+
+    public Merchant requirePortalUserMerchant(CurrentUser user) {
         UUID merchantId = requireMerchantId(user);
-        if (user.userId() == null || merchants.findByIdAndAuthUserId(merchantId, user.userId()).isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant portal user credentials are required");
-        }
-        return merchantId;
+        return merchants.findByIdAndAuthUserId(merchantId, user.userId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.FORBIDDEN, "Merchant portal user credentials are required"));
     }
 
     private static ResponseStatusException required() {

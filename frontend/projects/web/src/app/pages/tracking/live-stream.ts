@@ -9,7 +9,8 @@ export type PageState = 'loading' | 'ready' | 'not-found' | 'forbidden' | 'unaut
 
 /**
  * Feeds a LiveTimeline from the stream of one parcel. A finished parcel (DELIVERED, CANCELLED)
- * gets no connection. `retry()` opens a new connection after the browser gave up.
+ * gets no connection. When the stream is unavailable the parcel is polled every 10 s instead
+ * (see TrackingStreamService); `retry()` stops polling and tries the live connection again.
  */
 export function followParcel(
   streams: TrackingStreamService,
@@ -29,6 +30,8 @@ export function followParcel(
     tap((message) => {
       if (message.type === 'state') {
         state(message.state);
+      } else if (message.type === 'snapshot') {
+        timeline.applySnapshot(message.snapshot);
       } else {
         timeline.apply(message.event);
       }

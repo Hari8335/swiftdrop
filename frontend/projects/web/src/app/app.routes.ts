@@ -48,15 +48,17 @@ export const routes: Routes = [
   { path: 'customer/parcels', canActivate: [roleGuard(['CUSTOMER'])], loadComponent: () => import('./pages/customer-history/customer-parcels.component').then((m) => m.CustomerParcelsComponent) },
   { path: 'customer/parcels/:id', canActivate: [roleGuard(['CUSTOMER'])], loadComponent: () => import('./pages/tracking/parcel-detail.component').then((m) => m.ParcelDetailComponent) },
   {
-    path: 'merchant/bulk',
-    canActivate: [roleGuard(['MERCHANT'])],
-    loadComponent: () => import('./pages/merchant/bulk/merchant-bulk.component').then((m) => m.MerchantBulkComponent),
-  },
-  {
     path: 'merchant',
     canActivate: [roleGuard(['MERCHANT'])],
+    canActivateChild: [roleGuard(['MERCHANT'])],
     loadComponent: () =>
       import('./pages/merchant/merchant-portal.component').then((m) => m.MerchantPortalComponent),
+    children: [
+      {
+        path: 'bulk',
+        loadComponent: () => import('./pages/merchant/bulk/merchant-bulk.component').then((m) => m.MerchantBulkComponent),
+      },
+    ],
   },
   {
     path: 'courier',

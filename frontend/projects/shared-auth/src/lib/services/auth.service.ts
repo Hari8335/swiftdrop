@@ -157,6 +157,13 @@ export class AuthService {
   }
 
   /**
+   * Retrieves profile of current user (alias for getCurrentUser).
+   */
+  getProfile(token?: string): Observable<User> {
+    return this.getCurrentUser(token);
+  }
+
+  /**
    * Updates the current authenticated user's profile details (name, phone, email).
    */
   updateProfile(data: { fullName?: string; phoneNumber?: string; email?: string }): Observable<User> {
