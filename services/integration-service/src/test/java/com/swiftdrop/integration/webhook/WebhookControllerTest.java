@@ -264,7 +264,10 @@ class WebhookControllerTest {
                 Instant.now(),
                 null,
                 null,
-                Instant.now()
+                Instant.now(),
+                "OUT_FOR_DELIVERY",
+                6,
+                1
         );
 
         WebhookDeliveryLogPage page = new WebhookDeliveryLogPage(
@@ -284,7 +287,11 @@ class WebhookControllerTest {
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].deliveryId").value(deliveryId.toString()))
-                .andExpect(jsonPath("$.content[0].status").value("SUCCESS"));
+                .andExpect(jsonPath("$.content[0].status").value("SUCCESS"))
+                .andExpect(jsonPath("$.content[0].parcelStatus").value("OUT_FOR_DELIVERY"))
+                .andExpect(jsonPath("$.content[0].attempts").value(1))
+                .andExpect(jsonPath("$.content[0].totalAttempts").value(6))
+                .andExpect(jsonPath("$.content[0].manualRetryCount").value(1));
     }
 
     @Test

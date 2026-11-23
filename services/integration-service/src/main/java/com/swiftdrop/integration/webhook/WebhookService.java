@@ -206,6 +206,49 @@ public class WebhookService {
         );
     }
 
+    /** One grouped query for the whole page: deliveryId -> {totalAttempts, cycleStarts}. */
+    private Map<UUID, long[]> summarizeAttempts(List<WebhookDeliveryEntity> deliveries) {
+        if (deliveries.isEmpty()) {
+            return Map.of();
+        }
+        List<UUID> ids = deliveries.stream().map(WebhookDeliveryEntity::getDeliveryId).toList();
+        Map<UUID, long[]> stats = new java.util.HashMap<>();
+        for (Object[] row : deliveryRepository.summarizeAttempts(ids)) {
+            long total = row[1] == null ? 0 : ((Number) row[1]).longValue();
+            long cycleStarts = row[2] == null ? 0 : ((Number) row[2]).longValue();
+            stats.put((UUID) row[0], new long[] {total, cycleStarts});
+        }
+        return stats;
+    }
+
+    /**
+     * Parcel status carried by a parcel lifecycle delivery's own stored payload. Only known
+     * lifecycle values are returned; anything else (test events, unreadable payloads) is null.
+     */
+    private String payloadParcelStatus(WebhookDeliveryEntity delivery) {
+        if (!"PARCEL_STATUS_CHANGED".equals(delivery.getEventType())
+                && !"PARCEL_CREATED".equals(delivery.getEventType())) {
+            return null;
+        }
+        String payload = delivery.getPayload();
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
+        try {
+            var parcel = objectMapper.readTree(payload).path("parcel");
+            String status = parcel.path("toStatus").asText(null);
+            if (status == null || status.isBlank()) {
+                status = parcel.path("status").asText(null);
+            }
+            if (status == null) {
+                return null;
+            }
+            return ParcelStatus.valueOf(status).name();
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     @Transactional(readOnly = true)
     public WebhookDeliveryLogPage listDeliveries(UUID merchantId, String status, String eventType,
                                                 Instant from, Instant to, int page, int size) {
@@ -214,21 +257,31 @@ public class WebhookService {
                 merchantId, status, eventType, from, to, pageable
         );
 
+        Map<UUID, long[]> attemptStats = summarizeAttempts(entityPage.getContent());
         List<WebhookDeliveryLogItem> items = entityPage.getContent().stream()
-                .map(e -> new WebhookDeliveryLogItem(
-                        e.getDeliveryId(),
-                        e.getEventId(),
-                        e.getEventType(),
-                        e.getTrackingNumber(),
-                        e.getTargetUrl(),
-                        e.getStatus(),
-                        e.getHttpStatusCode(),
-                        e.getAttempts(),
-                        e.getLastAttemptAt(),
-                        e.getNextRetryAt(),
-                        safeFailureSummary(e.getErrorSummary()),
-                        e.getCreatedAt()
-                ))
+                .map(e -> {
+                    long[] stats = attemptStats.getOrDefault(e.getDeliveryId(), new long[] {0, 0});
+                    // Deliveries recorded before attempt history existed fall back to the cycle counter.
+                    int totalAttempts = stats[0] > 0 ? (int) stats[0] : e.getAttempts();
+                    int manualRetryCount = (int) Math.max(0, stats[1] - 1);
+                    return new WebhookDeliveryLogItem(
+                            e.getDeliveryId(),
+                            e.getEventId(),
+                            e.getEventType(),
+                            e.getTrackingNumber(),
+                            e.getTargetUrl(),
+                            e.getStatus(),
+                            e.getHttpStatusCode(),
+                            e.getAttempts(),
+                            e.getLastAttemptAt(),
+                            e.getNextRetryAt(),
+                            safeFailureSummary(e.getErrorSummary()),
+                            e.getCreatedAt(),
+                            payloadParcelStatus(e),
+                            totalAttempts,
+                            manualRetryCount
+                    );
+                })
                 .toList();
 
         return new WebhookDeliveryLogPage(
@@ -322,11 +375,31 @@ public class WebhookService {
 
     @Transactional
     public DeliveryOutcome processParcelStatusChangedEvent(EventEnvelope event) {
-        return processParcelStatusChangedEvent(event, false);
+        return processParcelLifecycleEvent(event, false);
     }
 
     @Transactional
     public DeliveryOutcome processParcelStatusChangedEvent(EventEnvelope event, boolean fromRetryTopic) {
+        return processParcelLifecycleEvent(event, fromRetryTopic);
+    }
+
+    @Transactional
+    public DeliveryOutcome processParcelCreatedEvent(EventEnvelope event) {
+        return processParcelLifecycleEvent(event, false);
+    }
+
+    @Transactional
+    public DeliveryOutcome processParcelCreatedEvent(EventEnvelope event, boolean fromRetryTopic) {
+        return processParcelLifecycleEvent(event, fromRetryTopic);
+    }
+
+    @Transactional
+    public DeliveryOutcome processParcelLifecycleEvent(EventEnvelope event) {
+        return processParcelLifecycleEvent(event, false);
+    }
+
+    @Transactional
+    public DeliveryOutcome processParcelLifecycleEvent(EventEnvelope event, boolean fromRetryTopic) {
         if (event == null || event.eventId() == null) {
             return DeliveryOutcome.skipped();
         }
@@ -335,34 +408,80 @@ public class WebhookService {
         try {
             eventId = UUID.fromString(event.eventId());
         } catch (IllegalArgumentException e) {
-            log.warn("Malformed eventId in parcel status changed event");
+            log.warn("Malformed eventId in parcel lifecycle event");
             return DeliveryOutcome.skipped();
         }
 
         if (processedEventRepository.existsByEventIdAndConsumerGroup(eventId, CONSUMER_GROUP)) {
             return DeliveryOutcome.skipped();
         }
-        if (event.merchantId() == null || event.merchantId().isBlank()) {
+
+        if (!"PARCEL_STATUS_CHANGED".equals(event.eventType()) && !"PARCEL_CREATED".equals(event.eventType())) {
             recordProcessedEvent(eventId);
             return DeliveryOutcome.skipped();
         }
 
-        UUID merchantId;
-        try {
-            merchantId = UUID.fromString(event.merchantId());
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid merchantId UUID in event {}", eventId);
+        UUID parcelId = null;
+        if (event.parcelId() != null && !event.parcelId().isBlank()) {
+            try {
+                parcelId = UUID.fromString(event.parcelId());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid parcelId UUID in event {}", eventId);
+            }
+        }
+
+        Optional<MerchantOrder> mappedOrderOpt = parcelId != null
+                ? merchantOrderQuery.findByParcelId(parcelId)
+                : Optional.empty();
+
+        UUID merchantId = null;
+        if (event.merchantId() != null && !event.merchantId().isBlank()) {
+            try {
+                merchantId = UUID.fromString(event.merchantId());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid merchantId UUID in event {}", eventId);
+                recordProcessedEvent(eventId);
+                return DeliveryOutcome.skipped();
+            }
+        }
+
+        if (merchantId == null) {
+            if (mappedOrderOpt.isPresent()) {
+                merchantId = mappedOrderOpt.get().merchantId();
+            } else {
+                recordProcessedEvent(eventId);
+                return DeliveryOutcome.skipped();
+            }
+        } else if (mappedOrderOpt.isPresent() && !merchantId.equals(mappedOrderOpt.get().merchantId())) {
+            log.warn("Merchant identity does not match parcel order mapping for event {}", event.eventId());
             recordProcessedEvent(eventId);
             return DeliveryOutcome.skipped();
         }
 
-        if (!projectMerchantOrderStatus(event, merchantId)) {
-            recordProcessedEvent(eventId);
-            return DeliveryOutcome.skipped();
+        final UUID resolvedMerchantId = merchantId;
+
+        if ("PARCEL_STATUS_CHANGED".equals(event.eventType())) {
+            if (event.occurredAt() == null) {
+                recordProcessedEvent(eventId);
+                return DeliveryOutcome.skipped();
+            }
+            if (mappedOrderOpt.isPresent() && parcelId != null) {
+                try {
+                    ParcelStatus status = ParcelStatus.valueOf(event.toStatus());
+                    MerchantOrder mappedOrder = mappedOrderOpt.get();
+                    if (mappedOrder.updatedAt() == null || !event.occurredAt().isBefore(mappedOrder.updatedAt())) {
+                        merchantOrderQuery.updateParcelStatusByParcelId(parcelId, status, event.occurredAt());
+                    }
+                } catch (IllegalArgumentException | NullPointerException exception) {
+                    log.warn("Invalid parcel status in merchant webhook event: {}", event.toStatus());
+                    recordProcessedEvent(eventId);
+                    return DeliveryOutcome.skipped();
+                }
+            }
         }
 
         Optional<WebhookDeliveryEntity> existing = deliveryRepository
-                .findFirstByEventIdAndMerchantIdOrderByCreatedAtAsc(eventId, merchantId);
+                .findFirstByEventIdAndMerchantIdOrderByCreatedAtAsc(eventId, resolvedMerchantId);
         if (existing.isPresent() && ("SUCCESS".equals(existing.get().getStatus())
                 || "FAILED".equals(existing.get().getStatus())
                 || "CANCELLED".equals(existing.get().getStatus()))) {
@@ -374,7 +493,7 @@ public class WebhookService {
             return DeliveryOutcome.skipped();
         }
 
-        Optional<WebhookEndpointEntity> endpointOpt = endpointRepository.findById(merchantId);
+        Optional<WebhookEndpointEntity> endpointOpt = endpointRepository.findById(resolvedMerchantId);
         if (endpointOpt.isEmpty() || !endpointOpt.get().isActive() || endpointOpt.get().getUrl() == null
                 || !endpointOpt.get().isSubscribedTo(event.eventType())) {
             existing.ifPresent(delivery -> {
@@ -387,7 +506,8 @@ public class WebhookService {
         }
 
         WebhookEndpointEntity endpoint = endpointOpt.get();
-        WebhookDeliveryEntity delivery = existing.orElseGet(() -> newDelivery(event, eventId, merchantId, endpoint));
+        MerchantOrder mappedOrder = mappedOrderOpt.orElse(null);
+        WebhookDeliveryEntity delivery = existing.orElseGet(() -> newDelivery(event, eventId, resolvedMerchantId, endpoint, mappedOrder));
         int attemptNumber = delivery.getAttempts() + 1;
         Instant attemptedAt = Instant.now();
         delivery.setAttempts(attemptNumber);
@@ -439,49 +559,32 @@ public class WebhookService {
                 || attemptNumber >= WebhookDeliveryPolicy.MAX_ATTEMPTS) {
             recordProcessedEvent(eventId);
         }
-        return new DeliveryOutcome(disposition, delivery.getDeliveryId(), merchantId, result.errorMessage());
-    }
-
-    /** Keeps the M6 order read model current even when this merchant has no active webhook. */
-    private boolean projectMerchantOrderStatus(EventEnvelope event, UUID merchantId) {
-        if (!"PARCEL_STATUS_CHANGED".equals(event.eventType()) || event.occurredAt() == null) {
-            return false;
-        }
-
-        UUID parcelId;
-        ParcelStatus status;
-        try {
-            parcelId = UUID.fromString(event.parcelId());
-            status = ParcelStatus.valueOf(event.toStatus());
-        } catch (IllegalArgumentException | NullPointerException exception) {
-            log.warn("Invalid parcel identifiers or status in merchant webhook event");
-            return false;
-        }
-
-        Optional<MerchantOrder> order = merchantOrderQuery.findByParcelId(parcelId);
-        if (order.isEmpty()) {
-            // The event is the source of truth for webhook routing; M6 may not own this parcel.
-            return true;
-        }
-        MerchantOrder mappedOrder = order.get();
-        if (!merchantId.equals(mappedOrder.merchantId())) {
-            log.warn("Merchant identity does not match parcel order mapping for event {}", event.eventId());
-            return false;
-        }
-        if (mappedOrder.updatedAt() == null || !event.occurredAt().isBefore(mappedOrder.updatedAt())) {
-            merchantOrderQuery.updateParcelStatusByParcelId(parcelId, status, event.occurredAt());
-        }
-        return true;
+        return new DeliveryOutcome(disposition, delivery.getDeliveryId(), resolvedMerchantId, result.errorMessage());
     }
 
     @Transactional
     public void markDltFailed(EventEnvelope event) {
-        if (event == null || event.eventId() == null || event.merchantId() == null) {
+        if (event == null || event.eventId() == null) {
             return;
         }
         try {
             UUID eventId = UUID.fromString(event.eventId());
-            UUID merchantId = UUID.fromString(event.merchantId());
+            UUID merchantId = null;
+            if (event.merchantId() != null && !event.merchantId().isBlank()) {
+                merchantId = UUID.fromString(event.merchantId());
+            } else if (event.parcelId() != null && !event.parcelId().isBlank()) {
+                try {
+                    UUID parcelId = UUID.fromString(event.parcelId());
+                    merchantId = merchantOrderQuery.findByParcelId(parcelId)
+                            .map(MerchantOrder::merchantId)
+                            .orElse(null);
+                } catch (IllegalArgumentException ex) {
+                    // ignore
+                }
+            }
+            if (merchantId == null) {
+                return;
+            }
             deliveryRepository.findFirstByEventIdAndMerchantIdOrderByCreatedAtAsc(eventId, merchantId)
                     .ifPresent(delivery -> {
                         if (!"SUCCESS".equals(delivery.getStatus()) && !"CANCELLED".equals(delivery.getStatus())) {
@@ -499,13 +602,15 @@ public class WebhookService {
     }
 
     private WebhookDeliveryEntity newDelivery(EventEnvelope event, UUID eventId, UUID merchantId,
-                                               WebhookEndpointEntity endpoint) {
+                                               WebhookEndpointEntity endpoint, MerchantOrder mappedOrder) {
         UUID deliveryId = UUID.randomUUID();
         Instant occurredAt = event.occurredAt() != null ? event.occurredAt() : Instant.now();
+        String recipientName = mappedOrder != null ? mappedOrder.recipientName() : null;
+        String recipientAddress = mappedOrder != null ? mappedOrder.recipientAddress() : null;
         WebhookPayload payload = new WebhookPayload(deliveryId, eventId, event.eventType(), occurredAt,
                 event.sequence() != null ? event.sequence() : 1L, merchantId,
                 new WebhookParcelFields(event.parcelId(), event.trackingNumber(), event.toStatus(),
-                        event.fromStatus(), event.toStatus(), null, null, null, occurredAt, event.reason()));
+                        event.fromStatus(), event.toStatus(), null, recipientName, recipientAddress, occurredAt, event.reason()));
         String payloadJson;
         try {
             payloadJson = objectMapper.writeValueAsString(payload);

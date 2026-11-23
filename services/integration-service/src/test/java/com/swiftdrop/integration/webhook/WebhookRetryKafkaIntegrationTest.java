@@ -55,6 +55,7 @@ import static org.mockito.Mockito.when;
 class WebhookRetryKafkaIntegrationTest {
 
     private static final String MAIN_TOPIC = "parcel.status-changed.v1";
+    private static final String CREATED_TOPIC = "parcel.created.v1";
     private static final String WEBHOOK_DLT = "parcel.status-changed.v1.webhook.dlt";
 
     @Container
@@ -163,6 +164,48 @@ class WebhookRetryKafkaIntegrationTest {
                 UUID.fromString(event.eventId()), merchantId).orElseThrow();
         assertThat(delivery.getStatus()).isEqualTo("FAILED");
         assertThat(delivery.getAttempts()).isEqualTo(1);
+        verify(dispatcher, after(2000).times(1)).dispatch(eq(url), anyString(), anyString(), any());
+    }
+
+    @Test
+    void parcelCreatedKafkaEvent_isConsumedAndDelivered() throws Exception {
+        UUID merchantId = UUID.randomUUID();
+        String url = "http://127.0.0.1:8792/hook";
+        webhookService.updateSettings(merchantId, new UpdateWebhookSettingsRequest(
+                url, true, List.of("PARCEL_CREATED"), true));
+
+        EventEnvelope event = new EventEnvelope(
+                UUID.randomUUID().toString(),
+                "PARCEL_CREATED",
+                Instant.now(),
+                1L,
+                UUID.randomUUID().toString(),
+                "SD-20261122-000100",
+                "NONE",
+                "CREATED",
+                null,
+                null,
+                merchantId.toString(),
+                null,
+                null
+        );
+
+        when(dispatcher.dispatch(eq(url), anyString(), anyString(), any()))
+                .thenReturn(successfulResult());
+
+        String envelope = objectMapper.writeValueAsString(event);
+        kafkaTemplate.send(CREATED_TOPIC, event.parcelId(), envelope).get();
+
+        awaitDeliveryStatus(event, merchantId, "SUCCESS");
+
+        WebhookDeliveryEntity delivery = deliveryRepository.findFirstByEventIdAndMerchantIdOrderByCreatedAtAsc(
+                UUID.fromString(event.eventId()), merchantId).orElseThrow();
+        assertThat(delivery.getStatus()).isEqualTo("SUCCESS");
+        assertThat(delivery.getEventType()).isEqualTo("PARCEL_CREATED");
+        assertThat(delivery.getAttempts()).isEqualTo(1);
+
+        // Duplicate event is ignored idempotently
+        kafkaTemplate.send(CREATED_TOPIC, event.parcelId(), envelope).get();
         verify(dispatcher, after(2000).times(1)).dispatch(eq(url), anyString(), anyString(), any());
     }
 

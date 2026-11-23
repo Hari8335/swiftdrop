@@ -70,7 +70,8 @@ public class WebhookDeliveryEntity {
     private Instant createdAt = Instant.now();
 
     @OneToMany(mappedBy = "delivery", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @OrderBy("attemptNumber ASC")
+    // Chronological: manual retries restart attemptNumber at 1 for the new retry cycle.
+    @OrderBy("attemptedAt ASC, id ASC")
     private List<WebhookDeliveryAttemptEntity> retryHistory = new ArrayList<>();
 
     public WebhookDeliveryEntity() {

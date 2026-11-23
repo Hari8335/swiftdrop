@@ -177,6 +177,10 @@ class WebhookIntegrationTest {
         assertThat(logItem.status()).isEqualTo("SUCCESS");
         assertThat(logItem.httpStatusCode()).isEqualTo(200);
         assertThat(logItem.trackingNumber()).isEqualTo("SD-20261027-100200");
+        // Parcel status comes from the delivery's own signed payload; one automatic attempt, no manual retry.
+        assertThat(logItem.parcelStatus()).isEqualTo("IN_TRANSIT");
+        assertThat(logItem.totalAttempts()).isEqualTo(1);
+        assertThat(logItem.manualRetryCount()).isZero();
 
         // 5. Verify detailed delivery record
         WebhookDeliveryDetailResponse detail = webhookService.getDeliveryDetail(merchantId, logItem.deliveryId());
@@ -427,6 +431,54 @@ class WebhookIntegrationTest {
     }
 
     @Test
+    @DisplayName("Manual retry after exhausted retries keeps attempt history in chronological order")
+    void manualRetryAfterExhaustion_returnsChronologicalAttemptHistory() {
+        UUID merchantId = UUID.randomUUID();
+        String webhookUrl = "http://127.0.0.1:8795/hook";
+        webhookService.updateSettings(merchantId, new UpdateWebhookSettingsRequest(
+                webhookUrl, true, List.of("PARCEL_STATUS_CHANGED"), true));
+        EventEnvelope event = statusEvent(merchantId);
+        when(dispatcher.dispatch(eq(webhookUrl), anyString(), anyString(), any()))
+                .thenReturn(failedResult(503));
+
+        UUID deliveryId = webhookService.processParcelStatusChangedEvent(event).deliveryId();
+        for (int attempt = 2; attempt <= 5; attempt++) {
+            webhookService.processParcelStatusChangedEvent(event, true);
+        }
+        assertThat(deliveryRepository.findById(deliveryId).orElseThrow().getStatus()).isEqualTo("FAILED");
+
+        when(dispatcher.dispatch(eq(webhookUrl), anyString(), anyString(), any()))
+                .thenReturn(new WebhookDispatcher.DispatchResult(
+                        true, 200, 10, Map.of(), Map.of(), "ok", "ok", null, "signature", "123"));
+        WebhookDeliveryDetailResponse retried = webhookService.retryDelivery(merchantId, deliveryId);
+        WebhookDeliveryDetailResponse reloaded = webhookService.getDeliveryDetail(merchantId, deliveryId);
+
+        // Manual retry resets the current retry-cycle counter (contract) without renumbering history.
+        assertThat(retried.attempts()).isEqualTo(1);
+        assertThat(reloaded.attempts()).isEqualTo(1);
+        for (WebhookDeliveryDetailResponse detail : List.of(retried, reloaded)) {
+            assertThat(detail.retryHistory())
+                    .extracting(DeliveryAttemptRecord::attemptNumber)
+                    .containsExactly(1, 2, 3, 4, 5, 1);
+            assertThat(detail.retryHistory())
+                    .extracting(DeliveryAttemptRecord::httpStatusCode)
+                    .containsExactly(503, 503, 503, 503, 503, 200);
+            assertThat(detail.retryHistory())
+                    .extracting(DeliveryAttemptRecord::attemptedAt)
+                    .isSorted();
+            assertThat(detail.retryHistory().get(5).success()).isTrue();
+        }
+
+        // The log list exposes the full picture so the UI need not show a bare "1 of 5".
+        WebhookDeliveryLogItem listed = webhookService.listDeliveries(merchantId, null, null, null, null, 0, 10)
+                .content().get(0);
+        assertThat(listed.deliveryId()).isEqualTo(deliveryId);
+        assertThat(listed.attempts()).isEqualTo(1);
+        assertThat(listed.totalAttempts()).isEqualTo(6);
+        assertThat(listed.manualRetryCount()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("Timeout, network, and HTTP 429 are retryable; HTTP 4xx is terminal")
     void classifiesFailuresWithoutReplayingClientErrors() {
         UUID merchantId = UUID.randomUUID();
@@ -528,6 +580,226 @@ class WebhookIntegrationTest {
                 .isEqualTo(MerchantOrderStatus.CREATED);
         assertThat(webhookService.listDeliveries(otherMerchant, null, null, null, null, 0, 10).totalElements())
                 .isZero();
+        verify(dispatcher, times(0)).dispatch(anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("End-to-End: Parcel created event creates signed delivery record and delivery log shows it")
+    void parcelCreatedEvent_createsSignedDeliveryRecord_andIdempotent() {
+        UUID merchantId = createMerchant();
+        String webhookUrl = "https://127.0.0.1/swiftdrop/webhook-created";
+
+        // 1. Setup active webhook settings for merchant subscribing to PARCEL_CREATED
+        UpdateWebhookSettingsRequest settingsReq = new UpdateWebhookSettingsRequest(
+                webhookUrl,
+                true,
+                List.of("PARCEL_CREATED"),
+                true
+        );
+        WebhookSettingsResponse settings = webhookService.updateSettings(merchantId, settingsReq);
+        assertThat(settings.secretConfigured()).isTrue();
+        assertThat(settings.rawSecret()).isNotNull();
+
+        // 2. Create an order mapped to this merchant in merchant_orders
+        Instant orderTime = Instant.now().minusSeconds(10);
+        UUID parcelId = UUID.randomUUID();
+        MerchantOrderEntity order = new MerchantOrderEntity(
+                UUID.randomUUID(), merchantId, parcelId, "SD-20261120-100200",
+                "ref-created-1", MerchantOrderStatus.CREATED, new BigDecimal("350.00"),
+                "Kamal Silva", "45 Galle Road, Colombo", orderTime
+        );
+        merchantOrderRepository.saveAndFlush(order);
+
+        // 3. Mock dispatcher to return successful HTTP 200 response
+        when(dispatcher.dispatch(eq(webhookUrl), anyString(), anyString(), any()))
+                .thenReturn(new WebhookDispatcher.DispatchResult(
+                        true,
+                        200,
+                        65,
+                        Map.of("Content-Type", "application/json"),
+                        Map.of("Server", "test-server"),
+                        "{\"status\":\"received\"}",
+                        "{\"status\":\"received\"}",
+                        null,
+                        "t=1729864800,v1=abcdef1234567890",
+                        "1729864800"
+                ));
+
+        // 4. Process an incoming parcel.created.v1 event
+        UUID eventId = UUID.randomUUID();
+        EventEnvelope event = new EventEnvelope(
+                eventId.toString(),
+                "PARCEL_CREATED",
+                orderTime,
+                1L,
+                parcelId.toString(),
+                "SD-20261120-100200",
+                "NONE",
+                "CREATED",
+                null,
+                null,
+                merchantId.toString(),
+                null,
+                null
+        );
+
+        WebhookService.DeliveryOutcome outcome = webhookService.processParcelCreatedEvent(event);
+        assertThat(outcome.disposition()).isEqualTo(WebhookService.DeliveryDisposition.SUCCESS);
+
+        // 5. Verify delivery log record exists and shows SUCCESS with PARCEL_CREATED
+        WebhookDeliveryLogPage logs = webhookService.listDeliveries(
+                merchantId, null, "PARCEL_CREATED", null, null, 0, 10
+        );
+
+        assertThat(logs.totalElements()).isEqualTo(1);
+        WebhookDeliveryLogItem logItem = logs.content().get(0);
+        assertThat(logItem.eventId()).isEqualTo(eventId);
+        assertThat(logItem.eventType()).isEqualTo("PARCEL_CREATED");
+        assertThat(logItem.status()).isEqualTo("SUCCESS");
+        assertThat(logItem.httpStatusCode()).isEqualTo(200);
+        assertThat(logItem.trackingNumber()).isEqualTo("SD-20261120-100200");
+
+        // 6. Verify detailed delivery record
+        WebhookDeliveryDetailResponse detail = webhookService.getDeliveryDetail(merchantId, logItem.deliveryId());
+        assertThat(detail.payload()).isNotNull();
+        assertThat(detail.payload().eventType()).isEqualTo("PARCEL_CREATED");
+        assertThat(detail.payload().sequence()).isEqualTo(1L);
+        assertThat(detail.payload().parcel().status()).isEqualTo("CREATED");
+        assertThat(detail.payload().parcel().fromStatus()).isEqualTo("NONE");
+        assertThat(detail.payload().parcel().toStatus()).isEqualTo("CREATED");
+        assertThat(detail.payload().parcel().recipientName()).isEqualTo("Kamal Silva");
+        assertThat(detail.payload().parcel().recipientAddress()).isEqualTo("45 Galle Road, Colombo");
+        assertThat(detail.retryHistory()).hasSize(1);
+        assertThat(detail.retryHistory().get(0).success()).isTrue();
+
+        // 7. Verify consumer-scoped idempotency in processed_event
+        assertThat(processedEventRepository.existsByEventIdAndConsumerGroup(eventId, WebhookService.CONSUMER_GROUP))
+                .isTrue();
+
+        // 8. Re-processing identical event should be deduplicated (no duplicate delivery)
+        WebhookService.DeliveryOutcome duplicateOutcome = webhookService.processParcelCreatedEvent(event);
+        assertThat(duplicateOutcome.disposition()).isEqualTo(WebhookService.DeliveryDisposition.SKIPPED);
+
+        WebhookDeliveryLogPage logsAfterDuplicate = webhookService.listDeliveries(
+                merchantId, null, "PARCEL_CREATED", null, null, 0, 10
+        );
+        assertThat(logsAfterDuplicate.totalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Parcel created event resolves merchant from order mapping when merchantId is missing")
+    void parcelCreatedEvent_resolvesMerchantFromOrderMapping_whenMerchantIdMissing() {
+        UUID merchantId = createMerchant();
+        String webhookUrl = "https://127.0.0.1/swiftdrop/webhook-no-merchant";
+        webhookService.updateSettings(merchantId, new UpdateWebhookSettingsRequest(
+                webhookUrl, true, List.of("PARCEL_CREATED"), true
+        ));
+
+        UUID parcelId = UUID.randomUUID();
+        MerchantOrderEntity order = new MerchantOrderEntity(
+                UUID.randomUUID(), merchantId, parcelId, "SD-20261120-200300",
+                "ref-created-2", MerchantOrderStatus.CREATED, new BigDecimal("450.00"),
+                "Sunil Fernando", "10 Kandy Road, Kadawatha", Instant.now()
+        );
+        merchantOrderRepository.saveAndFlush(order);
+
+        when(dispatcher.dispatch(eq(webhookUrl), anyString(), anyString(), any()))
+                .thenReturn(new WebhookDispatcher.DispatchResult(
+                        true, 200, 50, Map.of(), Map.of(), "ok", "ok", null, "sig", "123"
+                ));
+
+        UUID eventId = UUID.randomUUID();
+        EventEnvelope eventWithoutMerchantId = new EventEnvelope(
+                eventId.toString(),
+                "PARCEL_CREATED",
+                Instant.now(),
+                1L,
+                parcelId.toString(),
+                "SD-20261120-200300",
+                "NONE",
+                "CREATED",
+                null,
+                null,
+                null, // missing merchantId
+                null,
+                null
+        );
+
+        WebhookService.DeliveryOutcome outcome = webhookService.processParcelCreatedEvent(eventWithoutMerchantId);
+        assertThat(outcome.disposition()).isEqualTo(WebhookService.DeliveryDisposition.SUCCESS);
+        assertThat(outcome.merchantId()).isEqualTo(merchantId);
+
+        WebhookDeliveryLogPage logs = webhookService.listDeliveries(merchantId, null, "PARCEL_CREATED", null, null, 0, 10);
+        assertThat(logs.totalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Parcel created event is skipped for merchants unsubscribed from PARCEL_CREATED")
+    void parcelCreatedEvent_unsubscribedMerchant_isSkipped() {
+        UUID merchantId = createMerchant();
+        String webhookUrl = "https://127.0.0.1/swiftdrop/webhook-unsubscribed";
+        // Subscribed only to PARCEL_STATUS_CHANGED, not PARCEL_CREATED
+        webhookService.updateSettings(merchantId, new UpdateWebhookSettingsRequest(
+                webhookUrl, true, List.of("PARCEL_STATUS_CHANGED"), true
+        ));
+
+        UUID parcelId = UUID.randomUUID();
+        MerchantOrderEntity order = createOrder(merchantId, Instant.now());
+
+        UUID eventId = UUID.randomUUID();
+        EventEnvelope event = new EventEnvelope(
+                eventId.toString(),
+                "PARCEL_CREATED",
+                Instant.now(),
+                1L,
+                order.getParcelId().toString(),
+                order.getTrackingNumber(),
+                "NONE",
+                "CREATED",
+                null,
+                null,
+                merchantId.toString(),
+                null,
+                null
+        );
+
+        WebhookService.DeliveryOutcome outcome = webhookService.processParcelCreatedEvent(event);
+        assertThat(outcome.disposition()).isEqualTo(WebhookService.DeliveryDisposition.SKIPPED);
+
+        WebhookDeliveryLogPage logs = webhookService.listDeliveries(merchantId, null, null, null, null, 0, 10);
+        assertThat(logs.totalElements()).isZero();
+        verify(dispatcher, times(0)).dispatch(eq(webhookUrl), anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("Parcel created event rejects merchant mismatch")
+    void parcelCreatedEvent_rejectsMerchantMismatch() {
+        UUID owner = createMerchant();
+        UUID otherMerchant = createMerchant();
+        MerchantOrderEntity order = createOrder(owner, Instant.now());
+        webhookService.updateSettings(otherMerchant, new UpdateWebhookSettingsRequest(
+                "https://127.0.0.1/merchant-hook-2", true, List.of("PARCEL_CREATED"), false
+        ));
+
+        EventEnvelope event = new EventEnvelope(
+                UUID.randomUUID().toString(),
+                "PARCEL_CREATED",
+                Instant.now(),
+                1L,
+                order.getParcelId().toString(),
+                order.getTrackingNumber(),
+                "NONE",
+                "CREATED",
+                null,
+                null,
+                otherMerchant.toString(), // Mismatch: claim order of another merchant
+                null,
+                null
+        );
+
+        WebhookService.DeliveryOutcome outcome = webhookService.processParcelCreatedEvent(event);
+        assertThat(outcome.disposition()).isEqualTo(WebhookService.DeliveryDisposition.SKIPPED);
+        assertThat(webhookService.listDeliveries(otherMerchant, null, null, null, null, 0, 10).totalElements()).isZero();
         verify(dispatcher, times(0)).dispatch(anyString(), anyString(), anyString(), any());
     }
 
