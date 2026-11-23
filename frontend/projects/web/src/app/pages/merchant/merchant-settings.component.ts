@@ -1,4 +1,6 @@
 import { Component, Injectable, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { AvatarComponent } from 'ui';
+import { ProfilePhotoControlComponent } from '../../shared/profile-photo-control.component';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from 'shared-auth';
 import { CustomerChangePasswordComponent } from '../customer/customer-change-password.component';
@@ -35,7 +37,7 @@ export const MERCHANT_STATUS_LABELS: Record<MerchantProfile['status'], string> =
 @Component({
   selector: 'app-merchant-settings',
   standalone: true,
-  imports: [FormsModule, CustomerChangePasswordComponent],
+  imports: [FormsModule, CustomerChangePasswordComponent, AvatarComponent, ProfilePhotoControlComponent],
   providers: [{ provide: CustomerToastService, useClass: MerchantSettingsToastService }],
   template: `
     <div id="merchant-settings-panel" class="mx-auto w-full max-w-7xl">
@@ -101,7 +103,7 @@ export const MERCHANT_STATUS_LABELS: Record<MerchantProfile['status'], string> =
                 <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Shown to customers on tracking pages and to the SwiftDrop operations team.</p>
 
                 <div class="flex items-center gap-4 mt-5">
-                  <span class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm">{{ initials() }}</span>
+                  <ui-avatar class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm" [src]="avatarUrl()" [initials]="initials()" />
                   <div class="min-w-0">
                     <p id="merchant-settings-business-name" class="text-sm font-bold text-[#1d1b2c] truncate">{{ businessName() || 'Business name unavailable' }}</p>
                     <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-[#6f6d85] font-medium">
@@ -112,6 +114,7 @@ export const MERCHANT_STATUS_LABELS: Record<MerchantProfile['status'], string> =
                     </div>
                   </div>
                 </div>
+                <app-profile-photo-control label="logo" fit="contain" />
                 <p class="mt-4 text-[11px] text-[#8a8799] font-medium">The business name comes from your registration. Contact SwiftDrop support to change it.</p>
               </div>
 
@@ -211,6 +214,7 @@ export class MerchantSettingsComponent implements OnInit {
   readonly section = signal<SettingsSection>('profile');
 
   readonly userEmail = computed(() => this.authService?.currentUser?.()?.email || '');
+  readonly avatarUrl = computed(() => this.authService?.currentUser?.()?.avatarUrl ?? null);
   readonly initials = computed(() => {
     const source = this.businessName()?.trim() || this.authService?.currentUser?.()?.fullName?.trim() || 'Merchant';
     const parts = source.split(/\s+/).filter(Boolean);

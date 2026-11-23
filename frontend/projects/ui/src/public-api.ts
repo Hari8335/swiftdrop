@@ -14,6 +14,8 @@ export * from './lib/dialog/dialog.component';
 export * from './lib/toast/toast.service';
 export * from './lib/toast/toast-container.component';
 export * from './lib/status-badge/status-badge.component';
+export * from './lib/avatar/avatar.component';
+export * from './lib/avatar/avatar-image';
 export * from './lib/states/states.component';
 
 // Forms

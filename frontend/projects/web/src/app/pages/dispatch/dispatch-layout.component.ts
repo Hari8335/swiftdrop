@@ -1,5 +1,6 @@
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { AvatarComponent } from 'ui';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
@@ -24,7 +25,7 @@ interface NavItem {
 @Component({
   selector: 'app-dispatch-layout',
   standalone: true,
-  imports: [CommonModule, NgTemplateOutlet, FormsModule, RouterLink, RouterOutlet],
+  imports: [CommonModule, NgTemplateOutlet, FormsModule, RouterLink, RouterOutlet, AvatarComponent],
   template: `
     <!-- Shared icon set for the sidebar and the mobile nav -->
     <ng-template #navIcon let-page>
@@ -289,7 +290,7 @@ interface NavItem {
               id="profile-chip"
               class="h-11 flex items-center gap-2.5 pl-1.5 pr-4 rounded-full bg-[#faf8f6] border border-[#e8e2dc] select-none"
             >
-              <span class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">{{ initials() }}</span>
+              <ui-avatar class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm" [src]="avatarUrl()" [initials]="initials()" />
               <span class="hidden sm:flex flex-col leading-tight">
                 <span class="text-xs font-bold text-[#1d1b2c]">{{ displayName() }}</span>
                 <span class="text-[10px] font-semibold text-[#6f6d85]">Dispatcher</span>
@@ -456,6 +457,7 @@ export class DispatchLayoutComponent implements OnInit, OnDestroy {
   ];
 
   readonly displayName = computed(() => this.authService?.currentUser?.()?.fullName || 'Dispatcher');
+  readonly avatarUrl = computed(() => this.authService?.currentUser?.()?.avatarUrl ?? null);
   readonly initials = computed(() => {
     const parts = this.displayName().trim().split(/\s+/).filter(Boolean);
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();

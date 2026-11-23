@@ -4,16 +4,17 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, catchError, combineLatest, debounceTime, filter, interval, of, startWith, switchMap, tap } from 'rxjs';
 import { TrackingApiService } from './tracking-api.service';
 import { DriverAssignment } from './tracking.model';
+import { AvatarComponent } from 'ui';
 
 /**
- * Driver Assignment History card on the parcel detail page: every courier assigned to the parcel,
+ * Courier Assignment History card on the parcel detail page: every courier assigned to the parcel,
  * oldest first, with name, vehicle and zone (no phone numbers), when they were assigned, whether they
- * are the current driver, and when they were replaced. Reloads when a live event arrives.
+ * are the current courier, and when they were replaced. Reloads when a live event arrives.
  */
 @Component({
   selector: 'app-driver-assignment-history',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, AvatarComponent],
   template: `
     <section
       class="rounded-3xl border border-[#eee7e0] bg-[#faf8f6] p-6 sm:p-7 space-y-5 shadow-xs"
@@ -21,8 +22,8 @@ import { DriverAssignment } from './tracking.model';
       data-testid="driver-assignment-history"
     >
       <div class="pb-3.5 border-b border-[#eee7e0]">
-        <h2 id="driver-history-title" class="text-lg font-black text-[#1d1b2c] tracking-tight">Driver Assignment History</h2>
-        <p class="text-xs text-[#6f6d85] font-semibold mt-0.5">Every driver assigned to this delivery, in order</p>
+        <h2 id="driver-history-title" class="text-lg font-black text-[#1d1b2c] tracking-tight">Courier Assignment History</h2>
+        <p class="text-xs text-[#6f6d85] font-semibold mt-0.5">Every courier assigned to this delivery, in order</p>
       </div>
 
       @switch (state()) {
@@ -32,7 +33,7 @@ import { DriverAssignment } from './tracking.model';
         @case ('error') {
           <div class="bg-white rounded-2xl p-5 border border-[#eee7e0] text-xs font-semibold text-[#6f6d85] flex items-center justify-between gap-3"
                data-testid="driver-history-error">
-            <span>Couldn't load the driver history.</span>
+            <span>Couldn't load the courier history.</span>
             <button type="button" (click)="retry()"
                     class="px-3 py-1.5 rounded-full border border-[#eee7e0] bg-[#faf8f6] hover:bg-[#f3ece4] text-[#a53a26] font-bold cursor-pointer">
               Try again
@@ -42,8 +43,8 @@ import { DriverAssignment } from './tracking.model';
         @default {
           @if (assignments().length === 0) {
             <div class="bg-white rounded-2xl p-5 border border-[#eee7e0] text-center" data-testid="driver-history-empty">
-              <p class="text-sm font-black text-[#1d1b2c]">No driver assigned yet</p>
-              <p class="text-xs font-semibold text-[#6f6d85] mt-1">A driver appears here once dispatch assigns one.</p>
+              <p class="text-sm font-black text-[#1d1b2c]">No courier assigned yet</p>
+              <p class="text-xs font-semibold text-[#6f6d85] mt-1">A courier appears here once dispatch assigns one.</p>
             </div>
           } @else {
             <ol class="bg-white rounded-2xl p-5 border border-[#eee7e0] space-y-5">
@@ -52,14 +53,17 @@ import { DriverAssignment } from './tracking.model';
                   @if (!last) {
                     <span class="absolute left-[19px] top-11 -bottom-5 w-0.5 bg-[#eee7e0]" aria-hidden="true"></span>
                   }
-                  <span
+                  <ui-avatar
                     class="relative w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center text-xs font-black uppercase"
                     [class.bg-[#a53a26]]="a.status === 'CURRENT'"
                     [class.text-white]="a.status === 'CURRENT'"
                     [class.bg-[#f1ece6]]="a.status !== 'CURRENT'"
                     [class.text-[#6f6d85]]="a.status !== 'CURRENT'"
                     aria-hidden="true"
-                  >{{ initials(a) }}</span>
+                    data-testid="driver-avatar"
+                    [src]="a.driver?.photoUrl"
+                    [initials]="initials(a)"
+                  />
 
                   <div class="min-w-0 flex-1 space-y-1.5">
                     <div class="flex flex-wrap items-center justify-between gap-2">

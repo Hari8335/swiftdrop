@@ -107,6 +107,8 @@ export interface DriverProfile {
   name: string;
   vehicleType: string | null;
   zone: string | null;
+  /** Courier's profile picture (image data URL); null/absent shows initials. */
+  photoUrl?: string | null;
 }
 
 export interface DriverAssignment {

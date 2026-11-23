@@ -5,6 +5,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { AuthService } from 'shared-auth';
 import { DispatchSettingsComponent } from './dispatch-settings.component';
+import { ProfilePhotoControlComponent } from '../../shared/profile-photo-control.component';
 import { DispatchNotificationsService } from './dispatch-notifications.service';
 
 describe('DispatchSettingsComponent', () => {
@@ -13,6 +14,8 @@ describe('DispatchSettingsComponent', () => {
   const authStub = {
     currentUser: signal({ id: 'u1', fullName: 'Dinesh Perera', email: 'd@swiftdrop.lk', phoneNumber: '0771234567', role: 'DISPATCHER' }),
     updateProfile: jest.fn(),
+    uploadAvatar: jest.fn(),
+    removeAvatar: jest.fn(),
   };
   const el = () => fixture.nativeElement as HTMLElement;
 
@@ -68,5 +71,33 @@ describe('DispatchSettingsComponent', () => {
     component.selectSection('security');
     fixture.detectChanges();
     expect(el().querySelector('app-customer-change-password')).toBeTruthy();
+  });
+
+  it('uploading a profile photo replaces the initials in the profile card straight away', async () => {
+    const original = authStub.currentUser();
+    const image = 'data:image/jpeg;base64,/9j/AA==';
+    authStub.uploadAvatar.mockImplementation((img: string) => {
+      authStub.currentUser.set({ ...original, avatarUrl: img } as typeof original);
+      return of(authStub.currentUser());
+    });
+    try {
+      const card = () => el().querySelector('ui-avatar') as HTMLElement;
+      expect(card().querySelector('img')).toBeNull();
+      expect(card().textContent?.trim()).toBe('DP');
+
+      const control = fixture.debugElement.query((d) => d.componentInstance instanceof ProfilePhotoControlComponent)
+        .componentInstance as ProfilePhotoControlComponent;
+      jest.spyOn(control, 'prepare').mockResolvedValue(image);
+      const input = el().querySelector('#profile-photo-input') as HTMLInputElement;
+      Object.defineProperty(input, 'files', { value: [new File(['x'], 'me.jpg', { type: 'image/jpeg' })], configurable: true });
+      input.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(authStub.uploadAvatar).toHaveBeenCalledWith(image);
+      expect(card().querySelector('img')?.getAttribute('src')).toBe(image);
+    } finally {
+      authStub.currentUser.set(original);
+    }
   });
 });

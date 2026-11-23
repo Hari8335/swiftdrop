@@ -336,4 +336,27 @@ describe('AuthService', () => {
     service.loginWithGoogle('DISPATCHER');
     expect(navSpy).toHaveBeenCalledWith('/api/v1/auth/oauth2/google?role=DISPATCHER');
   });
+
+  it('uploadAvatar should PUT the image and update currentUser so every avatar refreshes', () => {
+    const image = 'data:image/jpeg;base64,/9j/AA==';
+    service.uploadAvatar(image).subscribe();
+
+    const req = httpTesting.expectOne('/api/v1/auth/me/avatar');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ image });
+    expect(req.request.withCredentials).toBe(true);
+    req.flush({ ...mockUser, avatarUrl: image });
+
+    expect(service.currentUser()?.avatarUrl).toBe(image);
+  });
+
+  it('removeAvatar should DELETE the image and clear avatarUrl on currentUser', () => {
+    service.removeAvatar().subscribe();
+
+    const req = httpTesting.expectOne('/api/v1/auth/me/avatar');
+    expect(req.request.method).toBe('DELETE');
+    req.flush({ ...mockUser, avatarUrl: null });
+
+    expect(service.currentUser()?.avatarUrl).toBeNull();
+  });
 });

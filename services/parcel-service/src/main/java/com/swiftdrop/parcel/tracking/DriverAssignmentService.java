@@ -16,10 +16,13 @@ class DriverAssignmentService {
 
     private final ParcelQueryService parcelQueryService;
     private final CourierDirectoryClient courierDirectory;
+    private final AuthAvatarClient avatars;
 
-    DriverAssignmentService(ParcelQueryService parcelQueryService, CourierDirectoryClient courierDirectory) {
+    DriverAssignmentService(ParcelQueryService parcelQueryService, CourierDirectoryClient courierDirectory,
+                            AuthAvatarClient avatars) {
         this.parcelQueryService = parcelQueryService;
         this.courierDirectory = courierDirectory;
+        this.avatars = avatars;
     }
 
     /** 404 and 403 come from ParcelQueryService (owner customer, assigned courier, DISPATCHER, ADMIN). */
@@ -34,9 +37,12 @@ class DriverAssignmentService {
         Map<String, CourierDirectoryClient.DriverProfile> profiles = courierDirectory.findProfiles(
                 new LinkedHashSet<>(assignments.stream().map(DriverAssignments.Assignment::courierId).toList()));
 
+        // Only couriers with a directory profile are shown by name, so only they need a picture.
+        Map<String, String> photos = profiles.isEmpty() ? Map.of() : avatars.findAvatars(profiles.keySet());
+
         List<DriverAssignmentHistoryResponse.Entry> entries = assignments.stream()
                 .map(a -> new DriverAssignmentHistoryResponse.Entry(
-                        driver(profiles.get(a.courierId())),
+                        driver(profiles.get(a.courierId()), photos.get(a.courierId())),
                         a.assignedAt(),
                         a.current() ? DriverAssignmentHistoryResponse.Status.CURRENT
                                 : DriverAssignmentHistoryResponse.Status.PREVIOUS,
@@ -45,10 +51,10 @@ class DriverAssignmentService {
         return new DriverAssignmentHistoryResponse(parcel.id(), entries);
     }
 
-    private static DriverAssignmentHistoryResponse.Driver driver(CourierDirectoryClient.DriverProfile profile) {
+    private static DriverAssignmentHistoryResponse.Driver driver(CourierDirectoryClient.DriverProfile profile, String photoUrl) {
         if (profile == null || profile.name() == null || profile.name().isBlank()) {
             return null;
         }
-        return new DriverAssignmentHistoryResponse.Driver(profile.name(), profile.vehicleType(), profile.zone());
+        return new DriverAssignmentHistoryResponse.Driver(profile.name(), profile.vehicleType(), profile.zone(), photoUrl);
     }
 }

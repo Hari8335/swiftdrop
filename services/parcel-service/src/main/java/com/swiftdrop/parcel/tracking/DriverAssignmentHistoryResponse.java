@@ -18,7 +18,8 @@ record DriverAssignmentHistoryResponse(String parcelId, List<Entry> assignments)
     record Entry(Driver driver, Instant assignedAt, Status status, Instant reassignedAt) {
     }
 
+    /** {@code photoUrl} is the courier's profile picture (image data URL), or null to show initials. */
     @JsonInclude(JsonInclude.Include.ALWAYS)
-    record Driver(String name, String vehicleType, String zone) {
+    record Driver(String name, String vehicleType, String zone, String photoUrl) {
     }
 }

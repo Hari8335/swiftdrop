@@ -65,6 +65,24 @@ describe('DriverAssignmentHistoryComponent', () => {
     expect(el().textContent).not.toMatch(/\+94|phone/i);
   }));
 
+  it("shows the courier's profile picture when they have one and initials otherwise", fakeAsync(() => {
+    create(of({
+      ...REASSIGNED,
+      assignments: [
+        { ...REASSIGNED.assignments[0], driver: { ...REASSIGNED.assignments[0].driver!, photoUrl: 'data:image/png;base64,AAAA' } },
+        REASSIGNED.assignments[1],
+      ],
+    }));
+    tick();
+    fixture.detectChanges();
+
+    const avatars = [...el().querySelectorAll('[data-testid="driver-avatar"]')];
+    expect(avatars).toHaveLength(2);
+    expect(avatars[0].querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
+    expect(avatars[1].querySelector('img')).toBeNull();
+    expect(avatars[1].textContent?.trim()).toBe('NS');
+  }));
+
   it('shows "Courier" and "Profile not available" when the driver has no profile', fakeAsync(() => {
     create(of({
       parcelId: 'p-1',
@@ -82,7 +100,7 @@ describe('DriverAssignmentHistoryComponent', () => {
     tick();
     fixture.detectChanges();
 
-    expect(el().querySelector('[data-testid="driver-history-empty"]')!.textContent).toContain('No driver assigned yet');
+    expect(el().querySelector('[data-testid="driver-history-empty"]')!.textContent).toContain('No courier assigned yet');
   }));
 
   it('shows an error with a working retry', fakeAsync(() => {

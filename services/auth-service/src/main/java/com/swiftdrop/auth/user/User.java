@@ -42,6 +42,9 @@ public class User {
     @Column(name = "zone", length = 128)
     private String zone;
 
+    @Column(name = "avatar_data", columnDefinition = "TEXT")
+    private String avatarData;
+
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword;
 
@@ -164,6 +167,14 @@ public class User {
 
     public void setZone(String zone) {
         this.zone = zone;
+    }
+
+    public String getAvatarData() {
+        return avatarData;
+    }
+
+    public void setAvatarData(String avatarData) {
+        this.avatarData = avatarData;
     }
 
     public boolean isMustChangePassword() {

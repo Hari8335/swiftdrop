@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { AvatarComponent } from 'ui';
+import { ProfilePhotoControlComponent } from '../shared/profile-photo-control.component';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from 'shared-auth';
@@ -13,7 +15,7 @@ export type CourierSettingsSection = 'profile' | 'duty' | 'security';
 @Component({
   selector: 'app-courier-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, NotificationBellComponent, CustomerChangePasswordComponent],
+  imports: [CommonModule, FormsModule, NotificationBellComponent, CustomerChangePasswordComponent, AvatarComponent, ProfilePhotoControlComponent],
   template: `
     <!-- Full-Screen Courier Layout (Matching Courier Run Sheet & Customer Portal) -->
     <!-- Full-Screen Courier Layout (Matching Admin/Customer Design) -->
@@ -264,11 +266,7 @@ export type CourierSettingsSection = 'profile' | 'duty' | 'security';
               id="profile-badge"
               class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] select-none"
             >
-              <span
-                class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm"
-              >
-                {{ courierInitials() }}
-              </span>
+              <ui-avatar class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm" [src]="courierAvatarUrl()" [initials]="courierInitials()" />
               <span class="text-xs font-bold text-[#1d1b2c]">{{ courierDisplayName() }}</span>
             </div>
           </div>
@@ -404,9 +402,7 @@ export type CourierSettingsSection = 'profile' | 'duty' | 'security';
                       <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Used by dispatchers, merchants, and customers to identify you on deliveries.</p>
 
                       <div class="flex items-center gap-4 mt-5">
-                        <span class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm">
-                          {{ courierInitials() }}
-                        </span>
+                        <ui-avatar class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm" [src]="courierAvatarUrl()" [initials]="courierInitials()" />
                         <div class="min-w-0">
                           <p id="settings-name" class="text-sm font-bold text-[#1d1b2c] truncate">{{ courierDisplayName() }}</p>
                           <div class="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -428,6 +424,7 @@ export type CourierSettingsSection = 'profile' | 'duty' | 'security';
                           </div>
                         </div>
                       </div>
+                      <app-profile-photo-control label="photo" />
 
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5 mt-6">
                         <div class="sm:col-span-2 sm:max-w-[calc(50%-0.75rem)]">
@@ -781,6 +778,9 @@ export class CourierProfileComponent {
   saveEdit(): void {
     this.saveProfile();
   }
+
+  /** Courier's profile picture from the auth profile; initials are shown when unset. */
+  readonly courierAvatarUrl = computed(() => this.authService?.currentUser?.()?.avatarUrl ?? null);
 
   readonly courierInitials = computed(() => {
     const name = this.courierDisplayName();

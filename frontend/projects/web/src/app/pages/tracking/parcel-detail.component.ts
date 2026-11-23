@@ -228,7 +228,7 @@ import { CustomerTopbarComponent } from '../customer/customer-topbar.component';
                       }
                     </div>
 
-                    <!-- Driver Assignment History (below the timeline) -->
+                    <!-- Courier Assignment History (below the timeline) -->
                     <app-driver-assignment-history
                       class="block"
                       [parcelId]="p.id"
