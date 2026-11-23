@@ -48,6 +48,26 @@ class TrackingMapperTest {
     }
 
     @Test
+    @DisplayName("Public view never carries coordinates or the internal parcel id, even when the addresses are pinned")
+    void publicViewHasNoCoordinatesOrParcelId() {
+        ParcelResponse base = parcel("Sunil Silva");
+        ParcelResponse pinned = new ParcelResponse(
+                base.id(), base.trackingNumber(), base.status(), base.customerId(), base.merchantId(), base.courierId(),
+                new AddressDto("45 Galle Road", null, "Colombo 03", "Colombo", "00300", 6.9123456, 79.8512345),
+                new AddressDto("12 Temple Road", "Flat 2", "Kandy", "Kandy", "20000", 7.2934567, 80.6334567),
+                base.weightKg(), base.size(), base.fee(), base.attemptCount(), base.failureReason(),
+                base.recipientName(), base.recipientPhone(), base.notes(), base.proof(), base.sequence(),
+                base.createdAt(), base.updatedAt(), base.assignedAt(), base.completedAt());
+
+        PublicTrackingResponse view = TrackingMapper.toPublic(pinned, HISTORY);
+
+        assertThat(java.util.Arrays.stream(PublicTrackingResponse.class.getRecordComponents()).map(c -> c.getName()))
+                .containsExactly("trackingNumber", "status", "recipientNameMasked", "dropoffDistrict", "lastUpdatedAt", "timeline");
+        assertThat(view.toString()).doesNotContain(
+                "6.912", "79.851", "7.293", "80.633", "7e9b3a24-c189-4b68-b7c1-fa9e6a0d2f11");
+    }
+
+    @Test
     @DisplayName("Public view holds only allow-listed fields")
     void publicView() {
         PublicTrackingResponse view = TrackingMapper.toPublic(parcel("Sunil Silva"), HISTORY);

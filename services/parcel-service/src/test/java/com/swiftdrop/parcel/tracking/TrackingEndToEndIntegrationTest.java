@@ -358,9 +358,9 @@ class TrackingEndToEndIntegrationTest {
         assertThat(body.get("lastUpdatedAt").asText()).isEqualTo(timeline.get(2).get("occurredAt").asText());
         List<String> fieldNames = new ArrayList<>();
         body.fieldNames().forEachRemaining(fieldNames::add);
+        // Allow-list: no internal id and no coordinates on the public page.
         assertThat(fieldNames).containsExactlyInAnyOrder(
-                "parcelId", "trackingNumber", "status", "recipientNameMasked", "dropoffDistrict", "lastUpdatedAt", "timeline",
-                "pickupLatitude", "pickupLongitude", "dropoffLatitude", "dropoffLongitude");
+                "trackingNumber", "status", "recipientNameMasked", "dropoffDistrict", "lastUpdatedAt", "timeline");
         assertThat(response.body()).doesNotContain("Temple Road", "Flat 2", "20000", "Galle Road", "+9477",
                 "Gate code", "Sunil", OWNER, COURIER);
     }
