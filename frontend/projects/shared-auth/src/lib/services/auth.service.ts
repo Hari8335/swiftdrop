@@ -142,6 +142,14 @@ export class AuthService {
     );
   }
 
+  changePassword(currentPassword: string, newPassword: string, email?: string): Observable<ForgotPasswordResponse> {
+    return this.http.post<ForgotPasswordResponse>(
+      `${this.baseUrl}/password/change`,
+      { currentPassword, newPassword, email },
+      { withCredentials: true }
+    );
+  }
+
   /**
    * Retrieves current authenticated user profile from /api/v1/auth/me.
    */
@@ -252,8 +260,9 @@ export class AuthService {
    * Initiates Google OAuth 2.0 Authorization Code flow.
    * Redirects browser to backend initiation endpoint which issues CSRF state and redirects to Google.
    */
-  loginWithGoogle(): void {
-    this.navigateTo(`${this.baseUrl}/oauth2/google`);
+  loginWithGoogle(role?: string): void {
+    const query = role ? `?role=${encodeURIComponent(role)}` : '';
+    this.navigateTo(`${this.baseUrl}/oauth2/google${query}`);
   }
 
   protected navigateTo(url: string): void {

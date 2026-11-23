@@ -70,7 +70,7 @@ public class GoogleOAuthController {
      * Generates CSRF state token, sets secure state cookie, and redirects user to Google.
      */
     @GetMapping("/google")
-    public ResponseEntity<Void> initiateGoogleLogin() {
+    public ResponseEntity<Void> initiateGoogleLogin(@RequestParam(name = "role", required = false) String role) {
         if (!properties.isConfigured()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -78,7 +78,8 @@ public class GoogleOAuthController {
             );
         }
 
-        String state = UUID.randomUUID().toString().replace("-", "") + "." + Instant.now().toEpochMilli();
+        String rolePrefix = (role != null && !role.isBlank()) ? "R_" + role.trim().toUpperCase() + "__" : "";
+        String state = rolePrefix + UUID.randomUUID().toString().replace("-", "") + "." + Instant.now().toEpochMilli();
 
         ResponseCookie stateCookie = ResponseCookie.from(STATE_COOKIE_NAME, state)
                 .httpOnly(true)
@@ -187,6 +188,42 @@ public class GoogleOAuthController {
 
         String normalizedEmail = userInfo.email().trim().toLowerCase();
         User user = userRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);
+
+        // Extract requested role encoded in state token, if present
+        String requestedRole = null;
+        if (state != null && state.startsWith("R_")) {
+            int endIdx = state.indexOf("__");
+            if (endIdx > 2) {
+                requestedRole = state.substring(2, endIdx);
+            }
+        }
+
+        // Enforce role requirements: MERCHANT, DISPATCHER, COURIER, and ADMIN accounts must be approved/pre-created by Administrator
+        if ("MERCHANT".equalsIgnoreCase(requestedRole) || "DISPATCHER".equalsIgnoreCase(requestedRole) || "COURIER".equalsIgnoreCase(requestedRole) || "ADMIN".equalsIgnoreCase(requestedRole)) {
+            boolean roleMatches = user != null && requestedRole.equalsIgnoreCase(user.getRole());
+            if (!roleMatches) {
+                String errorCode = "no_" + requestedRole.toLowerCase() + "_account";
+                auditService.record(
+                        user != null ? user.getId() : "ANONYMOUS",
+                        user != null ? user.getRole() : "ANONYMOUS",
+                        "GOOGLE_OAUTH_ROLE_MISMATCH",
+                        "USER",
+                        user != null ? user.getId() : normalizedEmail,
+                        Map.of("email", normalizedEmail, "requestedRole", requestedRole, "actualRole", user != null ? user.getRole() : "NONE")
+                );
+
+                String errorRedirect = UriComponentsBuilder.fromUriString(properties.getFrontendCallbackUrl())
+                        .queryParam("error", errorCode)
+                        .queryParam("role", requestedRole)
+                        .build()
+                        .toUriString();
+
+                return ResponseEntity.status(HttpStatus.FOUND)
+                        .header(HttpHeaders.SET_COOKIE, clearStateCookie.toString())
+                        .header(HttpHeaders.LOCATION, errorRedirect)
+                        .build();
+            }
+        }
 
         if (user == null) {
             // First-time Google login: auto-provision CUSTOMER account

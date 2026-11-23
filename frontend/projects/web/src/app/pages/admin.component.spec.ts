@@ -160,4 +160,12 @@ describe('AdminComponent', () => {
     expect(dispatcherMeta.title).toBe('Staff Member Provisioned');
     expect(dispatcherMeta.area).toBe('DISPATCHER');
   });
+
+  it('provides a settings link in the header navigating to /admin/settings', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const settingsLink = element.querySelector('#admin-settings-btn') as HTMLElement;
+    expect(settingsLink).toBeTruthy();
+    expect(settingsLink.textContent).toContain('Settings');
+    expect(settingsLink.getAttribute('href')).toContain('/admin/settings');
+  });
 });

@@ -257,5 +257,118 @@ class GoogleOAuthTest {
 
         verify(refreshTokenRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Callback with requested DISPATCHER role rejects unknown user with no_dispatcher_account error")
+    void callback_unprovisionedDispatcher_redirectsWithError() throws Exception {
+        String state = "R_DISPATCHER__state-disp-1." + System.currentTimeMillis();
+        String code = "code-disp-1";
+        GoogleUserInfo googleUser = new GoogleUserInfo("google-sub-disp", "unknown.disp@swiftdrop.lk", "Unknown Disp", null, true);
+
+        when(googleOAuthClient.exchangeCodeAndGetUserInfo(code)).thenReturn(googleUser);
+        when(userRepository.findByEmailIgnoreCase("unknown.disp@swiftdrop.lk")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/auth/oauth2/callback/google")
+                        .param("code", code)
+                        .param("state", state)
+                        .cookie(new Cookie("oauth2_state", state)))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "http://localhost:4200/auth/callback?error=no_dispatcher_account&role=DISPATCHER"))
+                .andExpect(header().string("Set-Cookie", containsString("oauth2_state=;")));
+
+        verify(userRepository, never()).save(any());
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Callback with requested DISPATCHER role succeeds when user exists with DISPATCHER role")
+    void callback_provisionedDispatcher_succeeds() throws Exception {
+        String state = "R_DISPATCHER__state-disp-2." + System.currentTimeMillis();
+        String code = "code-disp-2";
+        GoogleUserInfo googleUser = new GoogleUserInfo("google-sub-disp", "dispatcher@swiftdrop.lk", "Dispatcher Staff", null, true);
+        User dispatcherUser = new User("usr-disp", "dispatcher@swiftdrop.lk", "hash", "Dispatcher Staff",
+                "+94771234567", Roles.DISPATCHER, true, null);
+
+        when(googleOAuthClient.exchangeCodeAndGetUserInfo(code)).thenReturn(googleUser);
+        when(userRepository.findByEmailIgnoreCase("dispatcher@swiftdrop.lk")).thenReturn(Optional.of(dispatcherUser));
+
+        mockMvc.perform(get("/api/v1/auth/oauth2/callback/google")
+                        .param("code", code)
+                        .param("state", state)
+                        .cookie(new Cookie("oauth2_state", state)))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "http://localhost:4200/auth/callback"))
+                .andExpect(header().string("Set-Cookie", containsString("refresh_token=")));
+
+        verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    @Test
+    @DisplayName("Callback with requested COURIER role rejects user with wrong role")
+    void callback_unprovisionedCourier_redirectsWithError() throws Exception {
+        String state = "R_COURIER__state-cour-1." + System.currentTimeMillis();
+        String code = "code-cour-1";
+        GoogleUserInfo googleUser = new GoogleUserInfo("google-sub-cour", "customer@swiftdrop.lk", "Cust User", null, true);
+        User customerUser = new User("usr-cust", "customer@swiftdrop.lk", "hash", "Cust User",
+                null, Roles.CUSTOMER, true, null);
+
+        when(googleOAuthClient.exchangeCodeAndGetUserInfo(code)).thenReturn(googleUser);
+        when(userRepository.findByEmailIgnoreCase("customer@swiftdrop.lk")).thenReturn(Optional.of(customerUser));
+
+        mockMvc.perform(get("/api/v1/auth/oauth2/callback/google")
+                        .param("code", code)
+                        .param("state", state)
+                        .cookie(new Cookie("oauth2_state", state)))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "http://localhost:4200/auth/callback?error=no_courier_account&role=COURIER"))
+                .andExpect(header().string("Set-Cookie", containsString("oauth2_state=;")));
+
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Callback with requested MERCHANT role rejects unapproved merchant with no_merchant_account error")
+    void callback_unapprovedMerchant_redirectsWithError() throws Exception {
+        String state = "R_MERCHANT__state-merch-1." + System.currentTimeMillis();
+        String code = "code-merch-1";
+        GoogleUserInfo googleUser = new GoogleUserInfo("google-sub-merch", "unapproved@merchant.com", "Unapproved Merchant", null, true);
+
+        when(googleOAuthClient.exchangeCodeAndGetUserInfo(code)).thenReturn(googleUser);
+        when(userRepository.findByEmailIgnoreCase("unapproved@merchant.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/auth/oauth2/callback/google")
+                        .param("code", code)
+                        .param("state", state)
+                        .cookie(new Cookie("oauth2_state", state)))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "http://localhost:4200/auth/callback?error=no_merchant_account&role=MERCHANT"))
+                .andExpect(header().string("Set-Cookie", containsString("oauth2_state=;")));
+
+        verify(userRepository, never()).save(any());
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Callback with requested MERCHANT role succeeds when user exists with MERCHANT role")
+    void callback_approvedMerchant_succeeds() throws Exception {
+        String state = "R_MERCHANT__state-merch-2." + System.currentTimeMillis();
+        String code = "code-merch-2";
+        GoogleUserInfo googleUser = new GoogleUserInfo("google-sub-merch", "approved@merchant.com", "Approved Merchant", null, true);
+        User merchantUser = new User("usr-merch", "approved@merchant.com", "hash", "Approved Merchant",
+                "+94771234567", Roles.MERCHANT, true, "m-999");
+
+        when(googleOAuthClient.exchangeCodeAndGetUserInfo(code)).thenReturn(googleUser);
+        when(userRepository.findByEmailIgnoreCase("approved@merchant.com")).thenReturn(Optional.of(merchantUser));
+
+        mockMvc.perform(get("/api/v1/auth/oauth2/callback/google")
+                        .param("code", code)
+                        .param("state", state)
+                        .cookie(new Cookie("oauth2_state", state)))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "http://localhost:4200/auth/callback"))
+                .andExpect(header().string("Set-Cookie", containsString("refresh_token=")));
+
+        verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
 }
 

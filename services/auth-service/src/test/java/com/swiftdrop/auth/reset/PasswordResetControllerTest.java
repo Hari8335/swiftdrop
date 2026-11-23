@@ -125,5 +125,15 @@ class PasswordResetControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Reset code verified."));
     }
+
+    @Test
+    @DisplayName("POST /api/v1/auth/password/change with valid payload returns 200 OK")
+    void changePassword_validPayload_returns200() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/change")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"admin@swiftdrop.lk\",\"currentPassword\":\"OldSecret123!\",\"newPassword\":\"NewPassword123!\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Password updated successfully."));
+    }
 }
 

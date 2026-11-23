@@ -74,6 +74,46 @@ class ReceiptPdfRendererTest {
     }
 
     @Test
+    @DisplayName("Branded layout: header, summary cards, route, details, charges total and footer")
+    void brandedLayout() throws IOException {
+        String text = extractText(renderer.render(sample())).replaceAll("\\s+", " ");
+
+        assertThat(text).contains(
+                "Parcel delivery across Sri Lanka",
+                "TRACKING NUMBER", "AMOUNT PAID", "Delivered on 29 Oct 2026, 15:45",
+                "FROM · PICKUP", "TO · DROP-OFF", "RECIPIENT",
+                "Parcel details", "Charges",
+                "Thank you for shipping with SwiftDrop.",
+                "Computer-generated receipt; no signature required.");
+        // Amounts are right-aligned, so the text reader may not insert a space before them.
+        assertThat(text).containsPattern("Delivery fee \\(Medium · 2\\.5 kg\\)\\s*LKR 1,750\\.00");
+        assertThat(text).containsPattern("Total paid\\s*LKR 1,750\\.00");
+    }
+
+    @Test
+    @DisplayName("Each address and the recipient are printed exactly once")
+    void addressesAppearOnce() throws IOException {
+        String text = extractText(renderer.render(sample())).replaceAll("\\s+", " ");
+
+        assertThat(text.split("45 Galle Road", -1)).hasSize(2);
+        assertThat(text.split("12 Temple Road", -1)).hasSize(2);
+        assertThat(text.split("Sunil Silva", -1)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("Without size, weight or fee the charges show plain labels and no amount")
+    void chargesWithoutDetails() throws IOException {
+        ReceiptData base = sample();
+        ReceiptData data = new ReceiptData(base.trackingNumber(), base.parcelId(), base.createdAt(), base.deliveredAt(),
+                base.pickupAddress(), base.dropoffAddress(), base.recipientName(), null, null, null, base.generatedAt());
+
+        String text = extractText(renderer.render(data)).replaceAll("\\s+", " ");
+
+        assertThat(text).containsPattern("Delivery fee\\s*- ").containsPattern("Total paid\\s*- ");
+        assertThat(text).doesNotContain("Delivery fee (", "LKR");
+    }
+
+    @Test
     @DisplayName("Missing optional values are shown as a dash instead of failing")
     void missingOptionalValues() throws IOException {
         ReceiptData data = new ReceiptData("SD-20261028-RCP002", "id-2", null, null, null,

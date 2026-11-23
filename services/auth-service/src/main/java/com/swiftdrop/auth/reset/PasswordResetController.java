@@ -1,5 +1,6 @@
 package com.swiftdrop.auth.reset;
 
+import com.swiftdrop.auth.reset.dto.DirectPasswordChangeRequest;
 import com.swiftdrop.auth.reset.dto.ForgotPasswordRequest;
 import com.swiftdrop.auth.reset.dto.ForgotPasswordResponse;
 import com.swiftdrop.auth.reset.dto.InitialPasswordChangeRequest;
@@ -92,6 +93,17 @@ public class PasswordResetController {
         }
         passwordResetService.changeInitialPassword(
                 userId, request.newPassword(), extractClientIp(httpRequest));
+        return ResponseEntity.ok(new ForgotPasswordResponse("Password updated successfully."));
+    }
+
+    @PostMapping("/change")
+    public ResponseEntity<ForgotPasswordResponse> changePassword(
+            @Valid @RequestBody DirectPasswordChangeRequest request,
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
+        String userId = resolveUserId(authentication, httpRequest);
+        passwordResetService.changeDirectPassword(
+                userId, request.email(), request.currentPassword(), request.newPassword(), extractClientIp(httpRequest));
         return ResponseEntity.ok(new ForgotPasswordResponse("Password updated successfully."));
     }
 
