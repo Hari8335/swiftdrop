@@ -329,7 +329,13 @@ class MerchantOnboardingIntegrationTest {
                         .authorities(merchantRole)))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(content().json("{\"businessName\":\"Store\"}", true));
+                .andExpect(jsonPath("$.merchantId").value(merchant.getId().toString()))
+                .andExpect(jsonPath("$.businessName").value("Store"))
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.phoneNumber").doesNotExist())
+                .andExpect(jsonPath("$.clientId").doesNotExist())
+                .andExpect(jsonPath("$.authUserId").doesNotExist());
         mockMvc.perform(get(path).with(jwt().jwt(token -> token.subject("another-merchant-user")
                         .claim("role", "MERCHANT").claim("merchantId", merchant.getId().toString()))
                         .authorities(merchantRole)))

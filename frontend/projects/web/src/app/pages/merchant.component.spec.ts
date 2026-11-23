@@ -73,7 +73,6 @@ describe('MerchantComponent', () => {
 
   beforeEach(async () => {
     const serviceMock: Partial<jest.Mocked<MerchantService>> = {
-      getMerchantProfile: jest.fn().mockReturnValue(of({ businessName: 'North Star Stores' })),
       getOrders: jest.fn().mockReturnValue(of(mockOrderPage)),
       getOrderCounts: jest.fn().mockReturnValue(of(mockCounts)),
       getMerchantProfile: jest.fn().mockReturnValue(of({

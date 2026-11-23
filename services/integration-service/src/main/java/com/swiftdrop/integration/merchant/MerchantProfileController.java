@@ -23,9 +23,14 @@ public class MerchantProfileController {
     @GetMapping("/api/v1/merchant/profile")
     public ResponseEntity<MerchantProfileResponse> profile() {
         // Identity comes only from the validated token's merchantId claim: tenant-isolated by construction.
-        UUID merchantId = identityResolver.requireMerchantId(CurrentUser.require());
+        CurrentUser user = CurrentUser.require();
+        UUID merchantId = identityResolver.requireMerchantId(user);
         Merchant merchant = merchants.findById(merchantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Merchant not found"));
+        // Only the provisioned portal user may read it; API-client tokens and other users are refused.
+        if (user.userId() == null || !user.userId().equals(merchant.getAuthUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Merchant portal user credentials are required");
+        }
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(MerchantProfileResponse.from(merchant));

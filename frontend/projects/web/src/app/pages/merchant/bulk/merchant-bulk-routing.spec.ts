@@ -50,9 +50,11 @@ describe('Bulk merchant route authorization', () => {
     });
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl('/merchant');
-    http.expectOne('/api/v1/merchant/profile').flush({ businessName: 'North Star Stores' });
+    http.expectOne('/api/v1/merchant/profile').flush({
+      merchantId: 'registered-merchant', businessName: 'North Star Stores', status: 'APPROVED',
+    });
     harness.detectChanges();
-    expect(harness.routeNativeElement!.querySelector('#merchant-profile-chip')?.textContent?.trim()).toBe('North Star Stores');
+    expect(harness.routeNativeElement!.querySelector('#merchant-profile-chip > span:last-child')?.textContent?.trim()).toBe('North Star Stores');
 
     await harness.navigateByUrl('/merchant/bulk');
     expect(harness.routeNativeElement!.querySelector('#bulk-merchant-profile-chip')?.textContent?.trim()).toBe('North Star Stores');

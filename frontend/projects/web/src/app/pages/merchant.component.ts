@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, OnDestroy, OnInit, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { Subscription, catchError, finalize, from, map, mergeMap, of } from 'rxjs';
 import { AuthService } from 'shared-auth';
 import {
@@ -194,7 +194,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
 
       <!-- Main Content Area (Edge-to-Edge Full Screen) -->
       <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 pb-24 lg:pb-7 lg:py-7 space-y-7 min-w-0 bg-white lg:ml-20">
-        <router-outlet [routerOutletData]="merchantDisplayName()" (activate)="onBulkOpened()" (deactivate)="onBulkClosed()" />
+        <router-outlet [routerOutletData]="headerName()" (activate)="onBulkOpened()" (deactivate)="onBulkClosed()" />
         @if (!bulkPageActive()) {
         <!-- Top Header: Search Bar & Merchant Profile -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#f4efe9]">
@@ -1911,19 +1911,6 @@ export class MerchantComponent implements OnInit, OnDestroy {
     return this.isLoadingProfile() || (this.authService ? !this.authService.isInitialized() : false);
   });
   readonly merchantName = computed(() => this.authService?.currentUser()?.fullName || 'Merchant Partner');
-  private readonly merchantProfileOwner = computed(() => {
-    const user = this.authService?.currentUser();
-    return user?.merchantId ? `${user.id}:${user.merchantId}` : null;
-  });
-  private readonly merchantBusiness = signal<{ owner: string; businessName: string } | null>(null);
-  readonly merchantDisplayName = computed(() => {
-    const owner = this.merchantProfileOwner();
-    if (!owner) {
-      return this.authService?.currentUser()?.fullName?.trim() || 'Merchant';
-    }
-    const business = this.merchantBusiness();
-    return business?.owner === owner ? business.businessName : 'Merchant';
-  });
   readonly merchantEmail = computed(() => {
     const user = this.authService?.currentUser();
     const email = user?.email;
@@ -2036,7 +2023,8 @@ export class MerchantComponent implements OnInit, OnDestroy {
   /** Reloads the business profile whenever the signed-in account changes; clears it on sign-out. */
   private readonly merchantProfileSync = effect(() => {
     const user = this.authService?.currentUser();
-    const key = user ? `${user.id ?? ''}|${user.merchantId ?? ''}` : null;
+    // Only merchant accounts with a merchantId claim have a business profile to fetch.
+    const key = user?.merchantId ? `${user.id ?? ''}|${user.merchantId}` : null;
     untracked(() => {
       if (key === this.merchantProfileKey) return;
       this.merchantProfileKey = key;
@@ -2168,21 +2156,6 @@ export class MerchantComponent implements OnInit, OnDestroy {
     { label: 'Test event', value: 'TEST_EVENT' },
   ];
 
-  constructor() {
-    effect((onCleanup) => {
-      const owner = this.merchantProfileOwner();
-      this.merchantBusiness.set(null);
-      if (!owner) {
-        return;
-      }
-      const request = untracked(() => this.merchantService.getMerchantProfile().subscribe({
-        next: ({ businessName }) => this.merchantBusiness.set({ owner, businessName }),
-        error: () => this.merchantBusiness.set(null),
-      }));
-      onCleanup(() => request.unsubscribe());
-    });
-  }
-
   ngOnInit(): void {
     this.loadProfile();
     this.loadOrders();
@@ -2309,6 +2282,9 @@ export class MerchantComponent implements OnInit, OnDestroy {
     if (tab === 'orders' && previous !== 'orders' && this.hasLoadedOrders()) {
       // Data may have changed while another section was open; revalidate silently.
       this.backgroundRefresh();
+    }
+    if (this.bulkPageActive()) {
+      void this.router?.navigate(['/merchant']);
     }
   }
 

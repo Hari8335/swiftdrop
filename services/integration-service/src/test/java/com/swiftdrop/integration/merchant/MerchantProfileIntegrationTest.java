@@ -60,8 +60,11 @@ class MerchantProfileIntegrationTest {
     }
 
     private UUID createMerchant(String businessName, String contactName, String email, boolean approve) {
-        Merchant merchant = new Merchant(UUID.randomUUID(), businessName, contactName, email,
+        UUID id = UUID.randomUUID();
+        Merchant merchant = new Merchant(id, businessName, contactName, email,
                 "+94771234567", "PV-12345", Instant.now());
+        // Matches the token subject used by merchantGet(): the provisioned portal user.
+        merchant.setAuthUserId("user-" + id);
         if (approve) {
             merchant.approve("client-" + UUID.randomUUID());
         }
