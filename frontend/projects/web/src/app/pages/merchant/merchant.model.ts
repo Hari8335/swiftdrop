@@ -116,6 +116,15 @@ export interface WebhookDeliveryItem {
   responseHeaders?: Record<string, string>;
   responseBody?: string;
   retryHistory?: DeliveryAttempt[];
+  /**
+   * Parcel status carried by the signed payload. `null` = the server knows there is none;
+   * `undefined` = an older server that does not send the field.
+   */
+  parcelStatus?: ParcelLifecycleStatus | null;
+  /** All attempts across automatic and manual retry cycles. */
+  totalAttempts?: number;
+  /** Manual retry cycles started by the merchant. */
+  manualRetryCount?: number;
 }
 
 export interface WebhookDeliveryPage {
@@ -154,4 +163,11 @@ export interface TestWebhookResult {
   timestampSent: string;
   responseBodySummary?: string;
   errorMessage?: string | null;
+}
+
+export interface MerchantProfile {
+  merchantId: string;
+  businessName: string;
+  contactName?: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 }
