@@ -17,6 +17,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -72,7 +73,9 @@ class MerchantProfileIntegrationTest {
                 .subject("user-" + merchantId)
                 .claim("role", "MERCHANT")
                 .claim("roles", List.of("ROLE_MERCHANT"))
-                .claim("merchantId", merchantId.toString())));
+                .claim("merchantId", merchantId.toString()))
+                // MockMvc's jwt() bypasses the app's JwtAuthenticationConverter; grant the mapped role explicitly.
+                .authorities(new SimpleGrantedAuthority("ROLE_MERCHANT")));
     }
 
     @Test
@@ -115,13 +118,15 @@ class MerchantProfileIntegrationTest {
                         .subject("customer-1")
                         .claim("role", "CUSTOMER")
                         .claim("roles", List.of("ROLE_CUSTOMER"))
-                        .claim("merchantId", acme.toString()))))
+                        .claim("merchantId", acme.toString()))
+                        .authorities(new SimpleGrantedAuthority("ROLE_CUSTOMER"))))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/api/v1/merchant/profile").with(jwt().jwt(token -> token
                         .subject("user-x")
                         .claim("role", "MERCHANT")
-                        .claim("roles", List.of("ROLE_MERCHANT")))))
+                        .claim("roles", List.of("ROLE_MERCHANT")))
+                        .authorities(new SimpleGrantedAuthority("ROLE_MERCHANT"))))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/api/v1/merchant/profile"))
