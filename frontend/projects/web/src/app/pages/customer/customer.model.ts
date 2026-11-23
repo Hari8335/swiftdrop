@@ -118,6 +118,12 @@ export interface CustomerParcelPage {
   size: number;
 }
 
+/** Booking-date range for the parcel history, as inclusive YYYY-MM-DD bounds. */
+export interface ParcelDateRange {
+  from?: string;
+  to?: string;
+}
+
 export interface QuoteBreakdown {
   dropoffZoneBaseFee: number;
   weightBandCharge: number;

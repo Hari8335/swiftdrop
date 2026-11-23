@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, OnDestroy, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, Signal, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ROUTER_OUTLET_DATA, Router, RouterLink } from '@angular/router';
 import { Subscription, finalize } from 'rxjs';
 import { BulkResult, MerchantBulkService } from './merchant-bulk.service';
 import { CSV_HEADER, MAX_CSV_BYTES, PreviewRow, encodeMerchantCsv, parseMerchantCsv } from './merchant-csv';
@@ -13,7 +13,7 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, MerchantNotificationBellComponent],
   template: `
-    <div class="min-h-screen bg-[#faf8f6] text-[#1d1b2c] flex flex-col font-sans">
+    <div class="rounded-3xl bg-[#faf8f6] text-[#1d1b2c] flex flex-col font-sans">
       <!-- Top Navigation Bar -->
       <header class="bg-white border-b border-[#f4efe9] px-6 sm:px-10 py-4 flex items-center justify-between sticky top-0 z-20">
         <div class="flex items-center gap-4">
@@ -31,7 +31,9 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
 
         <div class="flex items-center gap-2">
           <app-merchant-notification-bell />
-          <span class="h-11 inline-flex items-center rounded-full border border-[#e8e2dc] bg-[#faf8f6] px-4 text-xs font-bold text-[#1d1b2c]">Sample Merchant</span>
+          <span id="bulk-merchant-profile-chip" [title]="merchantDisplayName()" class="flex h-11 min-w-0 max-w-60 items-center rounded-full border border-[#e8e2dc] bg-[#faf8f6] px-4 text-xs font-bold text-[#1d1b2c]">
+            <span class="truncate">{{ merchantDisplayName() }}</span>
+          </span>
           <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#a53a26]/10 text-[#a53a26]">
             Bulk Dispatch
           </span>
@@ -39,7 +41,7 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
       </header>
 
       <!-- Main Container -->
-      <main class="flex-1 max-w-6xl w-full mx-auto px-6 sm:px-10 py-8 space-y-8">
+      <div class="flex-1 max-w-6xl w-full mx-auto px-6 sm:px-10 py-8 space-y-8">
         <!-- Hero Title Banner -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#f0ebe5]">
           <div>
@@ -327,7 +329,7 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
             Start another upload
           </button>
         </div>
-      </main>
+      </div>
     </div>
   `,
   styles: [`
@@ -338,6 +340,8 @@ import { MerchantNotificationsService } from '../merchant-notifications.service'
   `],
 })
 export class MerchantBulkComponent implements OnDestroy {
+  private readonly merchantName = inject(ROUTER_OUTLET_DATA, { optional: true }) as Signal<string | undefined> | null;
+  readonly merchantDisplayName = computed(() => this.merchantName?.() || 'Merchant');
   private readonly api = inject(MerchantBulkService);
   private readonly notifications = inject(MerchantNotificationsService);
   private readonly router = inject(Router);

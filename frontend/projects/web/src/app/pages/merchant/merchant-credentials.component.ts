@@ -13,27 +13,29 @@ import { MerchantNotificationsService } from './merchant-notifications.service';
       <!-- Section Header -->
       <div>
         <h1 id="merchant-api-credentials-title" class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
-          API Credentials & Authentication
+          {{ credentials() ? 'API Credentials & Authentication' : 'API Credentials' }}
         </h1>
-        <p class="text-xs text-[#6f6d85] font-medium mt-1">
-          OAuth 2.0 Client Credentials, access tokens, and integration specifications for merchant APIs.
-        </p>
+        @if (credentials()) {
+          <p class="text-xs text-[#6f6d85] font-medium mt-1">
+            OAuth 2.0 Client Credentials, access tokens, and integration specifications for merchant APIs.
+          </p>
+        }
       </div>
 
       <!-- Main Credentials Card -->
       <ui-card
-        title="API credentials"
-        subtitle="Use these OAuth 2.0 client credentials to request an access token for your merchant integration."
+        [title]="credentials() ? 'API credentials' : 'Connect to the merchant API'"
+        [subtitle]="credentials() ? 'Use these OAuth 2.0 client credentials to request an access token for your merchant integration.' : ''"
       >
-        <div uiCardActions>
-          @if (credentials(); as item) {
+        @if (credentials(); as item) {
+          <div uiCardActions>
             <ui-status-badge
               [status]="item.status"
               [tone]="item.status === 'APPROVED' ? 'success' : 'warning'"
               [label]="item.status"
             />
-          }
-        </div>
+          </div>
+        }
 
         @if (credentials(); as item) {
           @if (item.status === 'PENDING') {
@@ -148,49 +150,29 @@ import { MerchantNotificationsService } from './merchant-notifications.service';
             </div>
           }
         } @else {
-          <!-- Empty / Informational State for Merchant Portal View -->
-          <div class="space-y-6 pt-2">
-            <div class="rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] p-5 text-xs text-[#6f6d85] leading-relaxed space-y-2" role="status">
-              <p class="font-semibold text-[#1d1b2c]">OAuth 2.0 Integration Information</p>
-              <p>
-                After your registration is approved, an administrator will securely hand over your client ID and one-time client secret.
-                Use your saved credentials to request an access token. This page does not retrieve or redisplay your secret.
-              </p>
-            </div>
-
-            <!-- API Quick Reference Cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="p-5 rounded-2xl bg-white border border-[#eee7e0] shadow-sm space-y-2">
-                <div class="w-8 h-8 rounded-full bg-[#a53a26]/10 text-[#a53a26] flex items-center justify-center font-bold text-xs">
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                  </svg>
-                </div>
-                <h4 class="text-xs font-bold text-[#1d1b2c]">Token Endpoint</h4>
-                <p class="text-[11px] text-[#6f6d85]">
-                  Issue a POST request to exchange your client credentials for a signed JWT access token.
+          <dl class="divide-y divide-[#eee7e0]">
+            <div class="grid gap-2 pb-4 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-4">
+              <dt class="text-sm font-bold text-[#1d1b2c]">Get an access token</dt>
+              <dd class="min-w-0 space-y-2">
+                <code class="block break-all rounded-xl bg-[#faf8f6] px-3 py-2.5 text-xs font-semibold text-[#1d1b2c]">POST /api/v1/auth/token</code>
+                <p class="text-xs leading-relaxed text-[#6f6d85]">
+                  Use the client ID and secret from your administrator with <code>grant_type=client_credentials</code>.
                 </p>
-                <code class="block text-[11px] font-mono bg-[#faf8f6] p-2.5 rounded-lg border border-[#e8e2dc] text-[#1d1b2c] truncate">
-                  POST /api/v1/auth/token
-                </code>
-              </div>
-
-              <div class="p-5 rounded-2xl bg-white border border-[#eee7e0] shadow-sm space-y-2">
-                <div class="w-8 h-8 rounded-full bg-[#a53a26]/10 text-[#a53a26] flex items-center justify-center font-bold text-xs">
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                  </svg>
-                </div>
-                <h4 class="text-xs font-bold text-[#1d1b2c]">Idempotency Guarantee</h4>
-                <p class="text-[11px] text-[#6f6d85]">
-                  Supply an <code>Idempotency-Key</code> UUID header when submitting bulk orders to prevent duplicate deliveries.
-                </p>
-                <code class="block text-[11px] font-mono bg-[#faf8f6] p-2.5 rounded-lg border border-[#e8e2dc] text-[#1d1b2c] truncate">
-                  Idempotency-Key: &lt;uuid&gt;
-                </code>
-              </div>
+              </dd>
             </div>
-          </div>
+            <div class="grid gap-2 py-4 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-4">
+              <dt class="text-sm font-bold text-[#1d1b2c]">Send the token</dt>
+              <dd class="min-w-0">
+                <code class="block break-all rounded-xl bg-[#faf8f6] px-3 py-2.5 text-xs font-semibold text-[#1d1b2c]">Authorization: Bearer &lt;access-token&gt;</code>
+              </dd>
+            </div>
+            <div class="grid gap-2 pt-4 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-4">
+              <dt class="text-sm font-bold text-[#1d1b2c]">Lost your secret?</dt>
+              <dd class="text-xs leading-relaxed text-[#6f6d85]">
+                Ask an administrator for a replacement. Claim it once from the notification bell within 24 hours.
+              </dd>
+            </div>
+          </dl>
         }
       </ui-card>
     </section>
