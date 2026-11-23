@@ -2,7 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { WritableSignal, signal } from '@angular/core';
 import { of, throwError } from 'rxjs';
 import { AuthService, User } from 'shared-auth';
-import { MerchantSettingsComponent } from './merchant-settings.component';
+import { By } from '@angular/platform-browser';
+import { CustomerChangePasswordComponent } from '../customer/customer-change-password.component';
+import { CustomerToastService } from '../customer/customer-toast.service';
+import { MerchantNotificationsService } from './merchant-notifications.service';
+import { MerchantSettingsComponent, MerchantSettingsToastService } from './merchant-settings.component';
 
 describe('MerchantSettingsComponent', () => {
   let fixture: ComponentFixture<MerchantSettingsComponent>;
@@ -120,5 +124,24 @@ describe('MerchantSettingsComponent', () => {
     fixture.detectChanges();
     expect(el('app-customer-change-password')).toBeTruthy();
     expect(el('#merchant-settings-form')).toBeNull();
+  });
+
+  it('routes change-password pop-ups to the merchant notifications instead of the customer toast stack', async () => {
+    await create();
+    (el('#merchant-settings-nav-security') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const passwordForm = fixture.debugElement.query(By.directive(CustomerChangePasswordComponent));
+    const toast = passwordForm.injector.get(CustomerToastService);
+    const merchantNotifications = TestBed.inject(MerchantNotificationsService);
+    const add = jest.spyOn(merchantNotifications, 'add');
+
+    toast.success('Verification code sent', 'Check alice@acme.lk for your 6-digit code.');
+
+    expect(toast).toBeInstanceOf(MerchantSettingsToastService);
+    expect(add).toHaveBeenCalledWith('Verification code sent', 'Check alice@acme.lk for your 6-digit code.', 'success');
+    expect(merchantNotifications.toast()?.title).toBe('Verification code sent');
+    // Nothing is queued in the customer portal's toast stack.
+    expect(TestBed.inject(CustomerToastService).toasts()).toEqual([]);
   });
 });

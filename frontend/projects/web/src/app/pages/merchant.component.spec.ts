@@ -875,6 +875,22 @@ describe('MerchantComponent', () => {
       expect(authComponent.notification()).toBe('Your profile was updated successfully.');
     });
 
+    it('shows the order search bar only on the Orders Dashboard, keeping the bell and chip in the top bar', () => {
+      const search = () => authFixture.nativeElement.querySelector('#merchant-order-search');
+      expect(search()).toBeTruthy();
+
+      for (const tab of ['settings', 'deliveries', 'credentials', 'account'] as const) {
+        authComponent.selectTab(tab);
+        authFixture.detectChanges();
+        expect(search()).toBeNull();
+        expect(authFixture.nativeElement.querySelector('#merchant-top-bar #merchant-profile-chip')).toBeTruthy();
+      }
+
+      authComponent.selectTab('orders');
+      authFixture.detectChanges();
+      expect(search()).toBeTruthy();
+    });
+
     it('opens Settings from the sidebar gear placed above Log out', () => {
       const footer = authFixture.nativeElement.querySelector('#merchant-sidebar-logout-btn')!.parentElement as HTMLElement;
       const buttons = Array.from(footer.querySelectorAll('button')).map((button) => button.id);

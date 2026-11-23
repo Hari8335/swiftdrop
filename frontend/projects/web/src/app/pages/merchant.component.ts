@@ -225,7 +225,8 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
         @if (!bulkPageActive()) {
         <!-- Top Header: Search Bar & Merchant Profile. 80px tall so it centres on the sidebar logo. -->
         <header id="merchant-top-bar" class="sticky top-0 z-30 flex min-h-20 items-center justify-between gap-3 border-b border-[#f0ebe5] bg-white/95 px-6 py-3 backdrop-blur sm:px-8 lg:h-20 lg:px-10 lg:py-0">
-          <!-- Search Input -->
+          <!-- Search Input: it only filters the orders list, so it is shown on the Orders Dashboard only. -->
+          @if (activeTab() === 'orders') {
           <div class="relative min-w-0 flex-1 max-w-lg">
             <svg
               class="w-4 h-4 text-[#a09eaf] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -248,6 +249,10 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
               class="w-full h-11 pl-11 pr-4 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
             />
           </div>
+          } @else {
+            <!-- Keeps the bell and profile chip pinned to the right. -->
+            <div class="flex-1" aria-hidden="true"></div>
+          }
 
           <div class="flex shrink-0 items-center gap-3">
             <app-merchant-notification-bell />

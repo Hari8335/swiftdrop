@@ -1,8 +1,23 @@
-import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { Component, Injectable, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from 'shared-auth';
 import { CustomerChangePasswordComponent } from '../customer/customer-change-password.component';
+import { CustomerToastKind, CustomerToastService } from '../customer/customer-toast.service';
 import { MerchantProfile } from './merchant.model';
+import { MerchantNotificationsService } from './merchant-notifications.service';
+
+/**
+ * The shared change-password form reports through CustomerToastService, whose pop-ups only the
+ * customer portal renders. Inside merchant Settings, route them to the merchant pop-up and bell.
+ */
+@Injectable()
+export class MerchantSettingsToastService extends CustomerToastService {
+  private readonly merchantNotifications = inject(MerchantNotificationsService);
+
+  override show(kind: CustomerToastKind, title: string, message = ''): void {
+    this.merchantNotifications.add(title, message, kind);
+  }
+}
 
 type SettingsSection = 'profile' | 'security';
 
@@ -21,6 +36,7 @@ export const MERCHANT_STATUS_LABELS: Record<MerchantProfile['status'], string> =
   selector: 'app-merchant-settings',
   standalone: true,
   imports: [FormsModule, CustomerChangePasswordComponent],
+  providers: [{ provide: CustomerToastService, useClass: MerchantSettingsToastService }],
   template: `
     <div id="merchant-settings-panel" class="mx-auto w-full max-w-7xl">
       <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">Settings</h1>
