@@ -193,7 +193,8 @@ paths:
 
         Driver details come from operations-service's courier directory
         (`GET /internal/v1/couriers`). Only the name, vehicle type and zone are
-        returned; courier ids and phone numbers are never exposed. When a
+        returned, plus the courier's profile picture (`photoUrl`) looked up in
+        auth-service; courier ids and phone numbers are never exposed. When a
         courier has no profile, or the directory is unavailable, `driver` is
         `null` and the assignment is still listed.
 
@@ -675,6 +676,15 @@ components:
           type: string
           nullable: true
           example: "Colombo"
+        photoUrl:
+          type: string
+          nullable: true
+          description: |
+            The courier's profile picture as an image data URL (PNG/JPEG/WebP), fetched by
+            parcel-service from auth-service's internal avatar directory. `null` when the courier
+            has no picture or the lookup fails; clients then show initials. The courier id is still
+            never exposed.
+          example: null
 
     # -----------------------------------------------------------------------
     # Rating (+) - proposed shape, see open question Q6

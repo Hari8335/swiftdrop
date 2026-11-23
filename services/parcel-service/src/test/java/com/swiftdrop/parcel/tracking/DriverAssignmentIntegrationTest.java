@@ -67,6 +67,7 @@ class DriverAssignmentIntegrationTest {
 
     @MockBean private PricingQuoteClient pricingQuoteClient;
     @MockBean private CourierDirectoryClient courierDirectory;
+    @MockBean private AuthAvatarClient avatars;
     /** No broker in this test: status events are not published. */
     @MockBean private KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -78,7 +79,10 @@ class DriverAssignmentIntegrationTest {
         when(courierDirectory.findProfiles(any())).thenReturn(Map.of(
                 DRIVER_1, new CourierDirectoryClient.DriverProfile(DRIVER_1, "Saman Perera", "Motorbike", "Colombo"),
                 DRIVER_2, new CourierDirectoryClient.DriverProfile(DRIVER_2, "Nimal Silva", "Van", "Kandy")));
+        when(avatars.findAvatars(any())).thenReturn(Map.of(DRIVER_1, PHOTO));
     }
+
+    private static final String PHOTO = "data:image/jpeg;base64,/9j/AA==";
 
     /** A parcel with the given assignment reasons, each at the matching time. */
     private Parcel parcel(String trackingNumber, String courierId, List<String> reasons, List<Instant> times) {
@@ -129,11 +133,13 @@ class DriverAssignmentIntegrationTest {
 
         assertThat(list.get(0).get("driver").get("name").asText()).isEqualTo("Saman Perera");
         assertThat(list.get(0).get("driver").get("vehicleType").asText()).isEqualTo("Motorbike");
+        assertThat(list.get(0).get("driver").get("photoUrl").asText()).isEqualTo(PHOTO);
         assertThat(Instant.parse(list.get(0).get("assignedAt").asText())).isEqualTo(FIRST_ASSIGNED);
         assertThat(list.get(0).get("status").asText()).isEqualTo("PREVIOUS");
         assertThat(Instant.parse(list.get(0).get("reassignedAt").asText())).isEqualTo(REASSIGNED);
 
         assertThat(list.get(1).get("driver").get("name").asText()).isEqualTo("Nimal Silva");
+        assertThat(list.get(1).get("driver").get("photoUrl").isNull()).isTrue();
         assertThat(Instant.parse(list.get(1).get("assignedAt").asText())).isEqualTo(REASSIGNED);
         assertThat(list.get(1).get("status").asText()).isEqualTo("CURRENT");
         assertThat(list.get(1).has("reassignedAt")).isTrue();
