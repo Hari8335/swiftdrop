@@ -45,6 +45,7 @@ class ReceiptPdfRenderer {
     private static final Color MUTED = new Color(0x6F, 0x6D, 0x85);
     private static final Color RULE = new Color(0xEE, 0xE7, 0xE0);
     private static final Color ON_BRAND_MUTED = new Color(0xF2, 0xDE, 0xD8);
+    private static final Color SURFACE = new Color(0xFA, 0xF8, 0xF6);
     private static final Color SUCCESS = new Color(0x1E, 0x7A, 0x43);
     private static final Color SUCCESS_TINT = new Color(0xE6, 0xF4, 0xEA);
 
@@ -56,6 +57,7 @@ class ReceiptPdfRenderer {
     private final Font headline = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, INK);
     private final Font amountFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, BRAND);
     private final Font badgeFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, SUCCESS);
+    private final Font arrowFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, BRAND);
     private final Font section = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, INK);
     private final Font label = FontFactory.getFont(FontFactory.HELVETICA, 10, MUTED);
     private final Font value = FontFactory.getFont(FontFactory.HELVETICA, 10, INK);
@@ -82,11 +84,7 @@ class ReceiptPdfRenderer {
             row(fonts, parcel, "Delivered", date(data.deliveredAt()), value);
             addSection(document, "Parcel", parcel);
 
-            PdfPTable route = table();
-            row(fonts, route, "Pickup address", address(data.pickupAddress()), value);
-            row(fonts, route, "Drop-off address", address(data.dropoffAddress()), value);
-            row(fonts, route, "Recipient", text(data.recipientName()), value);
-            addSection(document, "Delivery", route);
+            addSection(document, "Route", route(fonts, data));
 
             PdfPTable details = table();
             row(fonts, details, "Size", data.size() != null ? capitalize(data.size().name()) : MISSING, value);
@@ -198,6 +196,46 @@ class ReceiptPdfRenderer {
         amount.addElement(when);
         cards.addCell(amount);
         return cards;
+    }
+
+    /**
+     * Pickup and drop-off side by side, with the recipient under the drop-off. Each address and the
+     * recipient appear once, in the font that matches their script (Sinhala, Tamil or Latin).
+     */
+    private PdfPTable route(ReceiptFonts fonts, ReceiptData data) {
+        PdfPTable route = new PdfPTable(3);
+        route.setWidthPercentage(100);
+        route.setWidths(new float[] {1f, 0.06f, 1f});
+
+        PdfPCell from = card();
+        from.setBackgroundColor(SURFACE);
+        from.addElement(new Paragraph("FROM  ·  PICKUP", eyebrow));
+        from.addElement(spaced(fonts.phrase(address(data.pickupAddress()), value, false), 4));
+        route.addCell(from);
+
+        PdfPCell arrow = gap();
+        arrow.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        arrow.setHorizontalAlignment(Element.ALIGN_CENTER);
+        arrow.setPhrase(new Phrase("›", arrowFont));
+        route.addCell(arrow);
+
+        PdfPCell to = card();
+        to.setBackgroundColor(SURFACE);
+        to.addElement(new Paragraph("TO  ·  DROP-OFF", eyebrow));
+        to.addElement(spaced(fonts.phrase(address(data.dropoffAddress()), value, false), 4));
+        Paragraph recipientLabel = new Paragraph("RECIPIENT", eyebrow);
+        recipientLabel.setSpacingBefore(10);
+        to.addElement(recipientLabel);
+        // Regular weight, as before: names in Sinhala or Tamil keep using the regular Noto fonts.
+        to.addElement(spaced(fonts.phrase(text(data.recipientName()), value, false), 3));
+        route.addCell(to);
+        return route;
+    }
+
+    private static Paragraph spaced(Phrase phrase, float before) {
+        Paragraph paragraph = new Paragraph(phrase);
+        paragraph.setSpacingBefore(before);
+        return paragraph;
     }
 
     private PdfPTable statusBadge(String status) {
