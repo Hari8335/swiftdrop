@@ -349,6 +349,65 @@ describe('DispatchComponent (Real API Integration)', () => {
     expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith('ZONE-COLOMBO-NORTH', undefined, 0, 100);
   });
 
+  describe('queue booking date filter', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const pickDate = (value: string) => {
+      const input = root().querySelector<HTMLInputElement>('#queue-date-filter')!;
+      input.value = value;
+      input.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    };
+
+    beforeEach(() => {
+      component.activeTab.set('queue');
+      fixture.detectChanges();
+      dispatchServiceSpy.loadUnassignedParcels.mockClear();
+    });
+
+    it('reloads the queue for the picked booking date', () => {
+      pickDate('2026-11-20');
+
+      expect(component.selectedDate()).toBe('2026-11-20');
+      expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenLastCalledWith(undefined, '2026-11-20', 0, 100);
+    });
+
+    it('combines the date with the zone filter', () => {
+      component.onQueueZoneChange('ZONE-COLOMBO-NORTH');
+      pickDate('2026-11-20');
+
+      expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenLastCalledWith('ZONE-COLOMBO-NORTH', '2026-11-20', 0, 100);
+    });
+
+    it('keeps the date on the periodic refresh', () => {
+      pickDate('2026-11-20');
+      dispatchServiceSpy.loadUnassignedParcels.mockClear();
+
+      component.performPeriodicSync();
+
+      expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenCalledWith(undefined, '2026-11-20', 0, 100);
+    });
+
+    it('clears the selection when the date changes, since the visible parcels change', () => {
+      component.selectedParcelIds.set(new Set(['p-1']));
+
+      pickDate('2026-11-20');
+
+      expect(component.selectedParcelIds().size).toBe(0);
+    });
+
+    it('the clear button removes the date and reloads every date', () => {
+      expect(root().querySelector('#queue-date-clear')).toBeNull();
+      pickDate('2026-11-20');
+
+      root().querySelector<HTMLButtonElement>('#queue-date-clear')!.click();
+      fixture.detectChanges();
+
+      expect(component.selectedDate()).toBe('');
+      expect(dispatchServiceSpy.loadUnassignedParcels).toHaveBeenLastCalledWith(undefined, undefined, 0, 100);
+      expect(root().querySelector('#queue-date-clear')).toBeNull();
+    });
+  });
+
   const westernAndCentralZones = () => [
     { id: 'z1', name: 'E2E western', districts: ['Colombo', 'Gampaha'], served: true, baseFeeLkr: 350, createdAt: '', updatedAt: '' },
     { id: 'z2', name: 'E2E central', districts: ['Kandy'], served: true, baseFeeLkr: 450, createdAt: '', updatedAt: '' },
