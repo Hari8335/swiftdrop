@@ -118,6 +118,15 @@ export interface CustomerParcelPage {
   size: number;
 }
 
+/** Totals of the customer's parcels for the dashboard (all pages, no filters). */
+export interface CustomerParcelCounts {
+  /** Booked, not yet picked up. */
+  created: number;
+  /** Picked up, in transit or out for delivery. */
+  inTransit: number;
+  delivered: number;
+}
+
 /** Booking-date range for the parcel history, as inclusive YYYY-MM-DD bounds. */
 export interface ParcelDateRange {
   from?: string;

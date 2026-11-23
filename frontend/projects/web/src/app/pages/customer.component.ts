@@ -11,6 +11,7 @@ import {
   CreateCustomerParcelRequest,
   CustomerAddress,
   CustomerParcel,
+  CustomerParcelCounts,
   CustomerParcelPage,
   District,
   FeePreview,
@@ -118,15 +119,30 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                       <span class="text-5xl font-black text-[#1d1b2c] tracking-tight">
                         {{ activeDeliveriesCount() }}
                       </span>
-                      <span class="text-sm font-bold text-[#6f6d85] ml-2">in delivery today</span>
+                      <span class="text-sm font-bold text-[#6f6d85] ml-2">in delivery</span>
                     </div>
                     <p class="text-xs text-[#6f6d85] font-medium mt-3 max-w-xs leading-relaxed">
                       @if (activeDeliveriesCount() > 0) {
                         Your active shipments are currently in transit with assigned couriers across Sri Lanka.
                       } @else {
-                        No active shipments out for delivery today. All recent deliveries are up to date.
+                        No active shipments right now. All recent deliveries are up to date.
                       }
                     </p>
+                    <!-- Totals across all parcels (not just the page shown below) -->
+                    <dl id="parcel-counts" class="mt-4 flex flex-wrap gap-2" aria-label="Your parcels by status">
+                      <div class="flex items-center gap-1.5 rounded-full border border-[#eee7e0] bg-[#faf8f6] px-3 py-1 text-xs">
+                        <dt class="font-semibold text-[#6f6d85]">Created</dt>
+                        <dd id="count-created" class="font-black text-[#1d1b2c]">{{ parcelCounts().created }}</dd>
+                      </div>
+                      <div class="flex items-center gap-1.5 rounded-full border border-[#eee7e0] bg-[#faf8f6] px-3 py-1 text-xs">
+                        <dt class="font-semibold text-[#6f6d85]">In transit</dt>
+                        <dd id="count-in-transit" class="font-black text-[#1d1b2c]">{{ parcelCounts().inTransit }}</dd>
+                      </div>
+                      <div class="flex items-center gap-1.5 rounded-full border border-[#eee7e0] bg-[#faf8f6] px-3 py-1 text-xs">
+                        <dt class="font-semibold text-[#6f6d85]">Delivered</dt>
+                        <dd id="count-delivered" class="font-black text-[#1d1b2c]">{{ parcelCounts().delivered }}</dd>
+                      </div>
+                    </dl>
                   </div>
 
                   <!-- 3D Isometric Parcels Graphic (Terracotta & White Cubes) -->
@@ -1927,16 +1943,19 @@ export class CustomerComponent implements OnInit {
     return name.slice(0, 2).toUpperCase();
   });
 
-  activeDeliveriesCount = computed(() => {
-    const active = this.parcels().filter(
-      (p) =>
-        p.status === 'CREATED' ||
-        p.status === 'IN_TRANSIT' ||
-        p.status === 'PICKED_UP' ||
-        p.status === 'OUT_FOR_DELIVERY'
-    );
-    return active.length;
-  });
+  /** Dashboard totals across all the customer's parcels, independent of the table's page and filters. */
+  parcelCounts = signal<CustomerParcelCounts>({ created: 0, inTransit: 0, delivered: 0 });
+
+  /** Parcels still on their way: created, picked up, in transit or out for delivery. */
+  activeDeliveriesCount = computed(() => this.parcelCounts().created + this.parcelCounts().inTransit);
+
+  loadParcelCounts(): void {
+    this.customerService.getParcelCounts().subscribe({
+      next: (counts) => this.parcelCounts.set(counts),
+      // The table already reports load errors; the dashboard keeps its last totals.
+      error: () => undefined,
+    });
+  }
 
   // Wizard state
   wizardStep = signal<number>(1);
@@ -1997,6 +2016,7 @@ export class CustomerComponent implements OnInit {
       this.startNewDelivery();
     }
     this.loadParcels();
+    this.loadParcelCounts();
     this.loadAddresses();
   }
 
@@ -2178,6 +2198,7 @@ export class CustomerComponent implements OnInit {
         this.confirmedParcel.set(created);
         this.orderConfirmed.set(true);
         this.loadParcels();
+        this.loadParcelCounts();
         // No toast here: the wizard's confirmation step already shows the booking.
         this.notification.set(`Parcel booked successfully! Tracking: ${created.trackingNumber}`);
       },
@@ -2215,6 +2236,7 @@ export class CustomerComponent implements OnInit {
         this.isCancelling.set(false);
         this.parcelToCancel.set(null);
         this.loadParcels();
+        this.loadParcelCounts();
         this.notify('success', 'Delivery cancelled', `Delivery order ${cancelled.trackingNumber} has been cancelled.`);
       },
       error: (err) => {
@@ -2228,6 +2250,7 @@ export class CustomerComponent implements OnInit {
     this.customerService.cancelParcel(id, reason || 'Cancelled by customer').subscribe({
       next: (cancelled) => {
         this.loadParcels();
+        this.loadParcelCounts();
         this.notify('success', 'Delivery cancelled', `Delivery order ${cancelled.trackingNumber} has been cancelled.`);
       },
       error: (err) => {
