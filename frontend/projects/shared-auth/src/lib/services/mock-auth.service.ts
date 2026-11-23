@@ -64,6 +64,22 @@ export class MockAuthService {
     return Promise.resolve(this.isAuthenticated());
   }
 
+  uploadAvatar(image: string): Observable<User> {
+    const user = this._currentUser();
+    if (!user) return throwError(() => new Error('Not authenticated'));
+    const updated = { ...user, avatarUrl: image };
+    this._currentUser.set(updated);
+    return of(updated).pipe(delay(50));
+  }
+
+  removeAvatar(): Observable<User> {
+    const user = this._currentUser();
+    if (!user) return throwError(() => new Error('Not authenticated'));
+    const updated = { ...user, avatarUrl: null };
+    this._currentUser.set(updated);
+    return of(updated).pipe(delay(50));
+  }
+
   getCurrentUser(): Observable<User> {
     if (!this._currentUser()) {
       return throwError(() => ({ status: 401, error: 'Not authenticated' }));

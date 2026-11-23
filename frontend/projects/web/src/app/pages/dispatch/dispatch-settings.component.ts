@@ -1,4 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { AvatarComponent } from 'ui';
+import { ProfilePhotoControlComponent } from '../../shared/profile-photo-control.component';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from 'shared-auth';
 import { CustomerChangePasswordComponent } from '../customer/customer-change-password.component';
@@ -13,7 +15,7 @@ type SettingsSection = 'profile' | 'security' | 'notifications';
 @Component({
   selector: 'app-dispatch-settings',
   standalone: true,
-  imports: [FormsModule, CustomerChangePasswordComponent],
+  imports: [FormsModule, CustomerChangePasswordComponent, AvatarComponent, ProfilePhotoControlComponent],
   template: `
     <div id="dispatch-settings-panel" class="grid grid-cols-1 md:grid-cols-[15rem_1fr] gap-6 lg:gap-10 items-start">
       <!-- Section menu -->
@@ -82,12 +84,13 @@ type SettingsSection = 'profile' | 'security' | 'notifications';
                 <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Shown to couriers and the operations team on assignments.</p>
 
                 <div class="flex items-center gap-4 mt-5">
-                  <span class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm">{{ initials() }}</span>
+                  <ui-avatar class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm" [src]="avatarUrl()" [initials]="initials()" />
                   <div class="min-w-0">
                     <p id="dispatch-settings-name" class="text-sm font-bold text-[#1d1b2c] truncate">{{ name() }}</p>
                     <p class="text-xs text-[#6f6d85] font-medium">Dispatcher account</p>
                   </div>
                 </div>
+                <app-profile-photo-control label="photo" />
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5 mt-6">
                   <div class="sm:col-span-2 sm:max-w-[calc(50%-0.75rem)]">
@@ -247,6 +250,7 @@ export class DispatchSettingsComponent {
   readonly name = computed(() => this.authService?.currentUser?.()?.fullName || 'Dispatcher');
   readonly userEmail = computed(() => this.authService?.currentUser?.()?.email || '');
   private readonly userPhone = computed(() => this.authService?.currentUser?.()?.phoneNumber || '');
+  readonly avatarUrl = computed(() => this.authService?.currentUser?.()?.avatarUrl ?? null);
   readonly initials = computed(() => {
     const parts = this.name().trim().split(/\s+/).filter(Boolean);
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();

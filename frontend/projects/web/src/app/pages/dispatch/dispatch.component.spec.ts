@@ -1,3 +1,4 @@
+import { UserAvatarsService } from 'shared-auth';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { Router, provideRouter } from '@angular/router';
@@ -14,6 +15,7 @@ import { DispatchPortalState } from './dispatch-portal.state';
 import { DispatchNotificationsService } from './dispatch-notifications.service';
 
 describe('DispatchComponent (Real API Integration)', () => {
+  let avatarsStub: { avatarFor: jest.Mock; load: jest.Mock };
   let component: DispatchComponent;
   let fixture: ComponentFixture<DispatchComponent>;
   let dispatchService: jasmine.SpyObj<DispatchService> | any;
@@ -197,10 +199,12 @@ describe('DispatchComponent (Real API Integration)', () => {
       users: jest.fn(() => []),
     };
 
+    avatarsStub = { avatarFor: jest.fn(() => null), load: jest.fn() };
     await TestBed.configureTestingModule({
       imports: [DispatchComponent, FormsModule],
       providers: [
         { provide: DispatchService, useValue: dispatchServiceSpy },
+        { provide: UserAvatarsService, useValue: avatarsStub },
         provideRouter([]),
       ],
     }).compileComponents();
@@ -491,6 +495,21 @@ describe('DispatchComponent (Real API Integration)', () => {
     component.searchQuery.set('Kandy');
     portal.page.set('queue');
     expect(portal.query()).toBe('Kandy');
+  });
+
+  it("shows couriers' profile pictures on the workload cards and initials when they have none", () => {
+    (dispatchServiceSpy.couriers as any).mockReturnValue([
+      { courierId: 'c1', name: 'Saman Perera', zone: 'Colombo', activeCount: 1, available: true },
+      { courierId: 'c2', name: 'Kasun Rathnayake', zone: 'Kandy', activeCount: 0, available: false },
+    ]);
+    avatarsStub.avatarFor.mockImplementation((id: string) => (id === 'c1' ? 'data:image/png;base64,AAAA' : null));
+    component.activeTab.set('workload');
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-courier-avatar="c1"] img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
+    expect(el.querySelector('[data-courier-avatar="c2"] img')).toBeNull();
+    expect(el.querySelector('[data-courier-avatar="c2"]')?.textContent?.trim()).toBe('KR');
   });
 
   it('should search couriers on the workload page', () => {

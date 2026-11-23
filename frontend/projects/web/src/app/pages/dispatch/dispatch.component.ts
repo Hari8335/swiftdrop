@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
+import { UserAvatarsService } from 'shared-auth';
+import { AvatarComponent } from 'ui';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
@@ -28,7 +30,7 @@ interface HomeResults {
 @Component({
   selector: 'app-dispatch',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AvatarComponent],
   template: `
     <div class="space-y-7">
 
@@ -598,15 +600,16 @@ interface HomeResults {
                   <div>
                     <div class="flex items-start justify-between gap-2">
                       <div class="flex items-center gap-3">
-                        <div
+                        <ui-avatar
                           class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-base"
                           [class.bg-emerald-100]="courier.available"
                           [class.text-emerald-700]="courier.available"
                           [class.bg-[#f0ebe5]]="!courier.available"
                           [class.text-[#6f6d85]]="!courier.available"
-                        >
-                          {{ courierInitials(courier.name) }}
-                        </div>
+                          [attr.data-courier-avatar]="courier.courierId"
+                          [src]="courierAvatars.avatarFor(courier.courierId)"
+                          [initials]="courierInitials(courier.name)"
+                        />
                         <div>
                           <h3 class="text-sm font-extrabold text-[#1d1b2c]">{{ courier.name }}</h3>
                           <p class="text-[11px] text-[#6f6d85] font-medium">{{ courier.phoneNumber || 'No phone' }}</p>
@@ -1105,6 +1108,8 @@ export class DispatchComponent implements OnInit, OnDestroy {
 
   private readonly portal = inject(DispatchPortalState);
   private readonly alerts = inject(DispatchNotificationsService);
+  /** Couriers' profile pictures for the workload cards (initials until loaded / when unset). */
+  readonly courierAvatars = inject(UserAvatarsService);
 
   public activeTab = signal<DispatchTab>('home');
   private pollIntervalId: any = null;
@@ -1175,6 +1180,11 @@ export class DispatchComponent implements OnInit, OnDestroy {
   }
 
   constructor() {
+    // Look up profile pictures whenever the courier list changes (cached; stale ones are refreshed).
+    effect(() => {
+      const ids = this.dispatchService.couriers().map((c) => c.courierId);
+      untracked(() => this.courierAvatars.load(ids));
+    });
     this.route?.queryParamMap.subscribe((params) => {
       const tab = params.get('tab');
       if (tab === 'workload') {

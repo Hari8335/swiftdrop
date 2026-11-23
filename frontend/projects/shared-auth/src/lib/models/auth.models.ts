@@ -7,6 +7,8 @@ export interface User {
   phoneNumber?: string | null;
   role: 'CUSTOMER' | 'MERCHANT' | 'COURIER' | 'DISPATCHER' | 'ADMIN' | string;
   merchantId?: string | null;
+  /** Profile picture (business logo for merchants) as an image data URL; null/absent when not set. */
+  avatarUrl?: string | null;
 }
 
 export interface LoginRequest {

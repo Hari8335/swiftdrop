@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { AvatarComponent } from 'ui';
 import { Router } from '@angular/router';
 import { AuthService } from 'shared-auth';
 import { NotificationBellComponent } from '../notification/notification-bell/notification-bell.component';
@@ -9,7 +10,7 @@ import { CourierService } from './courier/courier.service';
 @Component({
   selector: 'app-courier-summary',
   standalone: true,
-  imports: [CommonModule, NotificationBellComponent],
+  imports: [CommonModule, NotificationBellComponent, AvatarComponent],
   template: `
     <!-- Full-Screen Courier Layout (Matching Courier Run Sheet & Customer Portal) -->
     <!-- Full-Screen Courier Layout (Matching Admin/Customer Design) -->
@@ -262,11 +263,7 @@ import { CourierService } from './courier/courier.service';
               id="profile-badge"
               class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] select-none"
             >
-              <span
-                class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm"
-              >
-                {{ courierInitials() }}
-              </span>
+              <ui-avatar class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm" [src]="courierAvatarUrl()" [initials]="courierInitials()" />
               <span class="text-xs font-bold text-[#1d1b2c]">{{ courierDisplayName() }}</span>
             </div>
           </div>
@@ -491,6 +488,9 @@ export class CourierSummaryComponent {
   readonly courierEmail = computed(() => {
     return this.authService?.currentUser()?.email || 'courier@swiftdrop.lk';
   });
+
+  /** Courier's profile picture from the auth profile; initials are shown when unset. */
+  readonly courierAvatarUrl = computed(() => this.authService?.currentUser?.()?.avatarUrl ?? null);
 
   readonly courierInitials = computed(() => {
     const name = this.courierDisplayName();

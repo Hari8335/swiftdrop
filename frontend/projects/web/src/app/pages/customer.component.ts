@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { AvatarComponent } from 'ui';
+import { ProfilePhotoControlComponent } from '../shared/profile-photo-control.component';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from 'shared-auth';
@@ -34,7 +36,7 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
 @Component({
   selector: 'app-customer',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent, CustomerChangePasswordComponent, CoordinatePickerComponent, ReceiptButtonComponent],
+  imports: [CommonModule, FormsModule, RouterModule, CustomerSidebarComponent, CustomerTopbarComponent, CustomerChangePasswordComponent, CoordinatePickerComponent, ReceiptButtonComponent, AvatarComponent, ProfilePhotoControlComponent],
   template: `
     <!-- Full-Screen Customer Dashboard Layout -->
     <div class="w-full min-h-screen flex flex-col md:flex-row bg-white">
@@ -51,6 +53,7 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
         <app-customer-topbar
           [name]="customerName()"
           [email]="customerEmail()"
+          [avatarUrl]="customerAvatarUrl()"
         >
             <!-- Search Input -->
             <div
@@ -1514,14 +1517,13 @@ type SettingsSection = 'profile' | 'addresses' | 'security';
                     <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Used by couriers and merchants to identify you on deliveries.</p>
 
                     <div class="flex items-center gap-4 mt-5">
-                      <span class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm">
-                        {{ customerInitials() }}
-                      </span>
+                      <ui-avatar class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm" [src]="customerAvatarUrl()" [initials]="customerInitials()" />
                       <div class="min-w-0">
                         <p id="settings-name" class="text-sm font-bold text-[#1d1b2c] truncate">{{ customerName() }}</p>
                         <p class="text-xs text-[#6f6d85] font-medium">Customer account</p>
                       </div>
                     </div>
+                    <app-profile-photo-control label="photo" />
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5 mt-6">
                       <div class="sm:col-span-2 sm:max-w-[calc(50%-0.75rem)]">
@@ -1934,6 +1936,9 @@ export class CustomerComponent implements OnInit {
       this.statusMenuOpen.set(false);
     }
   }
+
+  /** Profile picture shared with the top bar; updates as soon as it is changed in Settings. */
+  customerAvatarUrl = computed(() => this.authService?.currentUser?.()?.avatarUrl ?? null);
 
   customerInitials = computed(() => {
     const name = this.customerName();

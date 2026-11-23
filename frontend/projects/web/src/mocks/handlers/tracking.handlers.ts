@@ -75,7 +75,7 @@ export function trackingHandlers(db: MockParcelDb, baseUrl = '') {
 
     http.get(`${api}/parcels/:id/history`, ({ params }) => respond(db.parcelHistory(String(params['id'])))),
 
-    // Demo data: a parcel that has left CREATED has one current driver; others have none yet.
+    // Demo data: a parcel that has left CREATED has one current courier; others have none yet.
     http.get(`${api}/parcels/:id/assignments`, ({ params }) => {
       const id = String(params['id']);
       const found = db.getParcel(id);

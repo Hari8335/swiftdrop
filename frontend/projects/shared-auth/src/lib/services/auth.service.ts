@@ -185,6 +185,25 @@ export class AuthService {
   }
 
   /**
+   * Sets the current user's profile picture (business logo for merchants).
+   * `image` is a PNG/JPEG/WebP data URL (<= 200 KB). Updating `currentUser` refreshes every avatar in the app.
+   */
+  uploadAvatar(image: string): Observable<User> {
+    return this.http
+      .put<User>(`${this.baseUrl}/me/avatar`, { image }, { withCredentials: true })
+      .pipe(tap((updatedUser) => this._currentUser.set(updatedUser)));
+  }
+
+  /**
+   * Removes the current user's profile picture; avatars fall back to initials.
+   */
+  removeAvatar(): Observable<User> {
+    return this.http
+      .delete<User>(`${this.baseUrl}/me/avatar`, { withCredentials: true })
+      .pipe(tap((updatedUser) => this._currentUser.set(updatedUser)));
+  }
+
+  /**
    * Performs silent token rotation via httpOnly cookie.
    * Deduplicates concurrent callers into a single in-flight request.
    */

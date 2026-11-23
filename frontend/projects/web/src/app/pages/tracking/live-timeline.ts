@@ -27,7 +27,7 @@ export class LiveTimeline {
   readonly isEmpty = computed(() => this._items().length === 0);
   /**
    * Counts every accepted live event, including ones that keep the status (a courier
-   * reassignment), so views such as the driver assignment history know when to reload.
+   * reassignment), so views such as the courier assignment history know when to reload.
    */
   readonly revision = this._revision.asReadonly();
 

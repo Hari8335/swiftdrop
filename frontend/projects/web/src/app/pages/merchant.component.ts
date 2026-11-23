@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, OnDestroy, OnInit, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { AvatarComponent } from 'ui';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterOutlet } from '@angular/router';
 import { Subscription, catchError, finalize, from, map, mergeMap, of } from 'rxjs';
@@ -69,6 +70,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
   standalone: true,
   host: { '(document:keydown.escape)': 'cancelLogout()' },
   imports: [
+    AvatarComponent,
     CommonModule,
     FormsModule,
     RouterOutlet,
@@ -257,7 +259,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
           <div class="flex shrink-0 items-center gap-3">
             <app-merchant-notification-bell />
             <div id="merchant-profile-chip" class="h-11 flex min-w-0 max-w-[14rem] items-center gap-2 rounded-full bg-[#faf8f6] border border-[#e8e2dc] pl-1.5 pr-1.5 sm:pr-4 select-none" [attr.title]="headerName()">
-              <span aria-hidden="true" class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#a53a26] text-[10px] font-black text-white">{{ merchantInitials() }}</span>
+              <ui-avatar class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#a53a26] text-[10px] font-black text-white" [src]="merchantAvatarUrl()" [initials]="merchantInitials()" />
               <span class="hidden truncate text-xs font-bold text-[#1d1b2c] sm:inline">{{ headerName() }}</span>
             </div>
           </div>
@@ -584,7 +586,7 @@ const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
           <section id="merchant-details-card" aria-labelledby="merchant-details-title" class="overflow-hidden rounded-3xl border border-[#eee7e0] bg-white shadow-sm">
             <div class="flex flex-col gap-4 bg-gradient-to-r from-[#fbf3ef] via-[#fdf8f5] to-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
               <div class="flex min-w-0 items-center gap-4">
-                <span aria-hidden="true" class="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#a53a26] text-base font-black text-white shadow-[0_10px_22px_rgba(165,58,38,0.25)]">{{ merchantInitials() }}</span>
+                <ui-avatar class="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#a53a26] text-base font-black text-white shadow-[0_10px_22px_rgba(165,58,38,0.25)]" [src]="merchantAvatarUrl()" [initials]="merchantInitials()" />
                 <div class="min-w-0">
                   <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Merchant details</span>
                   <h2 id="merchant-details-title" class="mt-0.5 flex flex-wrap items-center gap-2 text-lg font-black tracking-tight text-[#1d1b2c] sm:text-xl">
@@ -2029,6 +2031,9 @@ export class MerchantComponent implements OnInit, OnDestroy {
       error: () => undefined,
     });
   }
+
+  /** Business logo (stored as the merchant user's avatar); initials are shown when unset. */
+  readonly merchantAvatarUrl = computed(() => this.authService?.currentUser?.()?.avatarUrl ?? null);
 
   readonly merchantInitials = computed(() => {
     const name = this.headerName();

@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { AvatarComponent } from 'ui';
+import { ProfilePhotoControlComponent } from '../shared/profile-photo-control.component';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from 'shared-auth';
@@ -25,7 +27,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
 @Component({
   selector: 'app-courier',
   standalone: true,
-  imports: [CommonModule, FormsModule, NotificationBellComponent, CustomerChangePasswordComponent, TrackingMapComponent],
+  imports: [CommonModule, FormsModule, NotificationBellComponent, CustomerChangePasswordComponent, TrackingMapComponent, AvatarComponent, ProfilePhotoControlComponent],
   template: `
     <!-- Full-Screen Courier Dashboard Layout (Matching Admin/Customer Design) -->
     <div class="w-full min-h-screen bg-white">
@@ -298,11 +300,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
               id="profile-badge"
               class="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#faf8f6] border border-[#e8e2dc] select-none"
             >
-              <span
-                class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm"
-              >
-                {{ courierInitials() }}
-              </span>
+              <ui-avatar class="w-8 h-8 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm" [src]="courierAvatarUrl()" [initials]="courierInitials()" />
               <span class="text-xs font-bold text-[#1d1b2c]">{{ courierDisplayName() }}</span>
             </div>
           </div>
@@ -1157,9 +1155,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
                       <p class="text-xs text-[#6f6d85] font-medium mt-0.5">Used by dispatchers, merchants, and customers to identify you on deliveries.</p>
 
                       <div class="flex items-center gap-4 mt-5">
-                        <span class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm">
-                          {{ courierInitials() }}
-                        </span>
+                        <ui-avatar class="w-14 h-14 flex-shrink-0 rounded-full bg-[#a53a26] text-white flex items-center justify-center font-bold text-base uppercase shadow-sm" [src]="courierAvatarUrl()" [initials]="courierInitials()" />
                         <div class="min-w-0">
                           <p id="settings-name" class="text-sm font-bold text-[#1d1b2c] truncate">{{ profile().name || courierDisplayName() }}</p>
                           <div class="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -1179,6 +1175,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'DELIVERED' | 'FAILED';
                           </div>
                         </div>
                       </div>
+                      <app-profile-photo-control label="photo" />
 
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5 mt-6">
                         <div class="sm:col-span-2 sm:max-w-[calc(50%-0.75rem)]">
@@ -2362,6 +2359,9 @@ export class CourierComponent implements OnInit, OnDestroy {
   readonly courierPhone = computed(() => {
     return this.authService?.currentUser()?.phoneNumber || this.profile()?.phone || '';
   });
+
+  /** Courier's profile picture from the auth profile; initials are shown when unset. */
+  readonly courierAvatarUrl = computed(() => this.authService?.currentUser?.()?.avatarUrl ?? null);
 
   readonly courierInitials = computed(() => {
     const name = this.courierDisplayName();
