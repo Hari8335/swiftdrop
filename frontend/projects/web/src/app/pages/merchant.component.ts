@@ -1,20 +1,23 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterOutlet } from '@angular/router';
-import { Subscription, finalize } from 'rxjs';
+import { Subscription, catchError, finalize, from, map, mergeMap, of } from 'rxjs';
 import { AuthService } from 'shared-auth';
 import {
   EmptyStateComponent,
   ErrorStateComponent,
   LoadingStateComponent,
   PaginationComponent,
+  StatusBadgeComponent,
 } from 'ui';
 import {
+  DeliveryAttempt,
   MerchantOrder,
   MerchantOrderDetails,
   MerchantOrderFilterParams,
+  MerchantProfile,
   OrderCounts,
   ParcelLifecycleStatus,
   TestWebhookResult,
@@ -28,6 +31,36 @@ import { MerchantNotificationBellComponent } from './merchant/merchant-notificat
 import { MerchantNotificationsService } from './merchant/merchant-notifications.service';
 
 type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
+type DiagnosticTab = 'overview' | 'headers' | 'payload' | 'response';
+
+/** One row of the diagnostics attempt history, labelled by retry cycle. */
+export interface AttemptHistoryRow {
+  attempt: DeliveryAttempt;
+  /** 0 = the automatic delivery cycle; 1+ = the n-th manual retry cycle. */
+  cycle: number;
+  manual: boolean;
+  label: string;
+}
+
+const PARCEL_STATUSES: readonly ParcelLifecycleStatus[] = [
+  'CREATED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED', 'CANCELLED',
+];
+
+/** Merchant-facing description of a parcel status transition carried by a webhook. */
+const PARCEL_UPDATE_LABELS: Record<ParcelLifecycleStatus, string> = {
+  CREATED: 'Order Created',
+  PICKED_UP: 'Parcel Picked Up',
+  IN_TRANSIT: 'In Transit',
+  OUT_FOR_DELIVERY: 'Out for Delivery',
+  DELIVERED: 'Parcel Delivered',
+  FAILED: 'Delivery Failed',
+  CANCELLED: 'Order Cancelled',
+};
+
+/** Background refresh cadence for the orders dashboard. */
+export const MERCHANT_DASHBOARD_REFRESH_MS = 20_000;
+const SEARCH_DEBOUNCE_MS = 350;
+const PARCEL_STATUS_LOOKUP_CONCURRENCY = 3;
 
 @Component({
   selector: 'app-merchant',
@@ -40,6 +73,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
     MerchantCredentialsComponent,
     MerchantNotificationBellComponent,
     PaginationComponent,
+    StatusBadgeComponent,
     LoadingStateComponent,
     EmptyStateComponent,
     ErrorStateComponent,
@@ -160,7 +194,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
 
       <!-- Main Content Area (Edge-to-Edge Full Screen) -->
       <main class="flex-1 min-h-screen px-6 sm:px-8 lg:px-10 py-4 pb-24 lg:pb-7 lg:py-7 space-y-7 min-w-0 bg-white lg:ml-20">
-        <router-outlet [routerOutletData]="merchantDisplayName()" (activate)="onBulkOpened()" (deactivate)="onBulkClosed()" />
+        <router-outlet [routerOutletData]="headerName()" (activate)="onBulkOpened()" (deactivate)="onBulkClosed()" />
         @if (!bulkPageActive()) {
         <!-- Top Header: Search Bar & Merchant Profile -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#f4efe9]">
@@ -177,18 +211,22 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <input
-              type="text"
+              id="merchant-order-search"
+              type="search"
               [(ngModel)]="searchQuery"
-              (input)="onSearchChange()"
-              placeholder="Search by tracking number, recipient, or address..."
+              (input)="onSearchInput()"
+              (keyup.enter)="onSearchChange()"
+              aria-label="Filter orders by tracking number"
+              placeholder="Filter orders by tracking number..."
               class="w-full h-11 pl-11 pr-4 rounded-full bg-[#faf8f6] border border-[#e8e2dc] text-xs font-semibold text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
             />
           </div>
 
-          <div class="flex items-center gap-3 self-end sm:self-auto">
+          <div class="flex min-w-0 items-center gap-3 self-end sm:self-auto">
             <app-merchant-notification-bell />
-            <div id="merchant-profile-chip" class="h-11 flex min-w-0 max-w-60 items-center rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-4 select-none">
-              <span class="truncate text-xs font-bold text-[#1d1b2c]" [title]="merchantDisplayName()">{{ merchantDisplayName() }}</span>
+            <div id="merchant-profile-chip" class="h-11 flex min-w-0 max-w-[14rem] items-center gap-2 rounded-full bg-[#faf8f6] border border-[#e8e2dc] pl-1.5 pr-4 select-none" [attr.title]="headerName()">
+              <span aria-hidden="true" class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#a53a26] text-[10px] font-black text-white">{{ merchantInitials() }}</span>
+              <span class="truncate text-xs font-bold text-[#1d1b2c]">{{ headerName() }}</span>
             </div>
           </div>
         </div>
@@ -217,13 +255,13 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               <div class="flex items-start justify-between relative z-10">
                 <div>
                   <div class="flex items-baseline">
-                    <span class="text-5xl font-black text-[#1d1b2c] tracking-tight">
-                      {{ (counts().pickedUp || 0) + (counts().inTransit || 0) + (counts().outForDelivery || 0) }}
+                    <span id="merchant-active-delivery-count" class="text-5xl font-black text-[#1d1b2c] tracking-tight">
+                      {{ activeDeliveryCount() }}
                     </span>
-                    <span class="text-sm font-bold text-[#6f6d85] ml-2">in delivery today</span>
+                    <span class="text-sm font-bold text-[#6f6d85] ml-2">{{ activeDeliveryCount() === 1 ? 'parcel' : 'parcels' }} currently in delivery</span>
                   </div>
                   <p class="text-xs text-[#6f6d85] font-medium mt-3 max-w-xs leading-relaxed">
-                    Total of <strong class="text-[#1d1b2c]">{{ counts().total }}</strong> orders registered across depots. Fast wholesale courier dispatch enabled.
+                    Picked up, in transit or out for delivery, out of <strong class="text-[#1d1b2c]">{{ counts().total }}</strong> orders in total.
                   </p>
                 </div>
 
@@ -247,21 +285,25 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               </div>
 
               <!-- Action Buttons Row -->
-              <div class="flex items-center gap-3 pt-5 relative z-10">
+              <div class="flex flex-wrap items-center gap-3 pt-5 relative z-10">
                 <button
                   type="button"
                   (click)="navigateToBulk()"
-                  class="px-5 py-2.5 rounded-full bg-[#a53a26] hover:bg-[#7e2615] text-white font-bold text-xs transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                  class="px-5 py-2.5 rounded-full bg-[#a53a26] hover:bg-[#7e2615] text-white font-bold text-xs transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40 focus-visible:ring-offset-2"
                 >
                   Bulk CSV orders
                 </button>
                 <button
                   type="button"
+                  id="refresh-tracking-btn"
                   (click)="refreshOrders()"
-                  class="px-5 py-2.5 rounded-full border border-[#a53a26] text-[#a53a26] hover:bg-[#faf6f0] font-bold text-xs transition-all cursor-pointer"
+                  class="px-5 py-2.5 rounded-full border border-[#a53a26] text-[#a53a26] hover:bg-[#faf6f0] font-bold text-xs transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40 focus-visible:ring-offset-2"
                 >
                   Refresh tracking
                 </button>
+                <span id="merchant-last-updated" class="text-[11px] font-medium text-[#a09eaf]" [class.invisible]="!lastUpdatedAt()">
+                  Auto-updates · Last updated {{ lastUpdatedAt() | date: 'h:mm:ss a' }}
+                </span>
               </div>
             </div>
 
@@ -278,55 +320,70 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                 </h3>
               </div>
 
-              <div class="flex flex-col sm:flex-row items-center gap-2 pt-2">
-                <input
-                  type="text"
-                  [(ngModel)]="searchQuery"
-                  (keyup.enter)="onSearchChange()"
-                  placeholder="Enter parcel number"
-                  class="w-full sm:flex-1 px-4 py-2.5 rounded-full bg-white text-[#1d1b2c] placeholder:text-[#a09eaf] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-white/80 shadow-inner"
-                />
-                <button
-                  type="button"
-                  (click)="onSearchChange()"
-                  class="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#1d1b2c] hover:bg-black text-white font-black text-xs transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-95"
-                >
-                  Submit
-                </button>
-              </div>
+              <form class="space-y-2 pt-2" (ngSubmit)="submitDirectSearch()" role="search" aria-label="Direct parcel search">
+                <div class="flex flex-col sm:flex-row items-center gap-2">
+                  <label for="direct-parcel-search" class="sr-only">Parcel number</label>
+                  <input
+                    id="direct-parcel-search"
+                    name="directParcelSearch"
+                    type="text"
+                    autocomplete="off"
+                    [(ngModel)]="directSearchQuery"
+                    (ngModelChange)="directSearchError.set(null)"
+                    [attr.aria-invalid]="directSearchError() ? 'true' : null"
+                    aria-describedby="direct-parcel-search-feedback"
+                    placeholder="Enter parcel number"
+                    class="w-full sm:flex-1 px-4 py-2.5 rounded-full bg-white text-[#1d1b2c] placeholder:text-[#a09eaf] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-white/80 shadow-inner"
+                  />
+                  <button
+                    type="submit"
+                    id="direct-parcel-search-btn"
+                    [disabled]="isDirectSearching()"
+                    class="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#1d1b2c] hover:bg-black text-white font-black text-xs transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-95 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  >
+                    {{ isDirectSearching() ? 'Searching…' : 'Track parcel' }}
+                  </button>
+                </div>
+                <p id="direct-parcel-search-feedback" aria-live="polite" class="min-h-[1rem] px-2 text-[11px] font-semibold text-white">
+                  {{ directSearchError() }}
+                </p>
+              </form>
             </div>
           </div>
 
           <!-- KPI Summary Cards Row -->
-          <div *ngIf="isLoadingCounts()" role="status" class="rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] p-4 text-xs font-medium text-[#6f6d85]">
+          <div *ngIf="isLoadingCounts() && !countsLoaded()" role="status" class="rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] p-4 text-xs font-medium text-[#6f6d85]">
             Loading order counts...
           </div>
           <div *ngIf="!isLoadingCounts() && countsError()" role="alert" class="rounded-2xl bg-[#fff1f2] border border-[#fecdd3] p-4 text-xs text-[#e11d48] flex items-center justify-between">
             <span>{{ countsError() }}</span>
-            <button type="button" (click)="loadOrderCounts()" class="font-bold underline cursor-pointer ml-3">Retry</button>
+            <button type="button" (click)="loadOrderCounts()" class="ml-3 rounded-full px-3 py-1.5 font-bold text-[#be123c] transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 cursor-pointer">Retry</button>
           </div>
-          <div *ngIf="!isLoadingCounts() && !countsError()" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div *ngIf="countsLoaded() && !countsError()" id="merchant-summary-cards" class="grid grid-cols-2 lg:grid-cols-5 gap-4" [attr.aria-busy]="isLoadingCounts()">
             <div class="bg-white rounded-2xl border border-[#eee7e0] p-5 shadow-sm">
               <span class="text-xs font-bold uppercase tracking-wider text-[#6f6d85]">Total Orders</span>
               <div class="text-3xl font-black text-[#1d1b2c] mt-2">{{ counts().total }}</div>
-              <span class="text-[11px] text-[#a09eaf] mt-1 block">All registered parcels</span>
+              <span class="text-[11px] text-[#a09eaf] mt-1 block">All orders you have created</span>
             </div>
             <div class="bg-white rounded-2xl border border-[#eee7e0] p-5 shadow-sm">
-              <span class="text-xs font-bold uppercase tracking-wider text-[#a53a26]">Active In-Transit</span>
-              <div class="text-3xl font-black text-[#a53a26] mt-2">
-                {{ (counts().pickedUp || 0) + (counts().inTransit || 0) + (counts().outForDelivery || 0) }}
-              </div>
-              <span class="text-[11px] text-[#a09eaf] mt-1 block">Picked up or out for delivery</span>
+              <span class="text-xs font-bold uppercase tracking-wider text-[#a53a26]">In Delivery</span>
+              <div class="text-3xl font-black text-[#a53a26] mt-2">{{ activeDeliveryCount() }}</div>
+              <span class="text-[11px] text-[#a09eaf] mt-1 block">Picked up, in transit or out for delivery</span>
             </div>
             <div class="bg-white rounded-2xl border border-[#eee7e0] p-5 shadow-sm">
               <span class="text-xs font-bold uppercase tracking-wider text-emerald-700">Delivered</span>
               <div class="text-3xl font-black text-emerald-700 mt-2">{{ counts().delivered }}</div>
-              <span class="text-[11px] text-[#a09eaf] mt-1 block">Successfully fulfilled</span>
+              <span class="text-[11px] text-[#a09eaf] mt-1 block">Handed to the recipient</span>
             </div>
-            <div class="bg-white rounded-2xl border border-[#eee7e0] p-5 shadow-sm">
-              <span class="text-xs font-bold uppercase tracking-wider text-rose-700">Failed / Cancelled</span>
-              <div class="text-3xl font-black text-rose-700 mt-2">{{ counts().failed + counts().cancelled }}</div>
-              <span class="text-[11px] text-[#a09eaf] mt-1 block">Exceptions or cancelled</span>
+            <div id="merchant-failed-count-card" class="bg-white rounded-2xl border border-[#eee7e0] p-5 shadow-sm">
+              <span class="text-xs font-bold uppercase tracking-wider text-rose-700">Delivery Failed</span>
+              <div class="text-3xl font-black text-rose-700 mt-2">{{ counts().failed }}</div>
+              <span class="text-[11px] text-[#a09eaf] mt-1 block">Parcel could not be delivered</span>
+            </div>
+            <div id="merchant-cancelled-count-card" class="col-span-2 lg:col-span-1 bg-white rounded-2xl border border-[#eee7e0] p-5 shadow-sm">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-600">Cancelled</span>
+              <div class="text-3xl font-black text-slate-600 mt-2">{{ counts().cancelled }}</div>
+              <span class="text-[11px] text-[#a09eaf] mt-1 block">Cancelled before delivery</span>
             </div>
           </div>
 
@@ -375,21 +432,26 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                 <button
                   *ngIf="selectedStatusFilter() !== 'ALL' || searchQuery || fromDate || toDate"
                   type="button"
+                  id="reset-order-filters-btn"
                   (click)="resetFilters()"
-                  class="text-xs font-bold text-[#a53a26] hover:text-[#7e2615] underline cursor-pointer ml-1"
+                  class="action-link ml-1"
                 >
                   Clear filters
                 </button>
               </div>
 
-              <div class="text-[11px] text-[#a09eaf]">
-                Showing <strong class="text-[#1d1b2c]">{{ orders().length }}</strong> of <strong class="text-[#1d1b2c]">{{ totalElements() }}</strong> parcels
+              <div class="flex items-center gap-2 text-[11px] text-[#a09eaf]">
+                <span *ngIf="isLoadingOrders() && hasLoadedOrders()" id="orders-updating-indicator" role="status" class="inline-flex items-center gap-1.5 font-semibold text-[#a53a26]">
+                  <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-[#a53a26]" aria-hidden="true"></span>
+                  Updating…
+                </span>
+                <span>Showing <strong class="text-[#1d1b2c]">{{ orders().length }}</strong> of <strong class="text-[#1d1b2c]">{{ totalElements() }}</strong> parcels</span>
               </div>
             </div>
 
-            <!-- Orders Table Container -->
-            <div class="overflow-hidden rounded-2xl border border-[#f0ebe5]">
-              <div *ngIf="isLoadingOrders()" class="p-8">
+            <!-- Orders Table Container (kept mounted across refreshes to avoid flicker) -->
+            <div class="min-h-[14rem] overflow-hidden rounded-2xl border border-[#f0ebe5]" [attr.aria-busy]="isLoadingOrders()">
+              <div *ngIf="isLoadingOrders() && !hasLoadedOrders()" class="p-8">
                 <ui-loading-state message="Loading merchant orders..." />
               </div>
 
@@ -401,14 +463,14 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                 />
               </div>
 
-              <div *ngIf="!isLoadingOrders() && !orderError() && orders().length === 0" class="p-8">
+              <div *ngIf="hasLoadedOrders() && !orderError() && orders().length === 0" class="p-8 transition-opacity duration-200" [class.opacity-60]="isLoadingOrders()">
                 <ui-empty-state
                   title="No orders found"
                   message="No parcel orders match your selected filters. Try clearing your search or status filter."
                 />
               </div>
 
-              <div *ngIf="!isLoadingOrders() && !orderError() && orders().length > 0" class="overflow-x-auto">
+              <div *ngIf="!orderError() && orders().length > 0" class="overflow-x-auto transition-opacity duration-200" [class.opacity-60]="isLoadingOrders()">
                 <table class="w-full text-left text-xs text-[#6f6d85]">
                   <thead>
                     <tr class="bg-[#faf8f6] border-b border-[#eee7e0] text-[11px] font-black uppercase tracking-wider text-[#a09eaf]">
@@ -422,7 +484,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-[#f4efe9]">
-                    <tr *ngFor="let o of orders()" class="hover:bg-[#faf8f6]/80 transition-colors">
+                    <tr *ngFor="let o of orders(); trackBy: trackOrder" class="hover:bg-[#faf8f6]/80 transition-colors">
                       <td class="py-4 px-5 font-medium text-[#6f6d85] whitespace-nowrap">
                         {{ o.createdAt | date: 'dd.MM.yyyy' }}
                       </td>
@@ -455,9 +517,11 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                         <button
                           type="button"
                           (click)="viewOrderDetails(o)"
-                          class="text-xs font-bold text-[#a53a26] hover:text-[#7e2615] transition-colors cursor-pointer"
+                          [attr.aria-label]="'View details for parcel ' + o.trackingNumber"
+                          class="action-link"
                         >
-                          View details &gt;
+                          View details
+                          <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                         </button>
                       </td>
                     </tr>
@@ -466,7 +530,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               </div>
 
               <!-- Pagination Toolbar -->
-              <div *ngIf="!isLoadingOrders() && !orderError() && totalElements() > 0" class="p-4 border-t border-[#f0ebe5] bg-[#faf8f6]">
+              <div *ngIf="!orderError() && totalElements() > 0" class="p-4 border-t border-[#f0ebe5] bg-[#faf8f6]">
                 <ui-pagination
                   [page]="currentPage()"
                   [size]="pageSize()"
@@ -498,7 +562,11 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                 Edit Profile
               </button>
             </div>
-            <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+              <div class="min-w-0">
+                <dt class="text-[#6f6d85] font-medium">Business name</dt>
+                <dd id="merchant-profile-business-name" class="font-bold text-[#1d1b2c] mt-0.5 break-words">{{ merchantProfile()?.businessName || 'Not available' }}</dd>
+              </div>
               <div>
                 <dt class="text-[#6f6d85] font-medium">Full name</dt>
                 <dd id="merchant-profile-name" class="font-bold text-[#1d1b2c] mt-0.5">{{ merchantName() }}</dd>
@@ -514,14 +582,21 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
             </dl>
           </div>
 
-          <!-- Tab Header -->
-          <div>
-            <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
-              Webhook Configuration
-            </h1>
-            <p class="text-xs text-[#6f6d85] font-medium mt-1">
-              Configure HTTP event delivery, subscription filters, and HMAC-SHA256 signature verification.
-            </p>
+          <!-- Section A: Page Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2.5">
+                <h1 class="text-2xl sm:text-3xl font-black text-[#1d1b2c] tracking-tight">
+                  Delivery Notifications
+                </h1>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#a53a26]/10 text-[#a53a26] uppercase tracking-wide">
+                  Webhook Settings
+                </span>
+              </div>
+              <p class="text-xs sm:text-sm text-[#6f6d85] font-medium mt-1">
+                Automatically send parcel delivery updates to your online store.
+              </p>
+            </div>
           </div>
 
           <div *ngIf="isLoadingSettings()" class="rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] p-4 text-xs font-medium text-[#6f6d85]" role="status">
@@ -529,116 +604,195 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
           </div>
           <div *ngIf="settingsError()" class="rounded-2xl bg-[#fff1f2] border border-[#fecdd3] p-4 text-xs text-[#e11d48] flex items-center justify-between" role="alert">
             <span>{{ settingsError() }}</span>
-            <button *ngIf="!settings()" type="button" (click)="loadSettings()" class="font-bold underline cursor-pointer ml-3">Retry</button>
+            <button *ngIf="!settings()" type="button" (click)="loadSettings()" class="ml-3 rounded-full px-3 py-1.5 font-bold text-[#be123c] transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 cursor-pointer">Retry</button>
           </div>
 
-          <!-- Configuration Grid -->
-          <div *ngIf="settings()" class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-            <!-- Left 2 Cols: Main Webhook Config & HMAC Secret -->
-            <div class="xl:col-span-2 space-y-6 min-w-0">
-              <!-- Destination URL & Subscriptions Card -->
-              <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-6">
-                <div>
-                  <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Webhook Destination</span>
-                  <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight mt-0.5">Endpoint & Event Subscriptions</h2>
-                </div>
-
-                <div>
-                  <label for="webhookUrlInput" class="block text-xs font-bold text-[#1d1b2c] mb-1.5">
-                    Destination URL <span class="text-[#a53a26]">*</span>
-                  </label>
-                  <input
-                    id="webhookUrlInput"
-                    type="url"
-                    [(ngModel)]="settingsForm.url"
-                    [disabled]="isSavingSettings()"
-                    placeholder="https://api.yourdomain.com/webhooks/swiftdrop"
-                    class="w-full text-xs font-semibold border border-[#e8e2dc] bg-[#faf8f6] rounded-xl px-4 py-3 text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
-                  />
-                  <div class="flex items-center gap-1.5 text-[11px] text-[#6f6d85] mt-1.5">
-                    <svg class="w-3.5 h-3.5 text-[#a53a26]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          <div *ngIf="settings()" class="space-y-6">
+            <!-- Section B: Current Configuration Summary Card -->
+            <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-5">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#f4efe9] pb-4">
+                <div class="flex items-center gap-3">
+                  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#faf8f6] text-[#a53a26]">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                     </svg>
-                    <span>Destination must be a secure public HTTPS endpoint for automated notifications.</span>
-                  </div>
-                </div>
-
-                <!-- Active Dispatch Toggle -->
-                <div class="flex items-center justify-between p-4 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc]">
+                  </span>
                   <div>
-                    <div class="text-xs font-bold text-[#1d1b2c]">Dispatch Outbound Webhooks</div>
-                    <div class="text-[11px] text-[#6f6d85] mt-0.5">Enable or temporarily suspend outbound webhook event delivery.</div>
-                  </div>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" [(ngModel)]="settingsForm.active" [disabled]="isSavingSettings()" class="sr-only peer" />
-                    <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#a53a26]"></div>
-                  </label>
-                </div>
-
-                <!-- Subscribed Events -->
-                <div>
-                  <label class="block text-xs font-bold text-[#1d1b2c] mb-2.5">Subscribed Event Types</label>
-                  <div class="space-y-3">
-                    <label class="flex items-start gap-3 p-3.5 rounded-2xl border border-[#e8e2dc] bg-[#faf8f6] hover:border-[#a53a26]/40 transition-colors cursor-pointer">
-                      <input
-                        type="checkbox"
-                        [checked]="settingsForm.subscribedEvents.includes('PARCEL_STATUS_CHANGED')"
-                        (change)="toggleEvent('PARCEL_STATUS_CHANGED')"
-                        [disabled]="isSavingSettings()"
-                        class="mt-0.5 rounded text-[#a53a26] focus:ring-[#a53a26]"
-                      />
-                      <div>
-                        <div class="text-xs font-bold text-[#1d1b2c]">
-                          Parcel Status Changes <span class="font-mono text-[10px] text-[#a53a26] font-normal ml-1">PARCEL_STATUS_CHANGED</span>
-                        </div>
-                        <div class="text-[11px] text-[#6f6d85] mt-0.5">
-                          Dispatched in real time whenever a parcel transitions to Picked Up, In Transit, Out for Delivery, or Delivered.
-                        </div>
-                      </div>
-                    </label>
-
-                    <label class="flex items-start gap-3 p-3.5 rounded-2xl border border-[#e8e2dc] bg-[#faf8f6] hover:border-[#a53a26]/40 transition-colors cursor-pointer">
-                      <input
-                        type="checkbox"
-                        [checked]="settingsForm.subscribedEvents.includes('PARCEL_CREATED')"
-                        (change)="toggleEvent('PARCEL_CREATED')"
-                        [disabled]="isSavingSettings()"
-                        class="mt-0.5 rounded text-[#a53a26] focus:ring-[#a53a26]"
-                      />
-                      <div>
-                        <div class="text-xs font-bold text-[#1d1b2c]">
-                          Order Creation <span class="font-mono text-[10px] text-[#a53a26] font-normal ml-1">PARCEL_CREATED</span>
-                        </div>
-                        <div class="text-[11px] text-[#6f6d85] mt-0.5">
-                          Dispatched immediately when a new parcel order is submitted and validated into the system.
-                        </div>
-                      </div>
-                    </label>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Live Status</span>
+                    <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight">Configuration Summary</h2>
                   </div>
                 </div>
 
-                <div class="pt-4 border-t border-[#f4efe9] flex justify-end">
+                <div class="flex items-center gap-3">
+                  <ui-status-badge
+                    [status]="webhookStatusLabel()"
+                    [tone]="webhookStatusTone()"
+                    [label]="webhookStatusLabel()"
+                  />
                   <button
                     type="button"
-                    (click)="saveSettings()"
-                    [disabled]="isSavingSettings() || isLoadingSettings()"
-                    class="px-6 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white font-bold text-xs rounded-full transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                    id="toggle-webhook-edit-btn"
+                    (click)="startEditingWebhook()"
+                    *ngIf="!isEditingWebhook()"
+                    class="px-4 py-2 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-all shadow-xs cursor-pointer"
                   >
-                    {{ isSavingSettings() ? 'Saving...' : 'Save Settings' }}
+                    {{ settings()?.url ? 'Edit Configuration' : 'Configure Webhook' }}
                   </button>
                 </div>
               </div>
 
-              <!-- HMAC Secret Card -->
-              <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-4">
-                <div>
-                  <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Security & Signatures</span>
-                  <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight mt-0.5">HMAC-SHA256 Signing Secret</h2>
+              <!-- Summary Metadata Grid -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="p-4 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] space-y-1">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-[#6f6d85] block">Destination Endpoint</span>
+                  @if (settings()?.url) {
+                    <code class="block font-mono font-bold text-[#1d1b2c] text-xs break-all">{{ settings()?.url }}</code>
+                  } @else {
+                    <span class="text-[#6f6d85] italic font-medium">No destination URL configured</span>
+                  }
                 </div>
-                <p class="text-xs text-[#6f6d85]">
-                  SwiftDrop cryptographically signs each outbound HTTP POST payload. Verify the signature in the <code>X-SwiftDrop-Signature</code> header.
+
+                <div class="p-4 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] space-y-1">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-[#6f6d85] block">Subscribed Events</span>
+                  @if (settings()?.subscribedEvents?.length) {
+                    <div class="flex flex-wrap gap-1.5 pt-0.5">
+                      @for (ev of settings()?.subscribedEvents; track ev) {
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white border border-[#e8e2dc] text-[#1d1b2c]">
+                          {{ humanReadableEvent(ev) }}
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <span class="text-[#6f6d85] italic font-medium">No event subscriptions configured</span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Section C: Configuration Form (Shown when editing or unconfigured) -->
+            <div *ngIf="isEditingWebhook()" class="bg-white rounded-3xl border border-[#a53a26]/30 p-6 sm:p-7 shadow-md space-y-6">
+              <div class="flex items-center justify-between border-b border-[#f4efe9] pb-4">
+                <div>
+                  <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Setup</span>
+                  <h2 class="text-xl font-black text-[#1d1b2c] tracking-tight mt-0.5">Webhook Configuration</h2>
+                </div>
+                <button
+                  type="button"
+                  id="close-webhook-edit-btn"
+                  (click)="cancelEditingWebhook()"
+                  class="text-xs font-bold text-[#6f6d85] hover:text-[#1d1b2c] transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
+              <!-- Destination URL Input -->
+              <div>
+                <label for="webhookUrlInput" class="block text-xs font-bold text-[#1d1b2c] mb-1.5">
+                  Destination URL <span class="text-[#a53a26]">*</span>
+                </label>
+                <input
+                  id="webhookUrlInput"
+                  type="url"
+                  [(ngModel)]="settingsForm.url"
+                  [disabled]="isSavingSettings()"
+                  placeholder="https://api.yourdomain.com/webhooks/swiftdrop"
+                  class="w-full text-xs font-semibold border border-[#e8e2dc] bg-[#faf8f6] rounded-xl px-4 py-3 text-[#1d1b2c] focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20 focus:border-[#a53a26] transition-all"
+                />
+                <p class="text-[11px] text-[#6f6d85] mt-1.5 leading-relaxed">
+                  Enter the HTTPS endpoint from your online store's backend where SwiftDrop should send delivery updates. Your store's developer or e-commerce plugin provides this URL.
                 </p>
+              </div>
+
+              <!-- Active Dispatch Toggle -->
+              <div class="flex items-center justify-between p-4 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc]">
+                <div>
+                  <div class="text-xs font-bold text-[#1d1b2c]">Enable Delivery Notifications</div>
+                  <div class="text-[11px] text-[#6f6d85] mt-0.5">Toggle active webhook dispatching on or off.</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" [(ngModel)]="settingsForm.active" [disabled]="isSavingSettings()" class="sr-only peer" />
+                  <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#a53a26]"></div>
+                </label>
+              </div>
+
+              <!-- Subscribed Events -->
+              <div>
+                <label class="block text-xs font-bold text-[#1d1b2c] mb-2.5">Subscribed Event Types</label>
+                <div class="space-y-3">
+                  <label class="flex items-start gap-3 p-3.5 rounded-2xl border border-[#e8e2dc] bg-[#faf8f6] hover:border-[#a53a26]/40 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      [checked]="settingsForm.subscribedEvents.includes('PARCEL_STATUS_CHANGED')"
+                      (change)="toggleEvent('PARCEL_STATUS_CHANGED')"
+                      [disabled]="isSavingSettings()"
+                      class="mt-0.5 rounded text-[#a53a26] focus:ring-[#a53a26]"
+                    />
+                    <div>
+                      <div class="text-xs font-bold text-[#1d1b2c]">
+                        Parcel Status Changes <span class="font-mono text-[10px] text-[#a53a26] font-normal ml-1">PARCEL_STATUS_CHANGED</span>
+                      </div>
+                      <div class="text-[11px] text-[#6f6d85] mt-0.5">
+                        Dispatched in real time whenever a parcel transitions to Picked Up, In Transit, Out for Delivery, or Delivered.
+                      </div>
+                    </div>
+                  </label>
+
+                  <label class="flex items-start gap-3 p-3.5 rounded-2xl border border-[#e8e2dc] bg-[#faf8f6] hover:border-[#a53a26]/40 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      [checked]="settingsForm.subscribedEvents.includes('PARCEL_CREATED')"
+                      (change)="toggleEvent('PARCEL_CREATED')"
+                      [disabled]="isSavingSettings()"
+                      class="mt-0.5 rounded text-[#a53a26] focus:ring-[#a53a26]"
+                    />
+                    <div>
+                      <div class="text-xs font-bold text-[#1d1b2c]">
+                        Order Creation <span class="font-mono text-[10px] text-[#a53a26] font-normal ml-1">PARCEL_CREATED</span>
+                      </div>
+                      <div class="text-[11px] text-[#6f6d85] mt-0.5">
+                        Dispatched immediately when a new parcel order is submitted and validated into the system.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Form Action Buttons -->
+              <div class="pt-4 border-t border-[#f4efe9] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  id="cancel-webhook-edit-btn"
+                  (click)="cancelEditingWebhook()"
+                  [disabled]="isSavingSettings()"
+                  class="px-5 py-2.5 border border-[#e8e2dc] hover:bg-[#faf8f6] text-[#1d1b2c] font-bold text-xs rounded-full transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  id="save-webhook-btn"
+                  (click)="saveSettings()"
+                  [disabled]="isSavingSettings() || isLoadingSettings()"
+                  class="px-6 py-2.5 bg-[#a53a26] hover:bg-[#7e2615] text-white font-bold text-xs rounded-full transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {{ isSavingSettings() ? 'Saving...' : 'Save Configuration' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Grid for Section D & Section E -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              <!-- Section D: Webhook Signing Secret Card -->
+              <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-4">
+                <div class="border-b border-[#f4efe9] pb-3">
+                  <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Security & Signatures</span>
+                  <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight mt-0.5">Webhook Signing Secret</h2>
+                  <p class="text-xs text-[#6f6d85] mt-1 leading-relaxed">
+                    Your store uses this secret to verify that delivery updates really came from SwiftDrop.
+                  </p>
+                </div>
 
                 <!-- One-time Secret Alert -->
                 <div *ngIf="settings()?.rawSecret" class="p-5 rounded-2xl bg-[#faf6f0] border border-[#a53a26]/30 text-[#1d1b2c] text-xs space-y-3">
@@ -664,91 +818,185 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                     {{ settings()?.rawSecret }}
                   </div>
                   <div class="pt-1">
-                    <button type="button" (click)="dismissSecret()" class="text-xs text-[#a53a26] underline font-bold cursor-pointer">
+                    <button type="button" id="dismiss-signing-secret-btn" (click)="dismissSecret()" class="inline-flex items-center gap-1.5 rounded-full border border-[#a53a26]/40 bg-white px-4 py-2 text-xs font-bold text-[#a53a26] transition-colors hover:bg-[#faf0ec] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40 cursor-pointer">
+                      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                       I have saved this secret
                     </button>
                   </div>
                 </div>
 
-                <div class="flex items-center justify-between p-4 bg-[#faf8f6] rounded-2xl border border-[#e8e2dc]">
-                  <div>
+                <div class="flex flex-wrap items-center justify-between gap-3 p-4 bg-[#faf8f6] rounded-2xl border border-[#e8e2dc]">
+                  <div class="min-w-0">
                     <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Active Secret Preview</span>
-                    <span class="font-mono text-xs font-bold text-[#1d1b2c] mt-0.5 block">
+                    <span class="font-mono text-xs font-bold text-[#1d1b2c] mt-0.5 block break-all">
                       {{ settings()?.secretPreview || 'No secret configured' }}
                     </span>
                   </div>
                   <button
                     type="button"
+                    id="regenerate-secret-btn"
                     (click)="regenerateSecret()"
                     [disabled]="isSavingSettings() || isLoadingSettings()"
-                    class="px-4 py-2 border border-[#e8e2dc] hover:bg-white text-[#1d1b2c] text-xs font-bold rounded-full transition-colors cursor-pointer shadow-sm"
+                    aria-haspopup="dialog"
+                    class="px-4 py-2 border border-[#e8e2dc] hover:bg-white text-[#1d1b2c] text-xs font-bold rounded-full transition-colors cursor-pointer shadow-xs disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40"
                   >
-                    Regenerate Secret
+                    {{ isRegeneratingSecret() ? 'Regenerating…' : 'Regenerate Secret' }}
                   </button>
                 </div>
               </div>
+
+              <!-- Section E: Send Test Event Card -->
+              <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-4">
+                <div class="border-b border-[#f4efe9] pb-3">
+                  <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Diagnostics</span>
+                  <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight mt-0.5">Send Test Event</h2>
+                  <p class="text-xs text-[#6f6d85] mt-1 leading-relaxed">
+                    @if (settings()?.url) {
+                      Dispatch an immediate test event to verify DNS reachability and HMAC signature verification.
+                    } @else {
+                      Configure a valid destination URL before sending a test notification.
+                    }
+                  </p>
+                </div>
+
+                <!-- Primary Test Trigger Action -->
+                <button
+                  type="button"
+                  id="send-test-event-btn"
+                  (click)="runTestWebhook()"
+                  [disabled]="isTestingWebhook() || (!settings()?.url && !testUrlOverride)"
+                  class="w-full py-2.5 bg-[#1d1b2c] hover:bg-black text-white font-bold text-xs rounded-full disabled:opacity-50 transition-colors flex justify-center items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <svg *ngIf="isTestingWebhook()" class="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>{{ isTestingWebhook() ? 'Sending Test Event...' : 'Send Test Event' }}</span>
+                </button>
+
+                <!-- Advanced Testing: Expandable Target URL Override -->
+                <details class="group rounded-2xl border border-[#e8e2dc] bg-[#faf8f6] p-4 text-xs space-y-3">
+                  <summary class="font-bold text-[#1d1b2c] cursor-pointer select-none flex items-center justify-between">
+                    <span>Advanced Testing (URL Override)</span>
+                    <span class="text-[#a53a26] text-[11px] group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <div class="pt-2 space-y-2">
+                    <label for="overrideUrl" class="block text-[11px] font-bold text-[#6f6d85]">
+                      Temporary Target URL Override
+                    </label>
+                    <input
+                      id="overrideUrl"
+                      type="url"
+                      [(ngModel)]="testUrlOverride"
+                      [disabled]="isTestingWebhook()"
+                      placeholder="https://webhook.site/test-uuid"
+                      class="w-full text-xs font-semibold border border-[#e8e2dc] bg-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20"
+                    />
+                    <p class="text-[10px] text-[#6f6d85] leading-normal">
+                      Optionally test against an inspection endpoint without updating your saved store configuration.
+                    </p>
+                  </div>
+                </details>
+
+                <div *ngIf="testError()" class="rounded-2xl bg-[#fff1f2] border border-[#fecdd3] p-3 text-xs text-[#e11d48]" role="alert">
+                  {{ testError() }}
+                </div>
+
+                <!-- Test Execution Result Card -->
+                <div
+                  *ngIf="testResult()"
+                  class="rounded-2xl p-4 text-xs space-y-2.5 border"
+                  [ngClass]="testResult()?.success ? 'bg-[#ecfdf5] border-[#a7f3d0] text-[#047857]' : 'bg-[#fff1f2] border-[#fecdd3] text-[#e11d48]'"
+                >
+                  <div class="flex items-center justify-between font-bold">
+                    <span>{{ testResult()?.success ? 'HTTP ' + testResult()?.statusCode + ' — Delivered' : 'Delivery Failed' }}</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/70">{{ testResult()?.latencyMs }} ms</span>
+                  </div>
+                  <div class="space-y-1 font-mono text-[11px] pt-1">
+                    <div><strong>Status:</strong> {{ testResult()?.statusCode }}</div>
+                    <div class="truncate"><strong>Signature:</strong> {{ testResult()?.signatureSent }}</div>
+                    <div class="truncate"><strong>Timestamp:</strong> {{ testResult()?.timestampSent }}</div>
+                  </div>
+                  <div *ngIf="testResult()?.responseBodySummary" class="mt-2 p-2.5 bg-white/80 rounded-xl border text-[11px] font-mono break-all text-[#1d1b2c]">
+                    {{ testResult()?.responseBodySummary }}
+                  </div>
+                  <div *ngIf="testResult()?.errorMessage" class="text-xs font-semibold">{{ testResult()?.errorMessage }}</div>
+                </div>
+              </div>
             </div>
 
-            <!-- Right Col: Test Webhook Card -->
-              <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-5 h-fit min-w-0">
-              <div class="border-b border-[#f4efe9] pb-3">
-                <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Diagnostics</span>
-                <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight mt-0.5">Test Webhook Trigger</h2>
-                <p class="text-xs text-[#6f6d85] mt-1">
-                  Dispatch an immediate test event to verify DNS reachability, endpoint latency, and HMAC verification.
-                </p>
-              </div>
-
-              <div>
-                <label for="overrideUrl" class="block text-xs font-bold text-[#1d1b2c] mb-1.5">Target URL Override (Optional)</label>
-                <input
-                  id="overrideUrl"
-                  type="url"
-                  [(ngModel)]="testUrlOverride"
-                  [disabled]="isTestingWebhook()"
-                  placeholder="Leave empty to use configured URL"
-                  class="w-full text-xs font-semibold border border-[#e8e2dc] bg-[#faf8f6] rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#a53a26]/20"
-                />
-              </div>
-
-              <button
-                type="button"
-                (click)="runTestWebhook()"
-                [disabled]="isTestingWebhook()"
-                class="w-full py-2.5 bg-[#1d1b2c] hover:bg-black text-white font-bold text-xs rounded-full disabled:opacity-50 transition-colors flex justify-center items-center gap-2 cursor-pointer shadow-md"
-              >
-                <svg *ngIf="isTestingWebhook()" class="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>{{ isTestingWebhook() ? 'Sending Test Event...' : 'Send Test Event' }}</span>
-              </button>
-
-              <div *ngIf="testError()" class="rounded-2xl bg-[#fff1f2] border border-[#fecdd3] p-3 text-xs text-[#e11d48]" role="alert">
-                {{ testError() }}
-              </div>
-
-              <!-- Test Execution Result Card -->
-              <div
-                *ngIf="testResult()"
-                class="rounded-2xl p-4 text-xs space-y-2.5 border"
-                [ngClass]="testResult()?.success ? 'bg-[#ecfdf5] border-[#a7f3d0] text-[#047857]' : 'bg-[#fff1f2] border-[#fecdd3] text-[#e11d48]'"
-              >
-                <div class="flex items-center justify-between font-bold">
-                  <span>{{ testResult()?.success ? 'HTTP ' + testResult()?.statusCode + ' — Delivered' : 'Delivery Failed' }}</span>
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/70">{{ testResult()?.latencyMs }} ms</span>
+            <!-- Section F: Developer Details (Expandable) -->
+            <details class="group rounded-3xl border border-[#eee7e0] bg-white overflow-hidden shadow-sm transition-all">
+              <summary class="flex items-center justify-between p-6 cursor-pointer select-none bg-white hover:bg-[#faf8f6] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]">
+                <div class="flex items-center gap-3">
+                  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#faf8f6] text-[#a53a26]">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="16 18 22 12 16 6"></polyline>
+                      <polyline points="8 6 2 12 8 18"></polyline>
+                    </svg>
+                  </span>
+                  <div>
+                    <h2 class="text-base font-black text-[#1d1b2c] tracking-tight">Developer Details</h2>
+                    <p class="text-xs text-[#6f6d85] mt-0.5">
+                      HMAC-SHA256 signature verification, event payloads, delivery behavior, and retry policies.
+                    </p>
+                  </div>
                 </div>
-                <div class="space-y-1 font-mono text-[11px] pt-1">
-                  <div><strong>Status:</strong> {{ testResult()?.statusCode }}</div>
-                  <div class="truncate"><strong>Signature:</strong> {{ testResult()?.signatureSent }}</div>
-                  <div class="truncate"><strong>Timestamp:</strong> {{ testResult()?.timestampSent }}</div>
+                <span class="grid h-8 w-8 place-items-center rounded-full bg-[#faf8f6] text-[#6f6d85] group-open:rotate-180 transition-transform">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </span>
+              </summary>
+
+              <div class="border-t border-[#f0ece8] p-6 space-y-6 bg-[#faf8f6]/40 text-xs">
+                <!-- Signature Verification -->
+                <div class="bg-white p-5 rounded-2xl border border-[#eee7e0] space-y-2">
+                  <h3 class="font-bold text-[#1d1b2c] uppercase text-[11px] tracking-wider">HMAC Signature Verification</h3>
+                  <p class="text-[#6f6d85] leading-relaxed">
+                    SwiftDrop signs every outbound HTTP POST request. Compare the signature hash in <code>X-SwiftDrop-Signature</code> with an HMAC-SHA256 computed over <code>timestamp + "." + payloadJson</code> using your active signing secret.
+                  </p>
+                  <code class="block font-mono bg-[#1d1b2c] text-[#faf8f6] p-3 rounded-xl text-[11px] overflow-x-auto">
+                    X-SwiftDrop-Signature: t=1729857600,v1=4d7f508a54ceb8...
+                  </code>
                 </div>
-                <div *ngIf="testResult()?.responseBodySummary" class="mt-2 p-2.5 bg-white/80 rounded-xl border text-[11px] font-mono break-all text-[#1d1b2c]">
-                  {{ testResult()?.responseBodySummary }}
+
+                <!-- Sample Payloads -->
+                <div class="bg-white p-5 rounded-2xl border border-[#eee7e0] space-y-3">
+                  <h3 class="font-bold text-[#1d1b2c] uppercase text-[11px] tracking-wider">Sample Event Payload (PARCEL_STATUS_CHANGED)</h3>
+                  <pre class="font-mono bg-[#1d1b2c] text-[#faf8f6] p-4 rounded-xl text-[11px] overflow-x-auto leading-relaxed"><code>{{ '{' }}
+  "eventId": "evt_01JBCDEFGHJKMNPQRSTVWXYZ",
+  "eventType": "PARCEL_STATUS_CHANGED",
+  "occurredAt": "2026-10-25T14:30:00Z",
+  "data": {{ '{' }}
+    "parcelId": "550e8400-e29b-41d4-a716-446655440000",
+    "trackingNumber": "SD-20261025-001",
+    "status": "OUT_FOR_DELIVERY",
+    "merchantId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+    "externalReference": "STORE-ORDER-4421"
+  {{ '}' }}
+{{ '}' }}</code></pre>
                 </div>
-                <div *ngIf="testResult()?.errorMessage" class="text-xs font-semibold">{{ testResult()?.errorMessage }}</div>
+
+                <!-- Retry Policy -->
+                <div class="bg-white p-5 rounded-2xl border border-[#eee7e0] space-y-2">
+                  <h3 class="font-bold text-[#1d1b2c] uppercase text-[11px] tracking-wider">Delivery Behavior & Retry Schedule</h3>
+                  <p class="text-[#6f6d85] leading-relaxed">
+                    SwiftDrop expects an HTTP <code>2xx</code> response from your destination within 5 seconds. If the endpoint is unreachable or returns an error, deliveries are retried up to 5 times using exponential backoff:
+                  </p>
+                  <ul class="list-disc list-inside space-y-1 text-[#6f6d85] pl-1">
+                    <li><strong>Attempt 1:</strong> Immediate upon event generation</li>
+                    <li><strong>Attempt 2:</strong> 1 minute after initial failure</li>
+                    <li><strong>Attempt 3:</strong> 5 minutes after previous failure</li>
+                    <li><strong>Attempt 4:</strong> 15 minutes after previous failure</li>
+                    <li><strong>Attempt 5:</strong> 30 minutes after previous failure</li>
+                  </ul>
+                  <p class="text-[11px] text-[#a09eaf] pt-1">
+                    View delivery attempt timestamps, response headers, and payloads under the <strong>Webhook Delivery Logs</strong> tab.
+                  </p>
+                </div>
               </div>
-            </div>
+            </details>
           </div>
         </div>
 
@@ -762,41 +1010,60 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               Webhook Delivery Logs
             </h1>
             <p class="text-xs text-[#6f6d85] font-medium mt-1">
-              Audit real-time delivery attempts, latency metrics, and failure diagnostics across all outbound notifications.
+              View the delivery updates SwiftDrop has sent to your online store.
             </p>
           </div>
 
-          <div *ngIf="isLoadingDeliveries()" role="status" class="rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] p-4 text-xs font-medium text-[#6f6d85]">
-            Loading webhook deliveries...
-          </div>
           <div *ngIf="deliveryError()" role="alert" class="rounded-2xl bg-[#fff1f2] border border-[#fecdd3] p-4 text-xs text-[#e11d48] flex items-center justify-between">
             <span>{{ deliveryError() }}</span>
-            <button type="button" (click)="loadDeliveries()" class="font-bold underline cursor-pointer ml-3">Retry</button>
+            <button type="button" (click)="loadDeliveries()" class="ml-3 rounded-full px-3 py-1.5 font-bold text-[#be123c] transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 cursor-pointer">Retry Loading</button>
+          </div>
+          <div *ngIf="deliveryActionError()" id="delivery-action-error" role="alert" class="rounded-2xl bg-[#fff1f2] border border-[#fecdd3] p-4 text-xs text-[#e11d48] flex items-center justify-between">
+            <span>{{ deliveryActionError() }}</span>
+            <button type="button" (click)="deliveryActionError.set(null)" aria-label="Dismiss message" class="ml-3 rounded-full px-3 py-1.5 font-bold text-[#be123c] transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 cursor-pointer">Dismiss</button>
           </div>
 
           <!-- Log Card -->
-          <div class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-5">
+          <div *ngIf="!deliveryError()" class="bg-white rounded-3xl border border-[#eee7e0] p-6 sm:p-7 shadow-sm space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Audit Trail</span>
-                <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight">Outbound HTTP Deliveries</h2>
+                <h2 class="text-lg font-black text-[#1d1b2c] tracking-tight">Store Notifications Sent</h2>
               </div>
-              <div class="text-xs text-[#a09eaf]">
-                Showing <strong class="text-[#1d1b2c]">{{ deliveries().length }}</strong> of <strong class="text-[#1d1b2c]">{{ deliveryTotalElements() }}</strong> deliveries
+              <div class="flex items-center gap-2 text-xs text-[#a09eaf]">
+                <span *ngIf="isLoadingDeliveries()" id="deliveries-updating-indicator" role="status" class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#a53a26]">
+                  <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-[#a53a26]" aria-hidden="true"></span>
+                  {{ deliveriesLoaded() ? 'Updating…' : 'Loading webhook deliveries...' }}
+                </span>
+                <span>Showing <strong class="text-[#1d1b2c]">{{ deliveries().length }}</strong> of <strong class="text-[#1d1b2c]">{{ deliveryTotalElements() }}</strong> deliveries</span>
               </div>
             </div>
 
             <!-- Status Filter Pills -->
-            <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#f4efe9]">
-              <span class="text-xs font-bold text-[#6f6d85] mr-1">Status:</span>
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#f4efe9]">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-xs font-bold text-[#6f6d85] mr-1">Status:</span>
+                <button
+                  *ngFor="let f of deliveryFilterOptions"
+                  type="button"
+                  (click)="onDeliveryStatusFilterChange(f.value)"
+                  [class.filter-active]="selectedDeliveryFilter() === f.value"
+                  [attr.aria-pressed]="selectedDeliveryFilter() === f.value"
+                  class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer"
+                >
+                  {{ f.label }}
+                </button>
+              </div>
+
+              <!-- Clear Filters Button if any filter is active -->
               <button
-                *ngFor="let f of deliveryFilterOptions"
+                *ngIf="hasActiveDeliveryFilters()"
                 type="button"
-                (click)="selectedDeliveryFilter.set(f.value); loadDeliveries(0)"
-                [class.filter-active]="selectedDeliveryFilter() === f.value"
-                class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer"
+                id="reset-delivery-filters-btn"
+                (click)="resetDeliveryFilters()"
+                class="action-link"
               >
-                {{ f.label }}
+                Clear Filters
               </button>
             </div>
 
@@ -808,7 +1075,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                   id="deliveryEventFilter"
                   [(ngModel)]="selectedDeliveryEvent"
                   (change)="onDeliveryFilterChange()"
-                  class="rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-3.5 py-1.5 text-xs font-semibold text-[#1d1b2c] focus:outline-none"
+                  class="rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-3.5 py-1.5 text-xs font-semibold text-[#1d1b2c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/30"
                 >
                   <option *ngFor="let event of deliveryEventFilterOptions" [value]="event.value">{{ event.label }}</option>
                 </select>
@@ -819,8 +1086,8 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                   id="deliveryFromDate"
                   type="date"
                   [(ngModel)]="deliveryFromDate"
-                  (change)="onDeliveryFilterChange()"
-                  class="rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-3.5 py-1.5 text-xs font-semibold text-[#1d1b2c] focus:outline-none"
+                  (change)="onDeliveryDateChange()"
+                  class="rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-3.5 py-1.5 text-xs font-semibold text-[#1d1b2c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/30"
                 />
               </div>
               <div class="flex items-center gap-1.5">
@@ -829,87 +1096,179 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
                   id="deliveryToDate"
                   type="date"
                   [(ngModel)]="deliveryToDate"
-                  (change)="onDeliveryFilterChange()"
-                  class="rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-3.5 py-1.5 text-xs font-semibold text-[#1d1b2c] focus:outline-none"
+                  (change)="onDeliveryDateChange()"
+                  class="rounded-full bg-[#faf8f6] border border-[#e8e2dc] px-3.5 py-1.5 text-xs font-semibold text-[#1d1b2c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/30"
                 />
               </div>
+              <button
+                type="button"
+                id="last-7-days-filter-btn"
+                (click)="applyLast7DaysFilter()"
+                [class.filter-active]="isLast7DaysActive()"
+                [attr.aria-pressed]="isLast7DaysActive()"
+                [attr.title]="isLast7DaysActive() ? 'Click again to remove the Last 7 Days filter' : 'Show deliveries from the last 7 days'"
+                class="filter-pill inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer"
+              >
+                <svg *ngIf="isLast7DaysActive()" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                Last 7 Days
+              </button>
             </div>
 
             <!-- Deliveries Table Container -->
-            <div class="overflow-hidden rounded-2xl border border-[#f0ebe5]">
-              <div class="overflow-x-auto">
+            <div class="min-h-[14rem] overflow-hidden rounded-2xl border border-[#f0ebe5]" [attr.aria-busy]="isLoadingDeliveries()">
+              <div class="overflow-x-auto transition-opacity duration-200" *ngIf="deliveries().length > 0" [class.opacity-60]="isLoadingDeliveries()">
                 <table class="w-full text-left text-xs text-[#6f6d85]">
                   <thead>
                     <tr class="bg-[#faf8f6] border-b border-[#eee7e0] text-[11px] font-black uppercase tracking-wider text-[#a09eaf]">
-                      <th class="py-3.5 px-4">Delivery ID</th>
-                      <th class="py-3.5 px-4">Event Type</th>
+                      <th class="py-3.5 px-4">Parcel Update</th>
                       <th class="py-3.5 px-4">Tracking #</th>
-                      <th class="py-3.5 px-4">HTTP Code</th>
-                      <th class="py-3.5 px-4">Status</th>
+                      <th class="py-3.5 px-4">Notification</th>
+                      <th class="py-3.5 px-4">Store Response</th>
                       <th class="py-3.5 px-4">Attempts</th>
-                      <th class="py-3.5 px-4">Dispatched</th>
+                      <th class="py-3.5 px-4">Sent</th>
                       <th class="py-3.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-[#f4efe9]">
-                    <tr *ngFor="let d of deliveries()" class="hover:bg-[#faf8f6]/80 transition-colors">
+                    <tr *ngFor="let d of deliveries(); trackBy: trackDelivery" class="hover:bg-[#faf8f6]/80 transition-colors">
                       <td class="py-3.5 px-4">
-                        <span class="inline-block px-2 py-0.5 rounded-md bg-[#faf8f6] border border-[#e8e2dc] font-mono font-bold text-xs text-[#1d1b2c]">
-                          {{ d.deliveryId.substring(0, 8) }}...
+                        <span class="delivery-event-label font-semibold text-xs text-[#1d1b2c] block whitespace-nowrap">
+                          {{ deliveryEventLabel(d) }}
                         </span>
-                      </td>
-                      <td class="py-3.5 px-4">
-                        <span class="inline-block px-2.5 py-0.5 rounded-full bg-[#a53a26]/10 text-[#a53a26] font-mono text-[11px] font-bold">
+                        <span class="font-mono text-[10px] text-[#a09eaf]" [attr.title]="'Delivery ID ' + d.deliveryId">
                           {{ d.eventType }}
                         </span>
                       </td>
-                      <td class="py-3.5 px-4 font-mono text-xs">
-                        {{ d.trackingNumber }}
-                      </td>
-                      <td class="py-3.5 px-4 font-mono text-xs font-bold">
-                        <span [ngClass]="d.httpStatusCode && d.httpStatusCode < 300 ? 'text-emerald-700' : 'text-rose-700'">
-                          {{ d.httpStatusCode || 'ERR' }}
-                        </span>
-                      </td>
                       <td class="py-3.5 px-4">
-                        <span [ngClass]="getDeliveryBadgeClass(d.status)" class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
-                          {{ d.status }}
+                        <span class="font-mono text-xs font-semibold text-[#1d1b2c] break-all">
+                          {{ d.trackingNumber }}
                         </span>
                       </td>
-                      <td class="py-3.5 px-4 text-xs font-bold text-[#1d1b2c]">
-                        {{ d.attempts }}/5
+                      <td class="py-3.5 px-4 whitespace-nowrap">
+                        <span [ngClass]="getDeliveryBadgeClass(d.status)" [attr.title]="notificationStatusSummary(d.status)" class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
+                          {{ getDeliveryStatusLabel(d.status) }}
+                        </span>
                       </td>
-                      <td class="py-3.5 px-4 text-xs text-[#a09eaf]">
-                        {{ d.createdAt | date: 'MMM d, h:mm:ss a' }}
+                      <td class="py-3.5 px-4 text-xs">
+                        <div class="flex flex-col gap-1">
+                          <span class="font-semibold text-[#1d1b2c] whitespace-nowrap">{{ storeResponseSummary(d.httpStatusCode) }}</span>
+                          <span
+                            class="self-start font-mono font-bold px-1.5 py-0.5 rounded-md text-[10px] whitespace-nowrap"
+                            [ngClass]="d.httpStatusCode && d.httpStatusCode < 300 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'"
+                          >
+                            {{ getHttpCodeExplanation(d.httpStatusCode) }}
+                          </span>
+                        </div>
+                      </td>
+                      <td class="py-3.5 px-4 text-xs whitespace-nowrap">
+                        @if (d.manualRetryCount) {
+                          <span class="delivery-attempts block font-bold text-[#1d1b2c]" [attr.title]="(d.totalAttempts ?? d.attempts) + ' attempts in total'">{{ automaticAttemptCount(d) }} of 5 automatic</span>
+                          <span class="delivery-manual-retries block text-[11px] font-semibold text-[#a53a26]">+ {{ d.manualRetryCount }} manual {{ d.manualRetryCount === 1 ? 'retry' : 'retries' }}</span>
+                        } @else {
+                          <span class="delivery-attempts font-bold text-[#1d1b2c]">{{ d.attempts }} of 5</span>
+                        }
+                      </td>
+                      <td class="py-3.5 px-4 text-xs text-[#6f6d85] whitespace-nowrap">
+                        {{ d.createdAt | date: 'MMM d, y, h:mm:ss a' }}
                       </td>
                       <td class="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
                         <button
                           type="button"
                           (click)="inspectDelivery(d)"
-                          class="px-3 py-1 text-xs font-bold text-[#a53a26] hover:bg-[#faf6f0] border border-[#a53a26]/30 rounded-full transition-colors cursor-pointer"
+                          [attr.aria-label]="'Inspect notification for ' + d.trackingNumber"
+                          class="px-3 py-1 text-xs font-bold text-[#a53a26] hover:bg-[#faf6f0] border border-[#a53a26]/30 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40"
                         >
                           Inspect
                         </button>
                         <button
                           *ngIf="d.status === 'FAILED'"
                           type="button"
+                          [id]="'retry-delivery-btn-' + d.deliveryId"
                           (click)="retryDelivery(d.deliveryId)"
                           [disabled]="retryingDeliveryId() === d.deliveryId"
-                          class="px-3 py-1 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-full transition-colors cursor-pointer"
+                          class="px-3 py-1 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-full transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
                         >
-                          {{ retryingDeliveryId() === d.deliveryId ? 'Retrying...' : 'Retry' }}
+                          <svg *ngIf="retryingDeliveryId() === d.deliveryId" class="w-3 h-3 animate-spin text-amber-800" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>{{ retryingDeliveryId() === d.deliveryId ? 'Retrying...' : 'Retry' }}</span>
                         </button>
-                      </td>
-                    </tr>
-                    <tr *ngIf="deliveries().length === 0 && !isLoadingDeliveries() && !deliveryError()">
-                      <td colspan="8" class="px-6 py-8 text-center text-[#a09eaf]">
-                        No webhook deliveries found.
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              <div *ngIf="!isLoadingDeliveries() && !deliveryError() && deliveryTotalElements() > 0" class="p-4 border-t border-[#f0ebe5] bg-[#faf8f6]">
+
+              <!-- Distinct Empty States Container -->
+              <div *ngIf="deliveries().length === 0 && isLoadingDeliveries() && !deliveriesLoaded()" class="p-10 sm:p-14">
+                <ui-loading-state message="Loading webhook deliveries..." />
+              </div>
+              <div *ngIf="deliveries().length === 0 && (deliveriesLoaded() || !isLoadingDeliveries())" class="p-10 sm:p-14 text-center space-y-4 transition-opacity duration-200" [class.opacity-60]="isLoadingDeliveries()">
+                <!-- Case C: Filter mismatch -->
+                <div *ngIf="hasActiveDeliveryFilters()" id="empty-state-filters" class="max-w-md mx-auto space-y-3">
+                  <div class="mx-auto w-12 h-12 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] flex items-center justify-center text-[#6f6d85]">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                  </div>
+                  <h3 class="text-base font-black text-[#1d1b2c]">No matching deliveries.</h3>
+                  <p class="text-xs text-[#6f6d85]">
+                    No delivery notifications match your current filter criteria.
+                  </p>
+                  <div>
+                    <button
+                      type="button"
+                      id="clear-delivery-filters-btn"
+                      (click)="resetDeliveryFilters()"
+                      class="px-5 py-2 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-colors cursor-pointer shadow-xs"
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Case A: Webhook Not Configured -->
+                <div *ngIf="!hasActiveDeliveryFilters() && !settings()?.url" id="empty-state-unconfigured" class="max-w-md mx-auto space-y-3">
+                  <div class="mx-auto w-12 h-12 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] flex items-center justify-center text-[#a53a26]">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                  </div>
+                  <h3 class="text-base font-black text-[#1d1b2c]">No webhook configured yet.</h3>
+                  <p class="text-xs text-[#6f6d85]">
+                    Add a webhook destination to start receiving automatic delivery updates.
+                  </p>
+                  <div>
+                    <button
+                      type="button"
+                      id="goto-webhook-config-btn"
+                      (click)="selectTab('settings')"
+                      class="px-5 py-2 bg-[#a53a26] hover:bg-[#7e2615] text-white text-xs font-bold rounded-full transition-colors cursor-pointer shadow-xs"
+                    >
+                      Configure Webhook
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Case B: No Deliveries Yet (Configured but 0 deliveries) -->
+                <div *ngIf="!hasActiveDeliveryFilters() && settings()?.url" id="empty-state-no-deliveries" class="max-w-md mx-auto space-y-3">
+                  <div class="mx-auto w-12 h-12 rounded-2xl bg-[#faf8f6] border border-[#e8e2dc] flex items-center justify-center text-[#6f6d85]">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                  </div>
+                  <h3 class="text-base font-black text-[#1d1b2c]">No delivery notifications yet.</h3>
+                  <p class="text-xs text-[#6f6d85]">
+                    When SwiftDrop sends updates to your connected store, they will appear here.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Pagination Toolbar -->
+              <div *ngIf="deliveryTotalElements() > 0" class="p-4 border-t border-[#f0ebe5] bg-[#faf8f6]">
                 <ui-pagination
                   [page]="deliveryPage()"
                   [size]="deliveryPageSize()"
@@ -921,157 +1280,186 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
           </div>
 
           <!-- Enterprise Tabbed Diagnostic Inspection Modal -->
-          <div *ngIf="selectedDelivery()" class="fixed inset-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div class="bg-white rounded-3xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-[#eee7e0] animate-in fade-in">
-              <!-- Modal Header -->
-              <div class="p-6 border-b border-[#f4efe9] flex justify-between items-center bg-[#faf8f6]">
-                <div>
+          <div *ngIf="selectedDelivery() as sd" class="fixed inset-0 bg-[#1d1b2c]/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" (click)="closeDiagnostics()">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="webhook-diagnostics-title"
+              tabindex="-1"
+              id="webhook-diagnostics-dialog"
+              (click)="$event.stopPropagation()"
+              (keydown.escape)="closeDiagnostics()"
+              class="bg-white rounded-t-3xl sm:rounded-3xl shadow-xl max-w-2xl w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden border border-[#eee7e0] focus:outline-none"
+            >
+              <!-- Modal Header: merchant-facing summary -->
+              <div class="p-5 sm:p-6 border-b border-[#f4efe9] flex justify-between items-start gap-4 bg-[#faf8f6]">
+                <div class="min-w-0">
                   <span class="text-[10px] font-black uppercase tracking-widest text-[#a53a26]">Webhook Diagnostics</span>
-                  <h3 class="text-base font-black text-[#1d1b2c] font-mono mt-0.5">{{ selectedDelivery()?.deliveryId }}</h3>
+                  <h3 id="webhook-diagnostics-title" class="text-base sm:text-lg font-black text-[#1d1b2c] mt-0.5">{{ deliveryEventLabel(sd) }}</h3>
+                  <p class="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#6f6d85]">
+                    <span class="font-mono font-semibold text-[#1d1b2c] break-all">{{ sd.trackingNumber }}</span>
+                    <span [ngClass]="getDeliveryBadgeClass(sd.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                      {{ notificationStatusSummary(sd.status) }}
+                    </span>
+                  </p>
                 </div>
                 <button
                   type="button"
-                  (click)="selectedDelivery.set(null)"
-                  class="w-8 h-8 rounded-full bg-white border border-[#eee7e0] text-[#6f6d85] hover:text-[#1d1b2c] flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
+                  id="close-diagnostics-x-btn"
+                  (click)="closeDiagnostics()"
+                  aria-label="Close diagnostics"
+                  class="w-9 h-9 shrink-0 rounded-full bg-white border border-[#eee7e0] text-[#6f6d85] hover:text-[#1d1b2c] flex items-center justify-center font-bold text-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40"
                 >
                   &times;
                 </button>
               </div>
 
-              <!-- Modal Tab Navigation -->
-              <div class="flex items-center gap-2 px-6 pt-4 border-b border-[#f0ebe5] bg-white overflow-x-auto text-xs font-bold">
+              <!-- Modal Tab Navigation (WAI-ARIA tabs pattern) -->
+              <div role="tablist" aria-label="Diagnostic sections" class="diag-tablist flex items-stretch gap-1 px-3 sm:px-5 border-b border-[#f0ebe5] bg-white overflow-x-auto">
                 <button
+                  *ngFor="let tab of diagnosticTabs"
                   type="button"
-                  (click)="diagnosticTab.set('overview')"
-                  [class.text-[#a53a26]]="diagnosticTab() === 'overview'"
-                  [class.border-[#a53a26]]="diagnosticTab() === 'overview'"
-                  class="pb-3 border-b-2 border-transparent transition-colors cursor-pointer whitespace-nowrap"
+                  role="tab"
+                  [id]="'diag-tab-' + tab.id"
+                  [attr.aria-controls]="'diag-panel-' + tab.id"
+                  [attr.aria-selected]="diagnosticTab() === tab.id"
+                  [attr.tabindex]="diagnosticTab() === tab.id ? 0 : -1"
+                  [class.diag-tab-active]="diagnosticTab() === tab.id"
+                  (click)="diagnosticTab.set(tab.id)"
+                  (keydown)="onDiagnosticTabKeydown($event)"
+                  class="diag-tab"
                 >
-                  Overview
-                </button>
-                <button
-                  type="button"
-                  (click)="diagnosticTab.set('headers')"
-                  [class.text-[#a53a26]]="diagnosticTab() === 'headers'"
-                  [class.border-[#a53a26]]="diagnosticTab() === 'headers'"
-                  class="pb-3 border-b-2 border-transparent transition-colors cursor-pointer whitespace-nowrap"
-                >
-                  Request Headers
-                </button>
-                <button
-                  type="button"
-                  (click)="diagnosticTab.set('payload')"
-                  [class.text-[#a53a26]]="diagnosticTab() === 'payload'"
-                  [class.border-[#a53a26]]="diagnosticTab() === 'payload'"
-                  class="pb-3 border-b-2 border-transparent transition-colors cursor-pointer whitespace-nowrap"
-                >
-                  Signed Payload
-                </button>
-                <button
-                  type="button"
-                  (click)="diagnosticTab.set('response')"
-                  [class.text-[#a53a26]]="diagnosticTab() === 'response'"
-                  [class.border-[#a53a26]]="diagnosticTab() === 'response'"
-                  class="pb-3 border-b-2 border-transparent transition-colors cursor-pointer whitespace-nowrap"
-                >
-                  Response Body
+                  {{ tab.label }}
                 </button>
               </div>
 
               <!-- Modal Body Content -->
-              <div class="p-6 overflow-y-auto space-y-4 text-xs flex-1">
+              <div class="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs flex-1">
                 <!-- Tab: Overview -->
-                <div *ngIf="diagnosticTab() === 'overview'" class="space-y-4">
-                  <div class="grid grid-cols-2 gap-4 p-4 bg-[#faf8f6] rounded-2xl border border-[#e8e2dc]">
+                <div *ngIf="diagnosticTab() === 'overview'" role="tabpanel" id="diag-panel-overview" aria-labelledby="diag-tab-overview" tabindex="0" class="space-y-4 focus:outline-none">
+                  <!-- Merchant-facing summary -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-[#faf8f6] rounded-2xl border border-[#e8e2dc]">
                     <div>
-                      <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Delivery Status</span>
-                      <span [ngClass]="getDeliveryBadgeClass(selectedDelivery()!.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mt-1">
-                        {{ selectedDelivery()?.status }} (HTTP {{ selectedDelivery()?.httpStatusCode || 'ERR' }})
+                      <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Parcel Update</span>
+                      <span id="diag-parcel-update" class="font-bold text-[#1d1b2c] text-sm mt-0.5 block">{{ deliveryEventLabel(sd) }}</span>
+                    </div>
+                    <div>
+                      <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Store Notification</span>
+                      <span id="diag-notification-summary" class="font-bold text-sm mt-0.5 block" [class.text-emerald-700]="sd.status === 'SUCCESS'" [class.text-rose-700]="sd.status === 'FAILED'" [class.text-[#1d1b2c]]="sd.status !== 'SUCCESS' && sd.status !== 'FAILED'">
+                        {{ notificationStatusSummary(sd.status) }}
                       </span>
+                      <span class="text-[11px] text-[#6f6d85]">{{ storeResponseSummary(sd.httpStatusCode) }}</span>
                     </div>
-                    <div>
-                      <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Attempts Completed</span>
-                      <span class="font-bold text-[#1d1b2c] mt-1 block">{{ selectedDelivery()?.attempts }} of 5</span>
-                    </div>
-                    <div class="col-span-2">
-                      <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Target Destination URL</span>
-                      <span class="font-mono text-[11px] font-bold text-[#1d1b2c] break-all mt-0.5 block">{{ selectedDelivery()?.targetUrl }}</span>
-                    </div>
-                    <div>
-                      <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Event Type</span>
-                      <span class="font-mono text-[#a53a26] font-bold mt-0.5 block">{{ selectedDelivery()?.eventType }}</span>
-                    </div>
-                    <div>
-                      <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Associated Tracking #</span>
-                      <span class="font-mono text-[#1d1b2c] mt-0.5 block">{{ selectedDelivery()?.trackingNumber }}</span>
-                    </div>
-                    <div *ngIf="selectedDelivery()?.errorSummary" class="col-span-2 text-rose-700">
+                    <div *ngIf="sd.errorSummary" class="sm:col-span-2 text-rose-700">
                       <span class="text-[10px] uppercase font-bold text-rose-500 block">Failure Reason</span>
-                      <p class="font-semibold mt-0.5">{{ selectedDelivery()?.errorSummary }}</p>
+                      <p class="font-semibold mt-0.5 break-words">{{ sd.errorSummary }}</p>
                     </div>
                   </div>
 
-                  <!-- Previous Retries Timeline -->
-                  <div *ngIf="selectedDelivery()?.retryHistory?.length" class="space-y-2">
-                    <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Delivery Attempt History</span>
-                    <div class="space-y-2">
-                      <div *ngFor="let h of selectedDelivery()?.retryHistory" class="flex justify-between items-center p-3 rounded-xl bg-[#faf8f6] border border-[#e8e2dc]">
-                        <span class="font-bold text-[#1d1b2c]">Attempt #{{ h.attemptNumber }}</span>
-                        <span class="font-mono text-[#6f6d85]">HTTP {{ h.httpStatusCode }}</span>
-                        <span class="font-mono text-[#6f6d85]">{{ h.latencyMs }}ms</span>
-                        <span [class.text-emerald-700]="h.success" [class.text-rose-700]="!h.success" class="font-bold">
-                          {{ h.success ? 'Success' : h.errorMessage || 'Failed' }}
-                        </span>
+                  <!-- Technical details (progressive disclosure: always available, visually secondary) -->
+                  <section aria-labelledby="diag-technical-heading" class="rounded-2xl border border-[#eee7e0] p-4">
+                    <h4 id="diag-technical-heading" class="text-[10px] uppercase font-black tracking-widest text-[#a09eaf]">Technical details</h4>
+                    <dl class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                      <div>
+                        <dt class="text-[10px] uppercase font-bold text-[#a09eaf]">HTTP status</dt>
+                        <dd id="diag-http-status" class="font-mono font-bold text-[#1d1b2c] mt-0.5">{{ getHttpCodeExplanation(sd.httpStatusCode) }}</dd>
                       </div>
-                    </div>
+                      <div>
+                        <dt class="text-[10px] uppercase font-bold text-[#a09eaf]">Raw event type</dt>
+                        <dd id="diag-raw-event-type" class="font-mono text-[#a53a26] mt-0.5 break-all">{{ sd.eventType }}</dd>
+                      </div>
+                      <div class="sm:col-span-2">
+                        <dt class="text-[10px] uppercase font-bold text-[#a09eaf]">Delivery ID</dt>
+                        <dd class="font-mono text-[#1d1b2c] mt-0.5 break-all">{{ sd.deliveryId }}</dd>
+                      </div>
+                      <div>
+                        <dt class="text-[10px] uppercase font-bold text-[#a09eaf]">Last request</dt>
+                        <dd class="font-mono text-[#1d1b2c] mt-0.5">{{ (sd.lastAttemptAt || sd.createdAt) | date: 'MMM d, y, h:mm:ss a' }}</dd>
+                      </div>
+                      <div>
+                        <dt class="text-[10px] uppercase font-bold text-[#a09eaf]">Attempts in current cycle</dt>
+                        <dd class="font-bold text-[#1d1b2c] mt-0.5">{{ sd.attempts }} of 5</dd>
+                      </div>
+                      <div>
+                        <dt class="text-[10px] uppercase font-bold text-[#a09eaf]">Total attempts</dt>
+                        <dd id="diag-total-attempts" class="font-bold text-[#1d1b2c] mt-0.5">{{ sd.retryHistory?.length || sd.totalAttempts || sd.attempts }}</dd>
+                      </div>
+                      <div class="sm:col-span-2">
+                        <dt class="text-[10px] uppercase font-bold text-[#a09eaf]">Target destination URL</dt>
+                        <dd class="font-mono text-[11px] text-[#1d1b2c] mt-0.5 break-all">{{ sd.targetUrl }}</dd>
+                      </div>
+                      <div *ngIf="signatureHeader(sd) as sig" class="sm:col-span-2">
+                        <dt class="text-[10px] uppercase font-bold text-[#a09eaf]">Signature header</dt>
+                        <dd class="font-mono text-[11px] text-[#1d1b2c] mt-0.5 break-all">{{ sig }}</dd>
+                      </div>
+                    </dl>
+                  </section>
+
+                  <!-- Attempt history (chronological, automatic vs manual retry cycles) -->
+                  <div *ngIf="sd.retryHistory?.length" class="space-y-2">
+                    <span class="text-[10px] uppercase font-bold text-[#a09eaf] block">Delivery Attempt History</span>
+                    <ol class="space-y-2" id="diag-attempt-history">
+                      <li *ngFor="let row of selectedAttemptRows()" class="attempt-row flex flex-wrap justify-between items-center gap-x-3 gap-y-1 p-3 rounded-xl border" [ngClass]="row.manual ? 'bg-[#faf6f0] border-[#a53a26]/25' : 'bg-[#faf8f6] border-[#e8e2dc]'">
+                        <span class="flex items-center gap-2">
+                          <span class="attempt-label font-bold text-[#1d1b2c]">{{ row.label }}</span>
+                          <span class="rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider" [ngClass]="row.manual ? 'bg-[#a53a26]/10 text-[#a53a26]' : 'bg-slate-100 text-slate-500'">{{ row.manual ? 'Manual' : 'Automatic' }}</span>
+                        </span>
+                        <span class="font-mono text-[#6f6d85]">{{ getHttpCodeExplanation(row.attempt.httpStatusCode) }}</span>
+                        <span class="font-mono text-[#6f6d85]">{{ row.attempt.latencyMs }}ms</span>
+                        <time class="text-[11px] text-[#a09eaf]">{{ row.attempt.attemptedAt | date: 'MMM d, h:mm:ss a' }}</time>
+                        <span [class.text-emerald-700]="row.attempt.success" [class.text-rose-700]="!row.attempt.success" class="font-bold">
+                          {{ row.attempt.success ? 'Success' : row.attempt.errorMessage || 'Failed' }}
+                        </span>
+                      </li>
+                    </ol>
                   </div>
                 </div>
 
                 <!-- Tab: Headers -->
-                <div *ngIf="diagnosticTab() === 'headers'" class="space-y-3">
+                <div *ngIf="diagnosticTab() === 'headers'" role="tabpanel" id="diag-panel-headers" aria-labelledby="diag-tab-headers" tabindex="0" class="space-y-3 focus:outline-none">
                   <div class="flex justify-between items-center">
                     <span class="text-xs font-bold text-[#1d1b2c]">Outbound Request Headers</span>
                     <button
                       type="button"
                       (click)="copyDeliveryHeaders()"
-                      class="px-3 py-1 bg-[#faf8f6] hover:bg-[#e8e2dc] text-[#1d1b2c] text-[11px] font-bold rounded-full border border-[#e8e2dc] transition-colors cursor-pointer"
+                      class="px-3 py-1 bg-[#faf8f6] hover:bg-[#e8e2dc] text-[#1d1b2c] text-[11px] font-bold rounded-full border border-[#e8e2dc] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40"
                     >
                       Copy Headers
                     </button>
                   </div>
-                  <pre class="bg-[#1d1b2c] text-white p-4 rounded-2xl overflow-x-auto text-[11px] font-mono leading-relaxed">{{ selectedDelivery()?.requestHeaders | json }}</pre>
+                  <pre class="bg-[#1d1b2c] text-white p-4 rounded-2xl overflow-x-auto text-[11px] font-mono leading-relaxed">{{ sd.requestHeaders | json }}</pre>
                 </div>
 
                 <!-- Tab: Payload -->
-                <div *ngIf="diagnosticTab() === 'payload'" class="space-y-3">
+                <div *ngIf="diagnosticTab() === 'payload'" role="tabpanel" id="diag-panel-payload" aria-labelledby="diag-tab-payload" tabindex="0" class="space-y-3 focus:outline-none">
                   <div class="flex justify-between items-center">
                     <span class="text-xs font-bold text-[#1d1b2c]">Signed JSON Payload</span>
                     <button
                       type="button"
                       (click)="copyDeliveryPayload()"
-                      class="px-3 py-1 bg-[#faf8f6] hover:bg-[#e8e2dc] text-[#1d1b2c] text-[11px] font-bold rounded-full border border-[#e8e2dc] transition-colors cursor-pointer"
+                      class="px-3 py-1 bg-[#faf8f6] hover:bg-[#e8e2dc] text-[#1d1b2c] text-[11px] font-bold rounded-full border border-[#e8e2dc] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40"
                     >
                       Copy Payload
                     </button>
                   </div>
-                  <pre class="bg-[#1d1b2c] text-white p-4 rounded-2xl overflow-x-auto text-[11px] font-mono leading-relaxed">{{ selectedDelivery()?.payloadJson }}</pre>
+                  <pre class="bg-[#1d1b2c] text-white p-4 rounded-2xl overflow-x-auto text-[11px] font-mono leading-relaxed">{{ sd.payloadJson }}</pre>
                 </div>
 
                 <!-- Tab: Response -->
-                <div *ngIf="diagnosticTab() === 'response'" class="space-y-3">
+                <div *ngIf="diagnosticTab() === 'response'" role="tabpanel" id="diag-panel-response" aria-labelledby="diag-tab-response" tabindex="0" class="space-y-3 focus:outline-none">
                   <div class="flex justify-between items-center">
                     <span class="text-xs font-bold text-[#1d1b2c]">Endpoint Response Body</span>
                     <button
-                      *ngIf="selectedDelivery()?.responseBody"
+                      *ngIf="sd.responseBody"
                       type="button"
                       (click)="copyDeliveryResponse()"
-                      class="px-3 py-1 bg-[#faf8f6] hover:bg-[#e8e2dc] text-[#1d1b2c] text-[11px] font-bold rounded-full border border-[#e8e2dc] transition-colors cursor-pointer"
+                      class="px-3 py-1 bg-[#faf8f6] hover:bg-[#e8e2dc] text-[#1d1b2c] text-[11px] font-bold rounded-full border border-[#e8e2dc] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40"
                     >
                       Copy Response
                     </button>
                   </div>
-                  <pre *ngIf="selectedDelivery()?.responseBody" class="bg-[#faf8f6] text-[#1d1b2c] p-4 rounded-2xl border border-[#e8e2dc] overflow-x-auto text-[11px] font-mono leading-relaxed">{{ selectedDelivery()?.responseBody }}</pre>
-                  <p *ngIf="!selectedDelivery()?.responseBody" class="text-xs text-[#a09eaf] p-4 text-center">
+                  <pre *ngIf="sd.responseBody" class="bg-[#faf8f6] text-[#1d1b2c] p-4 rounded-2xl border border-[#e8e2dc] overflow-x-auto text-[11px] font-mono leading-relaxed">{{ sd.responseBody }}</pre>
+                  <p *ngIf="!sd.responseBody" class="text-xs text-[#a09eaf] p-4 text-center">
                     No response body returned from the destination endpoint.
                   </p>
                 </div>
@@ -1081,8 +1469,8 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               <div class="p-4 border-t border-[#f4efe9] bg-[#faf8f6] flex justify-end">
                 <button
                   type="button"
-                  (click)="selectedDelivery.set(null)"
-                  class="px-6 py-2.5 bg-[#1d1b2c] hover:bg-black text-white text-xs font-bold rounded-full transition-colors cursor-pointer"
+                  (click)="closeDiagnostics()"
+                  class="px-6 py-2.5 bg-[#1d1b2c] hover:bg-black text-white text-xs font-bold rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40 focus-visible:ring-offset-2"
                 >
                   Close
                 </button>
@@ -1151,7 +1539,7 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
               @if (orderDetailsError(); as detailError) {
                 <div role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
                   <p>{{ detailError }}</p>
-                  <button type="button" class="mt-2 font-bold underline" (click)="retryOrderDetails()">Retry</button>
+                  <button type="button" class="mt-2 rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-bold text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400" (click)="retryOrderDetails()">Retry</button>
                 </div>
               }
               <div class="grid grid-cols-2 gap-4 p-4 bg-[#faf8f6] rounded-2xl border border-[#e8e2dc]">
@@ -1305,6 +1693,55 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
           </form>
         </div>
       </div>
+
+      <!-- MODAL: CONFIRM WEBHOOK SIGNING-SECRET REGENERATION -->
+      @if (isRegenerateConfirmOpen()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-[#211f32]/45 p-4 backdrop-blur-sm" (click)="cancelRegenerateSecret()">
+          <div
+            #regenerateDialog
+            id="regenerate-secret-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="regenerate-secret-title"
+            aria-describedby="regenerate-secret-description"
+            (click)="$event.stopPropagation()"
+            (keydown)="onRegenerateDialogKeydown($event)"
+            class="w-full max-w-md space-y-5 rounded-[1.5rem] border border-[#e9e3dd] bg-[#fbfaf8] p-6 sm:p-7 shadow-2xl"
+          >
+            <div class="flex items-start gap-3">
+              <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#fff1f2] text-[#be123c]" aria-hidden="true">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </span>
+              <div>
+                <h3 id="regenerate-secret-title" class="text-lg font-black tracking-tight text-[#1d1b2c]">Regenerate Webhook Signing Secret?</h3>
+                <p id="regenerate-secret-description" class="mt-2 text-xs leading-relaxed text-[#6f6d85]">
+                  A new signing secret will replace your current secret. Future webhook notifications will use the new secret immediately. Your store's webhook receiver must be updated to verify them.
+                </p>
+              </div>
+            </div>
+            <div class="flex flex-col-reverse gap-2 border-t border-[#e9e3dd] pt-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                id="cancel-regenerate-secret-btn"
+                (click)="cancelRegenerateSecret()"
+                [disabled]="isRegeneratingSecret()"
+                class="rounded-full border border-[#e8e2dc] bg-white px-5 py-2.5 text-xs font-bold text-[#1d1b2c] transition-colors hover:bg-[#f4efe9] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                id="confirm-regenerate-secret-btn"
+                (click)="confirmRegenerateSecret()"
+                [disabled]="isRegeneratingSecret()"
+                class="inline-flex items-center justify-center gap-2 rounded-full bg-[#be123c] px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#9f1239] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#be123c]/50 focus-visible:ring-offset-2"
+              >
+                {{ isRegeneratingSecret() ? 'Regenerating…' : 'Regenerate Secret' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -1338,6 +1775,79 @@ type ActiveTab = 'orders' | 'settings' | 'deliveries' | 'credentials';
       color: #ffffff;
       box-shadow: 0 4px 12px rgba(165, 58, 38, 0.22);
     }
+
+    .filter-pill:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(165, 58, 38, 0.45);
+    }
+
+    /* Text-style actions: read as buttons (pill hover surface), never as underlined links. */
+    .action-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      min-height: 2rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #a53a26;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .action-link:hover {
+      background: #faf0ec;
+      color: #7e2615;
+    }
+
+    .action-link:active {
+      background: #f2ded8;
+    }
+
+    .action-link:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(165, 58, 38, 0.4);
+    }
+
+    .action-link:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Diagnostics modal tabs */
+    .diag-tab {
+      position: relative;
+      flex-shrink: 0;
+      min-height: 2.75rem;
+      padding: 0.625rem 0.875rem;
+      margin-bottom: -1px;
+      border-bottom: 2px solid transparent;
+      border-radius: 0.75rem 0.75rem 0 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #6f6d85;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .diag-tab:hover {
+      color: #1d1b2c;
+      background: #faf8f6;
+    }
+
+    .diag-tab:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 2px rgba(165, 58, 38, 0.45);
+    }
+
+    .diag-tab.diag-tab-active {
+      color: #a53a26;
+      background: #faf0ec;
+      border-bottom-color: #a53a26;
+    }
   `],
 })
 export class MerchantComponent implements OnInit, OnDestroy {
@@ -1351,6 +1861,25 @@ export class MerchantComponent implements OnInit, OnDestroy {
   private deliverySubscription?: Subscription;
   private detailSubscription?: Subscription;
   private orderDetailsSubscription?: Subscription;
+  private directSearchSubscription?: Subscription;
+  private parcelStatusLookups = new Subscription();
+  private readonly parcelStatusLookupsInFlight = new Set<string>();
+  private readonly parcelStatusLookupsFailed = new Set<string>();
+  private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  private appliedSearchQuery = '';
+  private regenerateTrigger: HTMLElement | null = null;
+  private diagnosticsTrigger: HTMLElement | null = null;
+  private readonly regenerateDialog = viewChild<ElementRef<HTMLElement>>('regenerateDialog');
+  private readonly onVisibilityChange = (): void => {
+    if (this.isDocumentHidden()) {
+      this.stopAutoRefresh();
+    } else {
+      // Revalidate immediately when the merchant returns to the tab, then resume polling.
+      this.backgroundRefresh();
+      this.startAutoRefresh();
+    }
+  };
 
   activeTab = signal<ActiveTab>('orders');
   integrationsMenuOpen = signal(false);
@@ -1366,7 +1895,13 @@ export class MerchantComponent implements OnInit, OnDestroy {
   orderDetails = signal<MerchantOrderDetails | null>(null);
   isLoadingOrderDetails = signal(false);
   orderDetailsError = signal<string | null>(null);
-  diagnosticTab = signal<'overview' | 'headers' | 'payload' | 'response'>('overview');
+  diagnosticTab = signal<DiagnosticTab>('overview');
+  readonly diagnosticTabs: ReadonlyArray<{ id: DiagnosticTab; label: string }> = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'headers', label: 'Request Headers' },
+    { id: 'payload', label: 'Signed Payload' },
+    { id: 'response', label: 'Response Body' },
+  ];
 
   isLoadingProfile = signal(false);
   profileError = signal<string | null>(null);
@@ -1376,19 +1911,6 @@ export class MerchantComponent implements OnInit, OnDestroy {
     return this.isLoadingProfile() || (this.authService ? !this.authService.isInitialized() : false);
   });
   readonly merchantName = computed(() => this.authService?.currentUser()?.fullName || 'Merchant Partner');
-  private readonly merchantProfileOwner = computed(() => {
-    const user = this.authService?.currentUser();
-    return user?.merchantId ? `${user.id}:${user.merchantId}` : null;
-  });
-  private readonly merchantBusiness = signal<{ owner: string; businessName: string } | null>(null);
-  readonly merchantDisplayName = computed(() => {
-    const owner = this.merchantProfileOwner();
-    if (!owner) {
-      return this.authService?.currentUser()?.fullName?.trim() || 'Merchant';
-    }
-    const business = this.merchantBusiness();
-    return business?.owner === owner ? business.businessName : 'Merchant';
-  });
   readonly merchantEmail = computed(() => {
     const user = this.authService?.currentUser();
     const email = user?.email;
@@ -1485,8 +2007,51 @@ export class MerchantComponent implements OnInit, OnDestroy {
       },
     });
   }
+  /** Business identity from GET /api/v1/merchant/profile; only shown if it belongs to the signed-in user. */
+  merchantProfile = signal<MerchantProfile | null>(null);
+  private merchantProfileSubscription?: Subscription;
+  private merchantProfileKey: string | null | undefined = undefined;
+
+  /** Header identity: the business name when available, otherwise the account display name. */
+  readonly headerName = computed(() => {
+    const profile = this.merchantProfile();
+    const tokenMerchantId = this.authService?.currentUser()?.merchantId;
+    const belongsToUser = !!profile && (!tokenMerchantId || profile.merchantId === tokenMerchantId);
+    return (belongsToUser && profile!.businessName?.trim()) || this.merchantName();
+  });
+
+  /** Reloads the business profile whenever the signed-in account changes; clears it on sign-out. */
+  private readonly merchantProfileSync = effect(() => {
+    const user = this.authService?.currentUser();
+    // Only merchant accounts with a merchantId claim have a business profile to fetch.
+    const key = user?.merchantId ? `${user.id ?? ''}|${user.merchantId}` : null;
+    untracked(() => {
+      if (key === this.merchantProfileKey) return;
+      this.merchantProfileKey = key;
+      this.merchantProfileSubscription?.unsubscribe();
+      this.merchantProfile.set(null);
+      if (key) this.loadMerchantProfile();
+    });
+  });
+
+  loadMerchantProfile(): void {
+    if (!this.authService || (typeof this.authService.isAuthenticated === 'function' && !this.authService.isAuthenticated())) {
+      return;
+    }
+    const requestedKey = this.merchantProfileKey;
+    this.merchantProfileSubscription?.unsubscribe();
+    this.merchantProfileSubscription = this.merchantService.getMerchantProfile().subscribe({
+      next: (profile) => {
+        // Ignore a response that arrives after the account changed.
+        if (requestedKey === this.merchantProfileKey) this.merchantProfile.set(profile);
+      },
+      // Non-blocking: the header falls back to the account display name.
+      error: () => undefined,
+    });
+  }
+
   readonly merchantInitials = computed(() => {
-    const name = this.merchantName();
+    const name = this.headerName();
     if (!name) return 'M';
     const parts = name.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -1497,9 +2062,21 @@ export class MerchantComponent implements OnInit, OnDestroy {
   orders = signal<MerchantOrder[]>([]);
   counts = signal<OrderCounts>({ total: 0, created: 0, inTransit: 0, delivered: 0, failed: 0, cancelled: 0 });
   selectedStatusFilter = signal<string>('ALL');
+  /** Top bar: filters the orders table by (partial) tracking number. */
   searchQuery = '';
+  /** Direct Search card: looks up one parcel by exact tracking number; never filters the table. */
+  directSearchQuery = '';
+  directSearchError = signal<string | null>(null);
+  isDirectSearching = signal(false);
   fromDate = '';
   toDate = '';
+  hasLoadedOrders = signal(false);
+  countsLoaded = signal(false);
+  lastUpdatedAt = signal<Date | null>(null);
+  readonly activeDeliveryCount = computed(() => {
+    const c = this.counts();
+    return (c.pickedUp || 0) + (c.inTransit || 0) + (c.outForDelivery || 0);
+  });
 
   // Pagination & Loading States
   currentPage = signal<number>(0);
@@ -1526,6 +2103,9 @@ export class MerchantComponent implements OnInit, OnDestroy {
   settings = signal<WebhookSettings | null>(null);
   isLoadingSettings = signal(false);
   isSavingSettings = signal(false);
+  isRegenerateConfirmOpen = signal(false);
+  isRegeneratingSecret = signal(false);
+  isEditingWebhook = signal<boolean>(false);
   settingsError = signal<string | null>(null);
   settingsForm = {
     url: '',
@@ -1547,7 +2127,14 @@ export class MerchantComponent implements OnInit, OnDestroy {
   deliveryToDate = '';
   selectedDelivery = signal<WebhookDeliveryItem | null>(null);
   deliveryError = signal<string | null>(null);
+  /** Errors from inspect/retry actions; shown above the table without hiding it. */
+  deliveryActionError = signal<string | null>(null);
   isLoadingDeliveries = signal(false);
+  deliveriesLoaded = signal(false);
+  last7DaysActive = signal(false);
+  /** Parcel status carried by each PARCEL_STATUS_CHANGED delivery, read from its signed payload. */
+  parcelStatusByDelivery = signal<ReadonlyMap<string, ParcelLifecycleStatus>>(new Map());
+  readonly selectedAttemptRows = computed(() => this.attemptHistoryRows(this.selectedDelivery()?.retryHistory ?? []));
   deliveryPage = signal(0);
   deliveryPageSize = signal(20);
   deliveryTotalElements = signal(0);
@@ -1555,10 +2142,10 @@ export class MerchantComponent implements OnInit, OnDestroy {
 
   deliveryFilterOptions = [
     { label: 'All', value: 'ALL' },
-    { label: 'Pending', value: 'PENDING' },
-    { label: 'Success (2xx)', value: 'SUCCESS' },
+    { label: 'Delivered', value: 'SUCCESS' },
     { label: 'Failed', value: 'FAILED' },
-    { label: 'Pending Retry', value: 'PENDING_RETRY' },
+    { label: 'Retrying', value: 'PENDING_RETRY' },
+    { label: 'Pending', value: 'PENDING' },
     { label: 'Cancelled', value: 'CANCELLED' },
   ];
 
@@ -1569,36 +2156,77 @@ export class MerchantComponent implements OnInit, OnDestroy {
     { label: 'Test event', value: 'TEST_EVENT' },
   ];
 
-  constructor() {
-    effect((onCleanup) => {
-      const owner = this.merchantProfileOwner();
-      this.merchantBusiness.set(null);
-      if (!owner) {
-        return;
-      }
-      const request = untracked(() => this.merchantService.getMerchantProfile().subscribe({
-        next: ({ businessName }) => this.merchantBusiness.set({ owner, businessName }),
-        error: () => this.merchantBusiness.set(null),
-      }));
-      onCleanup(() => request.unsubscribe());
-    });
-  }
-
   ngOnInit(): void {
     this.loadProfile();
     this.loadOrders();
     this.loadOrderCounts();
     this.loadSettings();
     this.loadDeliveries();
+    this.startAutoRefresh();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
   }
 
   ngOnDestroy(): void {
+    this.stopAutoRefresh();
+    this.clearSearchDebounce();
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
     this.orderSubscription?.unsubscribe();
     this.countsSubscription?.unsubscribe();
     this.deliverySubscription?.unsubscribe();
     this.detailSubscription?.unsubscribe();
     this.orderDetailsSubscription?.unsubscribe();
+    this.directSearchSubscription?.unsubscribe();
+    this.parcelStatusLookups.unsubscribe();
+    this.merchantProfileSubscription?.unsubscribe();
     this.profileSubscription?.unsubscribe();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Background refresh (orders dashboard)
+  // ---------------------------------------------------------------------------
+
+  /** Starts polling unless the tab is hidden or polling is already running. */
+  startAutoRefresh(): void {
+    if (this.autoRefreshTimer !== null || this.isDocumentHidden()) return;
+    this.autoRefreshTimer = setInterval(() => this.backgroundRefresh(), MERCHANT_DASHBOARD_REFRESH_MS);
+  }
+
+  stopAutoRefresh(): void {
+    if (this.autoRefreshTimer !== null) {
+      clearInterval(this.autoRefreshTimer);
+      this.autoRefreshTimer = null;
+    }
+  }
+
+  /**
+   * Silently re-syncs dashboard data, keeping filters, page, scroll position and current rows.
+   * Skipped while the tab is hidden, the session is gone, another tab is shown, or a
+   * merchant-initiated request is already in flight (that request wins).
+   */
+  backgroundRefresh(): void {
+    if (this.isDocumentHidden() || this.activeTab() !== 'orders') return;
+    if (this.authService && typeof this.authService.isAuthenticated === 'function' && !this.authService.isAuthenticated()) {
+      return;
+    }
+    this.loadOrders(this.currentPage(), { background: true });
+    this.loadOrderCounts(true);
+    this.refreshOpenOrderDetails();
+  }
+
+  private isDocumentHidden(): boolean {
+    return typeof document !== 'undefined' && document.visibilityState === 'hidden';
+  }
+
+  trackOrder(_index: number, order: MerchantOrder): string {
+    return order.orderId;
+  }
+
+  trackDelivery(_index: number, delivery: WebhookDeliveryItem): string {
+    return delivery.deliveryId;
   }
 
   navigateToBulk(): void {
@@ -1646,9 +2274,15 @@ export class MerchantComponent implements OnInit, OnDestroy {
   selectTab(tab: ActiveTab): void {
     if (tab !== 'settings') {
       this.dismissSecret();
+      this.isEditingWebhook.set(false);
     }
+    const previous = this.activeTab();
     this.activeTab.set(tab);
     this.integrationsMenuOpen.set(this.isIntegrationTab(tab));
+    if (tab === 'orders' && previous !== 'orders' && this.hasLoadedOrders()) {
+      // Data may have changed while another section was open; revalidate silently.
+      this.backgroundRefresh();
+    }
     if (this.bulkPageActive()) {
       void this.router?.navigate(['/merchant']);
     }
@@ -1687,6 +2321,30 @@ export class MerchantComponent implements OnInit, OnDestroy {
     if (order) this.loadOrderDetails(order.orderId);
   }
 
+  /** Silently refreshes an open parcel-details modal without clearing its content. */
+  private refreshOpenOrderDetails(): void {
+    const order = this.selectedOrder();
+    if (!order || !this.orderDetails() || this.isLoadingOrderDetails()) return;
+    const orderId = order.orderId;
+    this.orderDetailsSubscription?.unsubscribe();
+    this.orderDetailsSubscription = this.merchantService.getOrderDetails(orderId).subscribe({
+      next: (details) => this.applyOrderDetails(orderId, details),
+      // Background failures keep the last good details on screen.
+      error: () => undefined,
+    });
+  }
+
+  private applyOrderDetails(orderId: string, details: MerchantOrderDetails): void {
+    if (this.selectedOrder()?.orderId !== orderId) return;
+    this.orderDetails.set(details);
+    this.selectedOrder.update((order) => order?.orderId === orderId
+      ? { ...order, status: details.status, updatedAt: details.updatedAt }
+      : order);
+    this.orders.update((orders) => orders.map((order) => order.orderId === orderId
+      ? { ...order, status: details.status, updatedAt: details.updatedAt }
+      : order));
+  }
+
   private loadOrderDetails(orderId: string): void {
     this.orderDetailsSubscription?.unsubscribe();
     this.orderDetails.set(null);
@@ -1695,17 +2353,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
     this.orderDetailsSubscription = this.merchantService.getOrderDetails(orderId).pipe(
       finalize(() => this.isLoadingOrderDetails.set(false)),
     ).subscribe({
-      next: (details) => {
-        if (this.selectedOrder()?.orderId === orderId) {
-          this.orderDetails.set(details);
-          this.selectedOrder.update((order) => order?.orderId === orderId
-            ? { ...order, status: details.status, updatedAt: details.updatedAt }
-            : order);
-          this.orders.update((orders) => orders.map((order) => order.orderId === orderId
-            ? { ...order, status: details.status, updatedAt: details.updatedAt }
-            : order));
-        }
-      },
+      next: (details) => this.applyOrderDetails(orderId, details),
       error: (error: HttpErrorResponse) => {
         if (this.selectedOrder()?.orderId === orderId) {
           this.orderDetailsError.set(this.apiErrorMessage(error, 'Unable to load order details.'));
@@ -1729,17 +2377,30 @@ export class MerchantComponent implements OnInit, OnDestroy {
     return currentIndex < 0 ? [] : stages.slice(currentIndex + 1);
   }
 
-  loadOrders(page: number = this.currentPage()): void {
+  /**
+   * Loads one page of orders using the current filters. A newer call always cancels an older
+   * in-flight request, so stale responses never overwrite newer filter results.
+   * Background loads are silent: no loading state, no error banner, existing rows are kept,
+   * and they never interrupt a merchant-initiated request.
+   */
+  loadOrders(page: number = this.currentPage(), options: { background?: boolean } = {}): void {
+    const background = !!options.background;
+    if (background && this.isLoadingOrders()) return;
     this.orderSubscription?.unsubscribe();
     this.currentPage.set(page);
-    this.isLoadingOrders.set(true);
-    this.orderError.set(null);
+    if (!background) {
+      this.isLoadingOrders.set(true);
+      this.orderError.set(null);
+    }
 
+    const trackingNumber = this.searchQuery?.trim() || undefined;
+    this.appliedSearchQuery = trackingNumber ?? '';
     const params: MerchantOrderFilterParams = {
       status: this.selectedStatusFilter() !== 'ALL' ? this.selectedStatusFilter() : undefined,
-      trackingNumber: this.searchQuery?.trim() || undefined,
-      from: this.fromDate ? new Date(this.fromDate).toISOString() : undefined,
-      to: this.toDate ? new Date(this.toDate + 'T23:59:59.999Z').toISOString() : undefined,
+      trackingNumber,
+      // Merchant-local calendar days, matching the delivery-log date filters.
+      from: this.localDayBoundary(this.fromDate, false),
+      to: this.localDayBoundary(this.toDate, true),
       page,
       size: this.pageSize(),
     };
@@ -1750,27 +2411,37 @@ export class MerchantComponent implements OnInit, OnDestroy {
         this.totalElements.set(res.totalElements);
         this.totalPages.set(res.totalPages);
         this.isLoadingOrders.set(false);
+        this.orderError.set(null);
+        this.hasLoadedOrders.set(true);
+        this.lastUpdatedAt.set(new Date());
       },
       error: () => {
-        this.orderError.set('Unable to load merchant orders. Please check network connection and retry.');
         this.isLoadingOrders.set(false);
+        if (background) return;
+        this.orderError.set('Unable to load merchant orders. Please check network connection and retry.');
         this.notifyMerchant('Orders could not be loaded', this.orderError()!, 'error');
       },
     });
   }
 
-  loadOrderCounts(): void {
+  loadOrderCounts(background = false): void {
+    if (background && this.isLoadingCounts()) return;
     this.countsSubscription?.unsubscribe();
-    this.isLoadingCounts.set(true);
-    this.countsError.set(null);
+    if (!background) {
+      this.isLoadingCounts.set(true);
+      this.countsError.set(null);
+    }
     this.countsSubscription = this.merchantService.getOrderCounts().subscribe({
       next: (c) => {
         this.counts.set(c);
+        this.countsLoaded.set(true);
+        this.countsError.set(null);
         this.isLoadingCounts.set(false);
       },
       error: () => {
-        this.countsError.set('Unable to load order counts.');
         this.isLoadingCounts.set(false);
+        if (background) return;
+        this.countsError.set('Unable to load order counts.');
         this.notifyMerchant('Order summary unavailable', this.countsError()!, 'error');
       },
     });
@@ -1786,8 +2457,66 @@ export class MerchantComponent implements OnInit, OnDestroy {
     this.loadOrders(0);
   }
 
+  /** Top search typing: debounced so each keystroke does not trigger a request. */
+  onSearchInput(): void {
+    this.clearSearchDebounce();
+    this.searchDebounceTimer = setTimeout(() => {
+      this.searchDebounceTimer = null;
+      if ((this.searchQuery?.trim() ?? '') !== this.appliedSearchQuery) {
+        this.loadOrders(0);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  /** Top search submit (Enter): applies the filter immediately. */
   onSearchChange(): void {
+    this.clearSearchDebounce();
     this.loadOrders(0);
+  }
+
+  private clearSearchDebounce(): void {
+    if (this.searchDebounceTimer !== null) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
+  }
+
+  /**
+   * Direct Search: finds exactly one of this merchant's parcels by tracking number and opens
+   * its details. It uses its own state and never changes the table filters.
+   */
+  submitDirectSearch(): void {
+    const query = this.directSearchQuery.trim();
+    if (!query) {
+      this.directSearchError.set('Enter a parcel number to track.');
+      return;
+    }
+    if (!/^[A-Za-z0-9][A-Za-z0-9-]{2,63}$/.test(query)) {
+      this.directSearchError.set('Parcel numbers contain only letters, numbers and hyphens.');
+      return;
+    }
+    if (this.isDirectSearching()) return;
+    this.directSearchError.set(null);
+    this.isDirectSearching.set(true);
+    this.directSearchSubscription?.unsubscribe();
+    this.directSearchSubscription = this.merchantService
+      .getOrders({ trackingNumber: query, page: 0, size: 10 })
+      .pipe(finalize(() => this.isDirectSearching.set(false)))
+      .subscribe({
+        next: (res) => {
+          const match = res.content.find((order) => order.trackingNumber.toLowerCase() === query.toLowerCase());
+          if (match) {
+            this.viewOrderDetails(match);
+          } else {
+            this.directSearchError.set(`No parcel found with number ${query}. Check the number and try again.`);
+          }
+        },
+        error: (error: HttpErrorResponse) => {
+          this.directSearchError.set(error?.status === 401
+            ? 'Your session has expired. Sign in and try again.'
+            : 'Parcel search is unavailable right now. Please try again.');
+        },
+      });
   }
 
   onDateFilterChange(): void {
@@ -1795,6 +2524,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
   }
 
   resetFilters(): void {
+    this.clearSearchDebounce();
     this.selectedStatusFilter.set('ALL');
     this.searchQuery = '';
     this.fromDate = '';
@@ -1836,25 +2566,138 @@ export class MerchantComponent implements OnInit, OnDestroy {
     }
   }
 
+  webhookStatusLabel(): 'Enabled' | 'Disabled' | 'Not Configured' {
+    const s = this.settings();
+    if (!s || !s.url) {
+      return 'Not Configured';
+    }
+    return s.active ? 'Enabled' : 'Disabled';
+  }
+
+  webhookStatusTone(): 'success' | 'warning' | 'neutral' {
+    const s = this.settings();
+    if (!s || !s.url) {
+      return 'neutral';
+    }
+    return s.active ? 'success' : 'warning';
+  }
+
+  startEditingWebhook(): void {
+    const s = this.settings();
+    if (s) {
+      this.settingsForm = {
+        url: s.url || '',
+        active: s.active,
+        subscribedEvents: [...s.subscribedEvents],
+      };
+    }
+    this.settingsError.set(null);
+    this.isEditingWebhook.set(true);
+  }
+
+  cancelEditingWebhook(): void {
+    const s = this.settings();
+    if (s) {
+      this.settingsForm = {
+        url: s.url || '',
+        active: s.active,
+        subscribedEvents: [...s.subscribedEvents],
+      };
+    }
+    this.settingsError.set(null);
+    this.isEditingWebhook.set(false);
+  }
+
+  humanReadableEvent(eventType: string): string {
+    switch (eventType) {
+      case 'PARCEL_STATUS_CHANGED':
+        return 'Parcel Status Changes';
+      case 'PARCEL_CREATED':
+        return 'Order Creation';
+      default:
+        return eventType;
+    }
+  }
+
   saveSettings(): void {
     this.submitSettings(false);
   }
 
+  /** Opens the SwiftDrop confirmation dialog. Nothing is regenerated until the merchant confirms. */
   regenerateSecret(): void {
-    if (this.isSavingSettings() || this.isLoadingSettings()) return;
-    if (confirm('Are you sure you want to regenerate your HMAC signing secret? Outbound signatures will immediately use the new secret.')) {
-      this.submitSettings(true);
+    if (this.isSavingSettings() || this.isLoadingSettings() || this.isRegenerateConfirmOpen()) return;
+    this.regenerateTrigger = typeof document !== 'undefined' ? document.activeElement as HTMLElement | null : null;
+    this.isRegenerateConfirmOpen.set(true);
+    setTimeout(() => this.regenerateDialog()?.nativeElement.querySelector<HTMLElement>('#cancel-regenerate-secret-btn')?.focus());
+  }
+
+  cancelRegenerateSecret(): void {
+    if (this.isRegeneratingSecret()) return;
+    this.closeRegenerateDialog();
+  }
+
+  confirmRegenerateSecret(): void {
+    if (this.isRegeneratingSecret() || !this.isRegenerateConfirmOpen()) return;
+    this.isRegeneratingSecret.set(true);
+    const started = this.submitSettings(true, (succeeded) => {
+      this.isRegeneratingSecret.set(false);
+      // Close on success; on failure the error is shown on the page and in notifications.
+      this.closeRegenerateDialog(succeeded ? '#dismiss-signing-secret-btn' : null);
+    });
+    if (!started) {
+      this.isRegeneratingSecret.set(false);
+      this.closeRegenerateDialog();
     }
   }
 
-  private submitSettings(regenerateSecret: boolean): void {
-    if (this.isSavingSettings() || this.isLoadingSettings() || !this.settings()) return;
+  /** Escape closes, Tab cycles focus within the dialog. */
+  onRegenerateDialogKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelRegenerateSecret();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(
+      this.regenerateDialog()?.nativeElement.querySelectorAll<HTMLElement>('button:not([disabled])') ?? []);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  private closeRegenerateDialog(focusSelector: string | null = null): void {
+    this.isRegenerateConfirmOpen.set(false);
+    const trigger = this.regenerateTrigger;
+    this.regenerateTrigger = null;
+    setTimeout(() => {
+      const target = focusSelector && typeof document !== 'undefined'
+        ? document.querySelector<HTMLElement>(focusSelector)
+        : null;
+      (target ?? trigger)?.focus?.();
+    });
+  }
+
+  /** Returns false when the request was not sent (busy or invalid form). */
+  private submitSettings(regenerateSecret: boolean, onDone?: (succeeded: boolean) => void): boolean {
+    if (this.isSavingSettings() || this.isLoadingSettings() || !this.settings()) return false;
     this.settingsError.set(null);
     const url = this.settingsForm.url.trim();
     if (!this.isHttpsUrl(url)) {
       this.settingsError.set('Enter a valid public HTTPS destination URL.');
-      this.notifyMerchant('Webhook settings not saved', this.settingsError()!, 'error');
-      return;
+      this.notifyMerchant(regenerateSecret ? 'Signing secret not regenerated' : 'Webhook settings not saved',
+        this.settingsError()!, 'error');
+      return false;
     }
     this.isSavingSettings.set(true);
     this.merchantService.updateWebhookSettings(
@@ -1863,15 +2706,27 @@ export class MerchantComponent implements OnInit, OnDestroy {
       next: (updated) => {
         this.settings.set(updated);
         this.settingsForm.url = updated.url || '';
-        this.notifyMerchant('Webhook settings saved', updated.rawSecret
-          ? 'Copy the new signing secret now.'
-          : 'Your webhook configuration was saved successfully.');
+        this.isEditingWebhook.set(false);
+        if (regenerateSecret) {
+          this.notifyMerchant('Signing secret regenerated', updated.rawSecret
+            ? 'Copy the new signing secret now. It is shown only once.'
+            : 'Your webhook signing secret was regenerated.');
+        } else {
+          this.notifyMerchant('Webhook settings saved', updated.rawSecret
+            ? 'Copy the new signing secret now.'
+            : 'Your webhook configuration was saved successfully.');
+        }
+        onDone?.(true);
       },
       error: (error: HttpErrorResponse) => {
-        this.settingsError.set(this.apiErrorMessage(error, 'Unable to save webhook settings.'));
-        this.notifyMerchant('Webhook settings not saved', this.settingsError()!, 'error');
+        this.settingsError.set(this.apiErrorMessage(error,
+          regenerateSecret ? 'Unable to regenerate the signing secret.' : 'Unable to save webhook settings.'));
+        this.notifyMerchant(regenerateSecret ? 'Signing secret not regenerated' : 'Webhook settings not saved',
+          this.settingsError()!, 'error');
+        onDone?.(false);
       },
     });
+    return true;
   }
 
   runTestWebhook(): void {
@@ -1904,6 +2759,11 @@ export class MerchantComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Loads one page of delivery logs. Each call cancels the previous in-flight request so a
+   * slower, older response can never overwrite newer filter results. Existing rows stay on
+   * screen (dimmed) until the new page arrives.
+   */
   loadDeliveries(page = this.deliveryPage()): void {
     this.deliverySubscription?.unsubscribe();
     this.deliveryPage.set(page);
@@ -1914,12 +2774,14 @@ export class MerchantComponent implements OnInit, OnDestroy {
       page,
       this.deliveryPageSize(),
       this.selectedDeliveryEvent,
-      this.deliveryFromDate ? new Date(this.deliveryFromDate).toISOString() : undefined,
-      this.deliveryToDate ? new Date(this.deliveryToDate + 'T23:59:59.999Z').toISOString() : undefined)
+      this.localDayBoundary(this.deliveryFromDate, false),
+      this.localDayBoundary(this.deliveryToDate, true))
       .pipe(finalize(() => this.isLoadingDeliveries.set(false))).subscribe({
       next: (result) => {
         this.deliveries.set(result.content);
         this.deliveryTotalElements.set(result.totalElements);
+        this.deliveriesLoaded.set(true);
+        this.lookUpParcelStatuses(result.content);
       },
       error: (error: HttpErrorResponse) => {
         this.deliveries.set([]);
@@ -1932,6 +2794,84 @@ export class MerchantComponent implements OnInit, OnDestroy {
 
   onDeliveryFilterChange(): void {
     this.loadDeliveries(0);
+  }
+
+  hasActiveDeliveryFilters(): boolean {
+    return this.selectedDeliveryFilter() !== 'ALL' ||
+      this.selectedDeliveryEvent !== 'ALL' ||
+      !!this.deliveryFromDate ||
+      !!this.deliveryToDate;
+  }
+
+  onDeliveryStatusFilterChange(status: string): void {
+    if (this.selectedDeliveryFilter() === status) return;
+    this.selectedDeliveryFilter.set(status);
+    this.loadDeliveries(0);
+  }
+
+  /** Manual date edits keep the merchant's dates and deselect the preset once it no longer matches. */
+  onDeliveryDateChange(): void {
+    if (this.last7DaysActive()) {
+      const range = this.last7DaysRange();
+      if (this.deliveryFromDate !== range.from || this.deliveryToDate !== range.to) {
+        this.last7DaysActive.set(false);
+      }
+    }
+    this.loadDeliveries(0);
+  }
+
+  resetDeliveryFilters(): void {
+    this.selectedDeliveryFilter.set('ALL');
+    this.selectedDeliveryEvent = 'ALL';
+    this.deliveryFromDate = '';
+    this.deliveryToDate = '';
+    this.last7DaysActive.set(false);
+    this.loadDeliveries(0);
+  }
+
+  isLast7DaysActive(): boolean {
+    return this.last7DaysActive();
+  }
+
+  /** Toggles the Last 7 Days preset (merchant-local calendar dates). Clicking again removes it. */
+  applyLast7DaysFilter(): void {
+    if (this.last7DaysActive()) {
+      this.last7DaysActive.set(false);
+      this.deliveryFromDate = '';
+      this.deliveryToDate = '';
+      this.loadDeliveries(0);
+      return;
+    }
+    const range = this.last7DaysRange();
+    this.deliveryFromDate = range.from;
+    this.deliveryToDate = range.to;
+    this.last7DaysActive.set(true);
+    this.loadDeliveries(0);
+  }
+
+  private last7DaysRange(): { from: string; to: string } {
+    const today = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    return { from: this.toLocalDateInput(sevenDaysAgo), to: this.toLocalDateInput(today) };
+  }
+
+  /** Converts a yyyy-MM-dd date input (merchant local calendar day) to a UTC instant boundary. */
+  private localDayBoundary(date: string, endOfDay: boolean): string | undefined {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date?.trim() ?? '');
+    if (!match) {
+      return undefined;
+    }
+    const [year, month, day] = [Number(match[1]), Number(match[2]) - 1, Number(match[3])];
+    const boundary = endOfDay
+      ? new Date(year, month, day, 23, 59, 59, 999)
+      : new Date(year, month, day, 0, 0, 0, 0);
+    return boundary.toISOString();
+  }
+
+  private toLocalDateInput(date: Date): string {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   }
 
   copyToClipboard(text: string, label: string): void {
@@ -1971,22 +2911,190 @@ export class MerchantComponent implements OnInit, OnDestroy {
   inspectDelivery(item: WebhookDeliveryItem): void {
     this.diagnosticTab.set('overview');
     this.detailSubscription?.unsubscribe();
-    this.deliveryError.set(null);
+    this.deliveryActionError.set(null);
+    if (!this.selectedDelivery() && typeof document !== 'undefined') {
+      this.diagnosticsTrigger = document.activeElement as HTMLElement | null;
+    }
     this.detailSubscription = this.merchantService.getDeliveryDetail(item.deliveryId).subscribe({
-      next: (detail) => this.selectedDelivery.set({
-        ...item,
-        ...detail,
-        httpStatusCode: detail.httpStatusCode === null ? undefined : detail.httpStatusCode,
-        lastAttemptAt: detail.lastAttemptAt ?? undefined,
-        payloadJson: detail.payload == null ? undefined : JSON.stringify(detail.payload, null, 2),
-        requestHeaders: detail.requestHeaders || undefined,
-        responseHeaders: detail.responseHeaders || undefined,
-        responseBody: detail.responseBody || undefined,
-      }),
-      error: (error: HttpErrorResponse) => {
-        this.deliveryError.set(this.apiErrorMessage(error, 'Unable to load delivery details.'));
-        this.notifyMerchant('Delivery details unavailable', this.deliveryError()!, 'error');
+      next: (detail) => {
+        this.rememberParcelStatus(item.deliveryId, detail.payload);
+        const wasOpen = !!this.selectedDelivery();
+        this.selectedDelivery.set({
+          ...item,
+          ...detail,
+          httpStatusCode: detail.httpStatusCode === null ? undefined : detail.httpStatusCode,
+          lastAttemptAt: detail.lastAttemptAt ?? undefined,
+          payloadJson: detail.payload == null ? undefined : JSON.stringify(detail.payload, null, 2),
+          requestHeaders: detail.requestHeaders || undefined,
+          responseHeaders: detail.responseHeaders || undefined,
+          responseBody: detail.responseBody || undefined,
+        });
+        if (!wasOpen) {
+          setTimeout(() => document.getElementById('webhook-diagnostics-dialog')?.focus());
+        }
       },
+      error: (error: HttpErrorResponse) => {
+        this.deliveryActionError.set(this.apiErrorMessage(error, 'Unable to load delivery details.'));
+        this.notifyMerchant('Delivery details unavailable', this.deliveryActionError()!, 'error');
+      },
+    });
+  }
+
+  closeDiagnostics(): void {
+    this.detailSubscription?.unsubscribe();
+    this.selectedDelivery.set(null);
+    const trigger = this.diagnosticsTrigger;
+    this.diagnosticsTrigger = null;
+    if (trigger) setTimeout(() => trigger.focus?.());
+  }
+
+  /** Arrow/Home/End keyboard navigation between diagnostics tabs (WAI-ARIA tabs pattern). */
+  onDiagnosticTabKeydown(event: KeyboardEvent): void {
+    const ids = this.diagnosticTabs.map((tab) => tab.id);
+    const index = ids.indexOf(this.diagnosticTab());
+    let next: number | null = null;
+    if (event.key === 'ArrowRight') next = (index + 1) % ids.length;
+    if (event.key === 'ArrowLeft') next = (index - 1 + ids.length) % ids.length;
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = ids.length - 1;
+    if (next === null) return;
+    event.preventDefault();
+    this.diagnosticTab.set(ids[next]);
+    if (typeof document !== 'undefined') {
+      document.getElementById(`diag-tab-${ids[next]}`)?.focus();
+    }
+  }
+
+  /**
+   * Reads the parcel status from each status-change delivery's own signed payload (via the
+   * merchant-scoped detail endpoint) so the log can say "Out for Delivery" instead of a
+   * generic label. Results are cached per delivery; failures fall back to the generic label.
+   */
+  private lookUpParcelStatuses(items: WebhookDeliveryItem[]): void {
+    const known = this.parcelStatusByDelivery();
+    const pending = items
+      // Only for servers that predate the list-level parcelStatus field (undefined, not null).
+      .filter((d) => d.eventType === 'PARCEL_STATUS_CHANGED'
+        && d.parcelStatus === undefined
+        && !known.has(d.deliveryId)
+        && !this.parcelStatusLookupsInFlight.has(d.deliveryId)
+        && !this.parcelStatusLookupsFailed.has(d.deliveryId))
+      .map((d) => d.deliveryId);
+    if (pending.length === 0) return;
+    pending.forEach((id) => this.parcelStatusLookupsInFlight.add(id));
+    const lookup = from(pending).pipe(
+      mergeMap((deliveryId) => this.merchantService.getDeliveryDetail(deliveryId).pipe(
+        map((detail) => ({ deliveryId, payload: detail.payload as unknown, ok: true })),
+        catchError(() => of({ deliveryId, payload: null as unknown, ok: false })),
+      ), PARCEL_STATUS_LOOKUP_CONCURRENCY),
+    ).subscribe(({ deliveryId, payload, ok }) => {
+      this.parcelStatusLookupsInFlight.delete(deliveryId);
+      if (!ok || !this.rememberParcelStatus(deliveryId, payload)) {
+        this.parcelStatusLookupsFailed.add(deliveryId);
+      }
+    });
+    this.parcelStatusLookups.add(lookup);
+  }
+
+  /** Stores a payload's parcel status if (and only if) it is a known lifecycle status. */
+  private rememberParcelStatus(deliveryId: string, payload: unknown): boolean {
+    const status = this.extractParcelStatus(payload);
+    if (!status) return false;
+    if (this.parcelStatusByDelivery().get(deliveryId) !== status) {
+      this.parcelStatusByDelivery.update((current) => new Map(current).set(deliveryId, status));
+    }
+    return true;
+  }
+
+  private extractParcelStatus(payload: unknown): ParcelLifecycleStatus | null {
+    if (typeof payload !== 'object' || payload === null) return null;
+    const parcel = (payload as { parcel?: unknown }).parcel;
+    if (typeof parcel !== 'object' || parcel === null) return null;
+    const { toStatus, status } = parcel as { toStatus?: unknown; status?: unknown };
+    const candidate = typeof toStatus === 'string' ? toStatus : status;
+    return typeof candidate === 'string' && (PARCEL_STATUSES as readonly string[]).includes(candidate)
+      ? candidate as ParcelLifecycleStatus
+      : null;
+  }
+
+  /** Merchant-facing description of what happened to the parcel (not the notification). */
+  deliveryEventLabel(delivery: Pick<WebhookDeliveryItem, 'deliveryId' | 'eventType' | 'parcelStatus'>): string {
+    if (delivery.eventType === 'PARCEL_STATUS_CHANGED') {
+      const listed = delivery.parcelStatus;
+      const status = listed && (PARCEL_STATUSES as readonly string[]).includes(listed)
+        ? listed
+        : this.parcelStatusByDelivery().get(delivery.deliveryId);
+      return status ? PARCEL_UPDATE_LABELS[status] : this.humanReadableDeliveryEvent(delivery.eventType);
+    }
+    return this.humanReadableDeliveryEvent(delivery.eventType);
+  }
+
+  /** Attempts made by the automatic cycle (each manual retry is a single attempt). */
+  automaticAttemptCount(delivery: WebhookDeliveryItem): number {
+    const total = delivery.totalAttempts ?? delivery.attempts;
+    return Math.max(0, total - (delivery.manualRetryCount ?? 0));
+  }
+
+  /** Whether the notification reached the merchant's store (not the physical parcel). */
+  notificationStatusSummary(status: WebhookDeliveryStatus): string {
+    switch (status) {
+      case 'SUCCESS':
+        return 'Notification Delivered';
+      case 'FAILED':
+        return 'Notification Failed';
+      case 'PENDING_RETRY':
+        return 'Retry Scheduled';
+      case 'PENDING':
+        return 'Sending';
+      case 'CANCELLED':
+        return 'Notification Cancelled';
+      default:
+        return status;
+    }
+  }
+
+  /** Plain-language reading of the store's HTTP response; the raw code is shown alongside. */
+  storeResponseSummary(statusCode?: number | null): string {
+    if (!statusCode) return 'No response from store';
+    if (statusCode >= 200 && statusCode < 300) return 'Accepted by your store';
+    if (statusCode === 408 || statusCode === 504) return 'Store timed out';
+    if (statusCode === 429) return 'Store is rate limiting';
+    if (statusCode === 502 || statusCode === 503) return 'Store unavailable';
+    if (statusCode >= 500) return 'Store error';
+    if (statusCode >= 400) return 'Rejected by your store';
+    return 'Unexpected response';
+  }
+
+  /** The X-SwiftDrop-Signature request header (the HMAC signature, not the secret). */
+  signatureHeader(delivery: WebhookDeliveryItem): string | null {
+    const headers = delivery.requestHeaders;
+    if (!headers) return null;
+    const key = Object.keys(headers).find((name) => name.toLowerCase() === 'x-swiftdrop-signature');
+    return key ? headers[key] : null;
+  }
+
+  /**
+   * Labels attempts by retry cycle. The backend numbers the automatic cycle 1..5 and restarts
+   * at 1 for each manual retry (only a manual retry resets the counter), so an attempt number
+   * that does not increase marks the start of a new, manual cycle. Order stays chronological.
+   */
+  attemptHistoryRows(history: readonly DeliveryAttempt[]): AttemptHistoryRow[] {
+    const chronological = history
+      .map((attempt, index) => ({ attempt, index }))
+      .sort((a, b) => (Date.parse(a.attempt.attemptedAt) - Date.parse(b.attempt.attemptedAt)) || (a.index - b.index))
+      .map(({ attempt }) => attempt);
+    let cycle = 0;
+    let previous: number | null = null;
+    return chronological.map((attempt) => {
+      if (previous !== null && attempt.attemptNumber <= previous) cycle++;
+      previous = attempt.attemptNumber;
+      const manual = cycle > 0;
+      const label = !manual
+        ? `Attempt #${attempt.attemptNumber}`
+        : attempt.attemptNumber > 1
+          ? `Manual Retry #${cycle} · Attempt #${attempt.attemptNumber}`
+          : `Manual Retry #${cycle}`;
+      return { attempt, cycle, manual, label };
     });
   }
 
@@ -1999,7 +3107,7 @@ export class MerchantComponent implements OnInit, OnDestroy {
     this.merchantService.retryDelivery(deliveryId)
       .pipe(finalize(() => this.retryingDeliveryId.set(null))).subscribe({
       next: (updated) => {
-        this.notifyMerchant('Delivery retry accepted', `Retry status: ${updated.status}.`);
+        this.notifyMerchant('Delivery retry accepted', `Retry status: ${this.getDeliveryStatusLabel(updated.status)}.`);
         this.loadDeliveries();
         const selected = this.selectedDelivery();
         if (selected?.deliveryId === deliveryId) {
@@ -2007,10 +3115,101 @@ export class MerchantComponent implements OnInit, OnDestroy {
         }
       },
       error: (error: HttpErrorResponse) => {
-        this.deliveryError.set(this.apiErrorMessage(error, 'Unable to retry delivery.'));
-        this.notifyMerchant('Delivery retry failed', this.deliveryError()!, 'error');
+        this.deliveryActionError.set(this.apiErrorMessage(error, 'Unable to retry delivery.'));
+        this.notifyMerchant('Delivery retry failed', this.deliveryActionError()!, 'error');
       },
     });
+  }
+
+  getDeliveryStatusLabel(status: WebhookDeliveryStatus): string {
+    switch (status) {
+      case 'SUCCESS':
+        return 'Delivered';
+      case 'PENDING_RETRY':
+        return 'Retrying';
+      case 'FAILED':
+        return 'Failed';
+      case 'CANCELLED':
+        return 'Cancelled';
+      case 'PENDING':
+        return 'Pending';
+      default:
+        return status;
+    }
+  }
+
+  getDeliveryBadgeClass(status: WebhookDeliveryStatus): string {
+    switch (status) {
+      case 'SUCCESS':
+        return 'bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]';
+      case 'FAILED':
+        return 'bg-[#fff1f2] text-[#e11d48] border border-[#fecdd3]';
+      case 'PENDING_RETRY':
+        return 'bg-[#fffbeb] text-[#b45309] border border-[#fde68a]';
+      case 'PENDING':
+        return 'bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe]';
+      case 'CANCELLED':
+      default:
+        return 'bg-[#f1f5f9] text-[#64748b] border border-[#cbd5e1]';
+    }
+  }
+
+  getHttpCodeExplanation(statusCode?: number): string {
+    if (!statusCode) {
+      return 'Connection Failed';
+    }
+    switch (statusCode) {
+      case 200:
+        return '200 OK';
+      case 201:
+        return '201 Created';
+      case 202:
+        return '202 Accepted';
+      case 204:
+        return '204 No Content';
+      case 400:
+        return '400 Bad Request';
+      case 401:
+        return '401 Unauthorized';
+      case 403:
+        return '403 Forbidden';
+      case 404:
+        return '404 Not Found';
+      case 408:
+        return '408 Request Timeout';
+      case 410:
+        return '410 Gone';
+      case 422:
+        return '422 Unprocessable';
+      case 429:
+        return '429 Rate Limited';
+      case 500:
+        return '500 Server Error';
+      case 502:
+        return '502 Bad Gateway';
+      case 503:
+        return '503 Unavailable';
+      case 504:
+        return '504 Gateway Timeout';
+      default:
+        if (statusCode >= 200 && statusCode < 300) return `${statusCode} Success`;
+        if (statusCode >= 400 && statusCode < 500) return `${statusCode} Client Error`;
+        if (statusCode >= 500 && statusCode < 600) return `${statusCode} Server Error`;
+        return `${statusCode}`;
+    }
+  }
+
+  humanReadableDeliveryEvent(eventType: string): string {
+    switch (eventType) {
+      case 'PARCEL_STATUS_CHANGED':
+        return 'Parcel Status Changed';
+      case 'PARCEL_CREATED':
+        return 'Order Created';
+      case 'TEST_EVENT':
+        return 'Test Notification';
+      default:
+        return eventType;
+    }
   }
 
   private isHttpsUrl(value: string): boolean {
@@ -2055,19 +3254,6 @@ export class MerchantComponent implements OnInit, OnDestroy {
         return 'bg-[#f0fdf4] text-[#15803d] border border-[#bbf7d0]';
       default:
         return 'bg-[#faf6f0] text-[#a53a26] border border-[#a53a26]/20';
-    }
-  }
-
-  getDeliveryBadgeClass(status: WebhookDeliveryStatus): string {
-    switch (status) {
-      case 'SUCCESS':
-        return 'bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]';
-      case 'FAILED':
-        return 'bg-[#fff1f2] text-[#e11d48] border border-[#fecdd3]';
-      case 'PENDING_RETRY':
-        return 'bg-[#fffbeb] text-[#b45309] border border-[#fde68a]';
-      default:
-        return 'bg-[#f1f5f9] text-[#64748b] border border-[#cbd5e1]';
     }
   }
 }

@@ -18,8 +18,10 @@ import java.nio.charset.StandardCharsets;
 public class WebhookKafkaConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(WebhookKafkaConsumer.class);
-    static final String MAIN_TOPIC = "parcel.status-changed.v1";
-    static final String RETRY_TOPIC_PREFIX = MAIN_TOPIC + ".webhook.retry-";
+    static final String STATUS_CHANGED_TOPIC = "parcel.status-changed.v1";
+    static final String PARCEL_CREATED_TOPIC = "parcel.created.v1";
+    static final String MAIN_TOPIC = STATUS_CHANGED_TOPIC;
+    static final String RETRY_TOPIC_PREFIX = ".webhook.retry-";
 
     static final String EXCEPTION_HEADER = "x-exception-message";
     static final String DELIVERY_ID_HEADER = "x-delivery-id";
@@ -44,10 +46,13 @@ public class WebhookKafkaConsumer {
             traversingCauses = "true"
     )
     @KafkaListener(
-            topics = "${swiftdrop.kafka.topics.parcel-status-changed:parcel.status-changed.v1}",
+            topics = {
+                "${swiftdrop.kafka.topics.parcel-status-changed:parcel.status-changed.v1}",
+                "${swiftdrop.kafka.topics.parcel-created:parcel.created.v1}"
+            },
             groupId = "integration-webhook"
     )
-    public void onParcelStatusChanged(ConsumerRecord<String, String> record) {
+    public void onParcelLifecycleEvent(ConsumerRecord<String, String> record) {
         EventEnvelope event;
         try {
             event = objectMapper.readValue(record.value(), EventEnvelope.class);
@@ -55,8 +60,8 @@ public class WebhookKafkaConsumer {
             throw new TerminalWebhookFailure("Malformed webhook event envelope");
         }
 
-        WebhookService.DeliveryOutcome outcome = webhookService.processParcelStatusChangedEvent(
-                event, record.topic().startsWith(RETRY_TOPIC_PREFIX));
+        boolean isRetry = record.topic() != null && record.topic().contains(RETRY_TOPIC_PREFIX);
+        WebhookService.DeliveryOutcome outcome = webhookService.processParcelLifecycleEvent(event, isRetry);
         if (outcome.disposition() == WebhookService.DeliveryDisposition.RETRYABLE_FAILURE
                 || outcome.disposition() == WebhookService.DeliveryDisposition.TERMINAL_FAILURE) {
             addFailureHeaders(record, outcome);
@@ -78,9 +83,20 @@ public class WebhookKafkaConsumer {
 
     private void addFailureHeaders(ConsumerRecord<String, String> record, WebhookService.DeliveryOutcome outcome) {
         putHeader(record, EXCEPTION_HEADER, outcome.errorMessage());
-        putHeader(record, DELIVERY_ID_HEADER, outcome.deliveryId().toString());
-        putHeader(record, MERCHANT_ID_HEADER, outcome.merchantId().toString());
-        putHeader(record, ORIGINAL_TOPIC_HEADER, MAIN_TOPIC);
+        putHeader(record, DELIVERY_ID_HEADER, outcome.deliveryId() != null ? outcome.deliveryId().toString() : null);
+        putHeader(record, MERCHANT_ID_HEADER, outcome.merchantId() != null ? outcome.merchantId().toString() : null);
+        putHeader(record, ORIGINAL_TOPIC_HEADER, resolveOriginalTopic(record));
+    }
+
+    static String resolveOriginalTopic(ConsumerRecord<String, String> record) {
+        String topic = record.topic();
+        if (topic != null && topic.contains(".webhook.retry")) {
+            return topic.substring(0, topic.indexOf(".webhook.retry"));
+        }
+        if (topic != null && topic.contains(".webhook.dlt")) {
+            return topic.substring(0, topic.indexOf(".webhook.dlt"));
+        }
+        return topic != null ? topic : MAIN_TOPIC;
     }
 
     private void putHeader(ConsumerRecord<String, String> record, String name, String value) {

@@ -31,7 +31,7 @@ import { MerchantCredentialClaim, MerchantNotification, MerchantNotificationsSer
             <div class="flex items-center gap-2"><span class="text-sm font-black text-[#1d1b2c]">Notifications</span>
               @if (notifications.unreadCount() > 0) { <span class="rounded-full bg-[#a53a26] px-2 py-0.5 text-[10px] font-bold text-white">{{ notifications.unreadCount() }} new</span> }
             </div>
-            @if (notifications.unreadCount() > 0) { <button type="button" id="merchant-notification-mark-all" (click)="notifications.markAllRead()" class="text-xs font-bold text-[#a53a26] hover:underline cursor-pointer">Mark all read</button> }
+            @if (notifications.unreadCount() > 0) { <button type="button" id="merchant-notification-mark-all" (click)="notifications.markAllRead()" class="rounded-full px-2.5 py-1 text-xs font-bold text-[#a53a26] transition-colors hover:bg-[#faf0ec] hover:text-[#7e2615] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a53a26]/40 cursor-pointer">Mark all read</button> }
           </div>
           @if (notifications.notifications().length === 0) {
             <div id="merchant-notification-empty" class="px-4 py-8 text-center"><p class="text-sm font-bold text-[#1d1b2c]">You're all caught up</p><p class="mt-1 text-xs text-[#6f6d85]">Merchant portal activity will appear here.</p></div>

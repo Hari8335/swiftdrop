@@ -15,6 +15,12 @@ public record WebhookDeliveryLogItem(
         Instant lastAttemptAt,
         Instant nextRetryAt,
         String errorSummary,
-        Instant createdAt
+        Instant createdAt,
+        /** Parcel lifecycle status from the signed payload (parcel.toStatus); null when not applicable. */
+        String parcelStatus,
+        /** All recorded attempts across automatic and manual retry cycles. */
+        int totalAttempts,
+        /** Manual retry cycles started by the merchant (each restarts the attempt counter at 1). */
+        int manualRetryCount
 ) {
 }

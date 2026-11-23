@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   MerchantOrderFilterParams,
+  MerchantProfile,
   MerchantOrderDetails,
   MerchantOrderListPage,
   OrderCounts,
@@ -16,10 +17,6 @@ import {
 export class MerchantService {
   private readonly http = inject(HttpClient);
   private readonly webhookUrl = '/api/v1/merchant/webhooks';
-
-  getMerchantProfile(): Observable<{ businessName: string }> {
-    return this.http.get<{ businessName: string }>('/api/v1/merchant/profile');
-  }
 
   getOrders(
     paramsOrStatus?: MerchantOrderFilterParams | string,
@@ -56,6 +53,11 @@ export class MerchantService {
     }
 
     return this.http.get<MerchantOrderListPage>('/api/v1/merchant/orders', { params });
+  }
+
+  /** Business identity of the signed-in merchant (resolved server-side from the token). */
+  getMerchantProfile(): Observable<MerchantProfile> {
+    return this.http.get<MerchantProfile>('/api/v1/merchant/profile');
   }
 
   getOrderCounts(): Observable<OrderCounts> {

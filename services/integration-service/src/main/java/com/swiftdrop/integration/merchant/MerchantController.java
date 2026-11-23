@@ -1,6 +1,5 @@
 package com.swiftdrop.integration.merchant;
 
-import com.swiftdrop.common.security.CurrentUser;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.CacheControl;
@@ -20,11 +19,9 @@ import org.springframework.web.server.ResponseStatusException;
 public class MerchantController {
 
     private final MerchantService merchantService;
-    private final MerchantIdentityResolver identityResolver;
 
-    public MerchantController(MerchantService merchantService, MerchantIdentityResolver identityResolver) {
+    public MerchantController(MerchantService merchantService) {
         this.merchantService = merchantService;
-        this.identityResolver = identityResolver;
     }
 
     @PostMapping("/api/v1/merchants/register")
@@ -32,15 +29,6 @@ public class MerchantController {
             @Valid @RequestBody MerchantRegistrationRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(merchantService.register(request));
     }
-
-    @GetMapping("/api/v1/merchant/profile")
-    public ResponseEntity<MerchantPortalProfile> profile() {
-        Merchant merchant = identityResolver.requirePortalUserMerchant(CurrentUser.require());
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                .body(new MerchantPortalProfile(merchant.getBusinessName()));
-    }
-
-    public record MerchantPortalProfile(String businessName) {}
 
     @GetMapping("/api/v1/admin/merchants")
     public MerchantPageResponse list(@RequestParam(required = false) MerchantStatus status,
