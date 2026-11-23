@@ -222,6 +222,35 @@ public class PasswordResetService {
         );
     }
 
+    public void changeDirectPassword(String userId, String email, String currentPassword, String newPassword, String ipAddress) {
+        validatePassword(newPassword);
+        User user = null;
+        if (userId != null && !userId.isBlank()) {
+            user = userRepository.findById(userId).orElse(null);
+        }
+        if (user == null && email != null && !email.isBlank()) {
+            user = userRepository.findByEmailIgnoreCase(email.trim()).orElse(null);
+        }
+        if (user == null) {
+            throw new InvalidResetTokenException("Authenticated user not found.");
+        }
+        if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password does not match.");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+        auditService.record(
+                user.getId(),
+                user.getRole(),
+                "ADMIN_PASSWORD_RESET",
+                "USER",
+                user.getId(),
+                Map.of("ipAddress", ipAddress != null ? ipAddress : "UNKNOWN",
+                        "email", user.getEmail() != null ? user.getEmail() : "")
+        );
+    }
+
     private void validatePassword(String password) {
         if (password == null || password.length() < 8 || password.length() > 128) {
             throw new IllegalArgumentException("Password must be between 8 and 128 characters");

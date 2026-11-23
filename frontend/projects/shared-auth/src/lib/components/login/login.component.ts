@@ -121,7 +121,7 @@ import { AuthRole, LoginRequest } from '../../models/auth.models';
               </button>
             </form>
 
-            @if (selectedRole() === 'CUSTOMER') {
+            @if (selectedRole() !== 'ADMIN') {
               <div class="oauth-divider">
                 <span>or</span>
               </div>
@@ -143,8 +143,12 @@ import { AuthRole, LoginRequest } from '../../models/auth.models';
             }
 
             <div class="auth-footer">
-              @if (selectedRole() === 'CUSTOMER' || selectedRole() === 'MERCHANT') {
-                <p>Don't have an account? <a routerLink="/register">Customer signup</a> or <a routerLink="/merchant-registration">Merchant partner</a></p>
+              @if (selectedRole() === 'CUSTOMER') {
+                <p>Don't have an account? <a routerLink="/register">Customer signup</a></p>
+              } @else if (selectedRole() === 'MERCHANT') {
+                <p>Don't have an account? <a routerLink="/merchant-registration">Merchant signup</a></p>
+              } @else if (selectedRole() === 'ADMIN') {
+                <p>Restricted access for authorized administrators only.</p>
               } @else {
                 <p>Need an account? {{ currentRoleMeta().label }} accounts are created by your SwiftDrop administrator.</p>
               }
@@ -429,6 +433,26 @@ export class LoginComponent implements OnInit {
     if (roleParam && (roleParam === 'CUSTOMER' || roleParam === 'MERCHANT' || roleParam === 'ADMIN' || roleParam === 'DISPATCHER' || roleParam === 'COURIER')) {
       this.selectedRole.set(roleParam as AuthRole);
     }
+
+    const errorParam = this.route?.snapshot.queryParamMap.get('error');
+    if (errorParam === 'no_dispatcher_account') {
+      this.errorMessage.set('No Dispatcher account found for this Google email. An administrator must create your Dispatcher account first.');
+    } else if (errorParam === 'no_courier_account') {
+      this.errorMessage.set('No Courier account found for this Google email. An administrator must create your Courier account first.');
+    } else if (errorParam === 'no_merchant_account') {
+      this.errorMessage.set('No approved Merchant account found for this Google email. Signup first for admin approval.');
+    } else if (errorParam === 'no_admin_account') {
+      this.errorMessage.set('No Admin account found for this Google email. Administrator accounts cannot be created via Google sign-in.');
+    } else if (errorParam === 'account_disabled') {
+      this.errorMessage.set('Your SwiftDrop account is disabled. Please contact support.');
+    } else if (errorParam) {
+      this.errorMessage.set('Google sign-in failed. Please try again or use your password.');
+    }
+
+    if (errorParam && typeof window !== 'undefined') {
+      const cleanUrl = roleParam ? `/login?role=${roleParam}` : '/login';
+      window.history.replaceState({}, '', cleanUrl);
+    }
   }
 
   readonly roles = [
@@ -439,8 +463,8 @@ export class LoginComponent implements OnInit {
     { id: 'COURIER' as const, label: 'Courier', placeholder: 'courier@swiftdrop.lk', target: '/courier', desc: 'View assigned deliveries and update delivery status' },
   ];
 
-  /** The sample-credentials shortcut is for local development only, never production builds. */
-  readonly showSampleCredentials = isDevMode();
+  /** Sample credentials shortcut hidden. */
+  readonly showSampleCredentials = false;
 
   /** Text beside the form, matching how each role gets and uses its account. */
   readonly heroCopy = computed(() => {
@@ -488,8 +512,11 @@ export class LoginComponent implements OnInit {
   });
 
   selectRole(role: AuthRole): void {
-    this.selectedRole.set(role);
-    this.errorMessage.set(null);
+    if (this.selectedRole() !== role) {
+      this.selectedRole.set(role);
+      this.errorMessage.set(null);
+      this.loginForm.reset({ email: '', password: '' });
+    }
   }
 
   togglePasswordVisibility(): void {
@@ -515,7 +542,7 @@ export class LoginComponent implements OnInit {
     this.errorMessage.set(null);
     this.isLoading.set(true);
     try {
-      this.authService.loginWithGoogle();
+      this.authService.loginWithGoogle(this.selectedRole());
     } catch {
       this.isLoading.set(false);
       this.errorMessage.set('Unable to initiate Google sign-in. Please try again.');

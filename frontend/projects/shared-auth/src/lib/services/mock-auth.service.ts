@@ -175,7 +175,7 @@ export class MockAuthService {
     return of(undefined).pipe(delay(100));
   }
 
-  loginWithGoogle(): void {
+  loginWithGoogle(_role?: string): void {
     // Stub for mock
   }
 

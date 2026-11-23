@@ -101,6 +101,12 @@ export const routes: Routes = [
       import('./pages/admin/reports.component').then((m) => m.ReportsComponent),
   },
   {
+    path: 'admin/settings',
+    canActivate: [roleGuard(['ADMIN'])],
+    loadComponent: () =>
+      import('./pages/admin/admin-settings.component').then((m) => m.AdminSettingsComponent),
+  },
+  {
     // One dispatcher portal: shared sidebar + header, six pages inside it.
     path: 'dispatch',
     canActivate: [roleGuard(['DISPATCHER'])],

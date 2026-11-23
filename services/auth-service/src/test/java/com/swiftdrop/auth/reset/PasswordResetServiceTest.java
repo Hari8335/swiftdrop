@@ -278,5 +278,34 @@ class PasswordResetServiceTest {
         verify(userRepository, never()).save(any());
         verify(refreshTokenRepository, never()).revokeByUserId(any());
     }
+
+    @Test
+    @DisplayName("changeDirectPassword with correct currentPassword updates password hash and saves user")
+    void changeDirectPassword_validEmailAndCurrentPassword_updatesPassword() {
+        User user = new User("usr-admin", "admin@swiftdrop.lk", "OldHash", "Admin User", null, "ADMIN", true, null);
+        when(userRepository.findByEmailIgnoreCase("admin@swiftdrop.lk")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("OldSecret123!", "OldHash")).thenReturn(true);
+        when(passwordEncoder.encode("NewSecret123!")).thenReturn("NewEncodedHash");
+
+        resetService.changeDirectPassword(null, "admin@swiftdrop.lk", "OldSecret123!", "NewSecret123!", "127.0.0.1");
+
+        assertThat(user.getPasswordHash()).isEqualTo("NewEncodedHash");
+        verify(userRepository).save(user);
+        verify(auditService).record(eq("usr-admin"), eq("ADMIN"), eq("ADMIN_PASSWORD_RESET"), eq("USER"), eq("usr-admin"), any());
+    }
+
+    @Test
+    @DisplayName("changeDirectPassword with incorrect currentPassword throws BAD_REQUEST")
+    void changeDirectPassword_incorrectCurrentPassword_throwsBadRequest() {
+        User user = new User("usr-admin", "admin@swiftdrop.lk", "OldHash", "Admin User", null, "ADMIN", true, null);
+        when(userRepository.findByEmailIgnoreCase("admin@swiftdrop.lk")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("WrongSecret123!", "OldHash")).thenReturn(false);
+
+        assertThatThrownBy(() -> resetService.changeDirectPassword(null, "admin@swiftdrop.lk", "WrongSecret123!", "NewSecret123!", "127.0.0.1"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Current password does not match");
+
+        verify(userRepository, never()).save(any());
+    }
 }
 

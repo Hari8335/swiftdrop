@@ -225,9 +225,68 @@ describe('LoginComponent', () => {
     expect(component.isLoading()).toBe(false);
   });
 
-  it('should trigger loginWithGoogle when Google sign in button is clicked', () => {
+  it('should trigger loginWithGoogle with selected role when Google sign in button is clicked', () => {
+    component.selectRole('DISPATCHER');
     component.onGoogleLogin();
-    expect(authServiceMock.loginWithGoogle).toHaveBeenCalled();
+    expect(authServiceMock.loginWithGoogle).toHaveBeenCalledWith('DISPATCHER');
+  });
+
+  it('should display error message when no_dispatcher_account error queryParam is present', () => {
+    (component as any).route = {
+      snapshot: {
+        queryParamMap: {
+          get: (key: string) => (key === 'error' ? 'no_dispatcher_account' : key === 'role' ? 'DISPATCHER' : null),
+        },
+      },
+    };
+    component.ngOnInit();
+    expect(component.selectedRole()).toBe('DISPATCHER');
+    expect(component.errorMessage()).toContain('No Dispatcher account found for this Google email');
+  });
+
+  it('should display error message when no_courier_account error queryParam is present', () => {
+    (component as any).route = {
+      snapshot: {
+        queryParamMap: {
+          get: (key: string) => (key === 'error' ? 'no_courier_account' : key === 'role' ? 'COURIER' : null),
+        },
+      },
+    };
+    component.ngOnInit();
+    expect(component.selectedRole()).toBe('COURIER');
+    expect(component.errorMessage()).toContain('No Courier account found for this Google email');
+  });
+
+  it('should display error message when no_merchant_account error queryParam is present and clear URL', () => {
+    const replaceSpy = jest.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    (component as any).route = {
+      snapshot: {
+        queryParamMap: {
+          get: (key: string) => (key === 'error' ? 'no_merchant_account' : key === 'role' ? 'MERCHANT' : null),
+        },
+      },
+    };
+    component.ngOnInit();
+    expect(component.selectedRole()).toBe('MERCHANT');
+    expect(component.errorMessage()).toContain('No approved Merchant account found for this Google email. Signup first for admin approval.');
+    expect(replaceSpy).toHaveBeenCalledWith({}, '', '/login?role=MERCHANT');
+    replaceSpy.mockRestore();
+  });
+
+  it('should clear email and password inputs when switching role tab', () => {
+    component.selectRole('CUSTOMER');
+    component.loginForm.setValue({
+      email: 'nirukshith@gmail.com',
+      password: 'MyPassword123!',
+    });
+    expect(component.loginForm.value.email).toBe('nirukshith@gmail.com');
+    expect(component.loginForm.value.password).toBe('MyPassword123!');
+
+    // Switch to COURIER
+    component.selectRole('COURIER');
+    expect(component.selectedRole()).toBe('COURIER');
+    expect(component.loginForm.value.email).toBe('');
+    expect(component.loginForm.value.password).toBe('');
   });
 
   it('should display error message if loginWithGoogle throws', () => {
@@ -317,12 +376,14 @@ describe('LoginComponent', () => {
       expect(el().querySelector('.hero-badge')?.textContent).toContain('Admin sign-in');
     });
 
-    it('offers Google sign-in only on the Customer tab, because Google creates customer accounts', () => {
+    it('offers Google sign-in on all role tabs except Admin', () => {
       expect(el().querySelector('.google-btn')).toBeTruthy();
-      for (const role of ['MERCHANT', 'ADMIN', 'DISPATCHER', 'COURIER'] as const) {
+      for (const role of ['MERCHANT', 'DISPATCHER', 'COURIER'] as const) {
         pick(role);
-        expect(el().querySelector('.google-btn')).toBeNull();
+        expect(el().querySelector('.google-btn')).toBeTruthy();
       }
+      pick('ADMIN');
+      expect(el().querySelector('.google-btn')).toBeNull();
     });
 
     it('tells staff that their accounts come from an administrator instead of offering sign-up', () => {
@@ -335,10 +396,9 @@ describe('LoginComponent', () => {
       expect(el().querySelector('.auth-footer a[href="/merchant-registration"]')).toBeTruthy();
     });
 
-    it('shows the sample-credentials shortcut only in development builds', () => {
-      // Jest runs in dev mode; production builds compile with isDevMode() === false.
-      expect(component.showSampleCredentials).toBe(true);
-      expect(el().querySelector('.sample-link')).toBeTruthy();
+    it('does not show the sample-credentials shortcut', () => {
+      expect(component.showSampleCredentials).toBe(false);
+      expect(el().querySelector('.sample-link')).toBeNull();
     });
   });
 });

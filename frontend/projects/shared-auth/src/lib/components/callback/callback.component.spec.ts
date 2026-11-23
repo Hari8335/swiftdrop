@@ -79,6 +79,45 @@ describe('CallbackComponent', () => {
     expect(router.navigate).not.toHaveBeenCalled();
   });
 
+  it('should redirect to /login with error when no_dispatcher_account error parameter is present', async () => {
+    queryParamMapMock.set('error', 'no_dispatcher_account');
+    createComponent();
+    await fixture.whenStable();
+
+    expect(authServiceMock.initializeSession).not.toHaveBeenCalled();
+    expect(component.isLoading()).toBe(false);
+    expect(router.navigate).toHaveBeenCalledWith(['/login'], {
+      queryParams: { error: 'no_dispatcher_account', role: 'DISPATCHER' },
+      replaceUrl: true,
+    });
+  });
+
+  it('should redirect to /login with error when no_courier_account error parameter is present', async () => {
+    queryParamMapMock.set('error', 'no_courier_account');
+    createComponent();
+    await fixture.whenStable();
+
+    expect(authServiceMock.initializeSession).not.toHaveBeenCalled();
+    expect(component.isLoading()).toBe(false);
+    expect(router.navigate).toHaveBeenCalledWith(['/login'], {
+      queryParams: { error: 'no_courier_account', role: 'COURIER' },
+      replaceUrl: true,
+    });
+  });
+
+  it('should redirect to /login with error when no_merchant_account error parameter is present', async () => {
+    queryParamMapMock.set('error', 'no_merchant_account');
+    createComponent();
+    await fixture.whenStable();
+
+    expect(authServiceMock.initializeSession).not.toHaveBeenCalled();
+    expect(component.isLoading()).toBe(false);
+    expect(router.navigate).toHaveBeenCalledWith(['/login'], {
+      queryParams: { error: 'no_merchant_account', role: 'MERCHANT' },
+      replaceUrl: true,
+    });
+  });
+
   it('should display error message when account_disabled error parameter is present', async () => {
     queryParamMapMock.set('error', 'account_disabled');
     createComponent();

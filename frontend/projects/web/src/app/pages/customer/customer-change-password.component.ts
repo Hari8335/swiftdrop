@@ -1,4 +1,4 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   AuthService,
@@ -44,6 +44,10 @@ type Step = 'start' | 'code' | 'password';
 
       @if (error()) {
       <div role="alert" class="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">{{ error() }}</div>
+      }
+
+      @if (info()) {
+      <div role="status" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">{{ info() }}</div>
       }
 
       @switch (step()) {
@@ -181,6 +185,7 @@ export class CustomerChangePasswordComponent {
   private readonly toast = inject(CustomerToastService);
 
   readonly email = input('');
+  readonly completed = output<void>();
 
   readonly step = signal<Step>('start');
   readonly busy = signal(false);
@@ -271,7 +276,9 @@ export class CustomerChangePasswordComponent {
             this.auth!.setSession(response.accessToken, response.user);
           }
           this.reset();
+          this.info.set('Password successfully updated! Use your new password the next time you sign in.');
           this.toast.success('Password updated', 'Use your new password the next time you sign in.');
+          this.completed.emit();
         },
         error: (err) => {
           this.busy.set(false);
