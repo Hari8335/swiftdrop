@@ -310,4 +310,21 @@ describe('App', () => {
     fixture.detectChanges();
     expect(merchantLink.querySelector('.bg-\\[\\#9b432f\\].rounded-full')).not.toBeNull();
   });
+
+  it('should render the settings links in admin sidebar and header profile', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    jest.spyOn(app, 'isAdminPage').mockReturnValue(true);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const sidebarSettingsBtn = compiled.querySelector('#admin-sidebar-settings-btn');
+    expect(sidebarSettingsBtn).toBeTruthy();
+    expect(sidebarSettingsBtn?.getAttribute('href')).toContain('/admin/settings');
+    expect(sidebarSettingsBtn?.textContent).toContain('Settings');
+
+    const headerProfileLink = compiled.querySelector('#admin-header-profile-link');
+    expect(headerProfileLink).toBeTruthy();
+    expect(headerProfileLink?.getAttribute('href')).toContain('/admin/settings');
+  });
 });

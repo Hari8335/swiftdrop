@@ -138,7 +138,28 @@ export class CallbackComponent implements OnInit {
 
     if (error) {
       this.isLoading.set(false);
-      if (error === 'access_denied') {
+      if (error === 'no_dispatcher_account') {
+        this.errorMessage.set('No Dispatcher account found for this Google email. An administrator must create your Dispatcher account first.');
+        await this.router.navigate(['/login'], {
+          queryParams: { error: 'no_dispatcher_account', role: 'DISPATCHER' },
+          replaceUrl: true,
+        });
+        return;
+      } else if (error === 'no_courier_account') {
+        this.errorMessage.set('No Courier account found for this Google email. An administrator must create your Courier account first.');
+        await this.router.navigate(['/login'], {
+          queryParams: { error: 'no_courier_account', role: 'COURIER' },
+          replaceUrl: true,
+        });
+        return;
+      } else if (error === 'no_merchant_account') {
+        this.errorMessage.set('No approved Merchant account found for this Google email. Signup first for admin approval.');
+        await this.router.navigate(['/login'], {
+          queryParams: { error: 'no_merchant_account', role: 'MERCHANT' },
+          replaceUrl: true,
+        });
+        return;
+      } else if (error === 'access_denied') {
         this.errorMessage.set('Google sign-in was canceled or denied.');
       } else if (error === 'account_disabled') {
         this.errorMessage.set('Your SwiftDrop account is disabled. Please contact support.');

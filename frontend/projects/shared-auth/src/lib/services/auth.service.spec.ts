@@ -318,9 +318,22 @@ describe('AuthService', () => {
     req.flush({ message: 'Password updated successfully.' });
   });
 
+  it('changePassword should post the current and new password and optional email with credentials', () => {
+    service.changePassword('OldP@ssword1!', 'NewP@ssword1!', 'admin@swiftdrop.lk').subscribe();
+
+    const req = httpTesting.expectOne('/api/v1/auth/password/change');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.body).toEqual({ currentPassword: 'OldP@ssword1!', newPassword: 'NewP@ssword1!', email: 'admin@swiftdrop.lk' });
+    req.flush({ message: 'Password updated successfully.' });
+  });
+
   it('loginWithGoogle should navigate to /api/v1/auth/oauth2/google', () => {
     const navSpy = jest.spyOn(service as any, 'navigateTo').mockImplementation(() => {});
     service.loginWithGoogle();
     expect(navSpy).toHaveBeenCalledWith('/api/v1/auth/oauth2/google');
+
+    service.loginWithGoogle('DISPATCHER');
+    expect(navSpy).toHaveBeenCalledWith('/api/v1/auth/oauth2/google?role=DISPATCHER');
   });
 });
