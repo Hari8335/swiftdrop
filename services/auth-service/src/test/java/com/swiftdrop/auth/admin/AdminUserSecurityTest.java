@@ -106,7 +106,8 @@ class AdminUserSecurityTest {
                       "password": "SecurePassword#2026",
                       "fullName": "Kamal Gunaratne",
                       "phoneNumber": "+94771234567",
-                      "role": "COURIER"
+                      "role": "COURIER",
+                      "zone": "COLOMBO_ZONE"
                     }
                     """))
             .andExpect(status().isCreated());

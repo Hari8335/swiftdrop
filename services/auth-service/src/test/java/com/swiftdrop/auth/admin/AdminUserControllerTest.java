@@ -72,7 +72,8 @@ class AdminUserControllerTest {
             "SecurePass#2026",
             "Kamal Gunaratne",
             "+94771234567",
-            "COURIER"
+            "COURIER",
+            "COLOMBO_ZONE"
         );
         UserSummary summary = new UserSummary(
             "u-1",
@@ -81,6 +82,7 @@ class AdminUserControllerTest {
             "+94771234567",
             "COURIER",
             true,
+            "COLOMBO_ZONE",
             Instant.now(),
             null
         );
@@ -177,6 +179,30 @@ class AdminUserControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("INVALID_ROLE"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @DisplayName("POST /api/v1/admin/users returns 400 when courier delivery zone is missing")
+    void createStaffUser_returns400_whenCourierMissingZone() throws Exception {
+        CreateStaffUserRequest request = new CreateStaffUserRequest(
+            "courier.nozone@swiftdrop.lk",
+            "SecurePass#2026",
+            "NoZone Courier",
+            "+94771234567",
+            "COURIER"
+        );
+
+        when(adminUserService.createStaffUser(any()))
+            .thenThrow(new IllegalArgumentException("Delivery zone is required for courier staff"));
+
+        mockMvc.perform(post("/api/v1/admin/users")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+            .andExpect(jsonPath("$.message").value("Delivery zone is required for courier staff"));
     }
 
     @Test

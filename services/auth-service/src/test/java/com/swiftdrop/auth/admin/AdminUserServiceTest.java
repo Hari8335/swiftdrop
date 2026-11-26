@@ -66,7 +66,8 @@ class AdminUserServiceTest {
             "SecurePass#2026",
             "Kamal Gunaratne",
             "+94771234567",
-            "COURIER"
+            "COURIER",
+            "COLOMBO_ZONE"
         );
 
         when(adminUserRepository.existsByEmailIgnoreCase("courier.kamal@swiftdrop.lk")).thenReturn(false);
@@ -79,6 +80,7 @@ class AdminUserServiceTest {
         assertThat(summary.role()).isEqualTo("COURIER");
         assertThat(summary.fullName()).isEqualTo("Kamal Gunaratne");
         assertThat(summary.enabled()).isTrue();
+        assertThat(summary.zone()).isEqualTo("COLOMBO_ZONE");
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(adminUserRepository).save(userCaptor.capture());
@@ -121,6 +123,7 @@ class AdminUserServiceTest {
         UserSummary summary = adminUserService.createStaffUser(request);
 
         assertThat(summary.role()).isEqualTo("DISPATCHER");
+        assertThat(summary.zone()).isNull();
         verify(authEventPublisher).publishUserRegistered(
             anyString(),
             eq("dispatch.saman@swiftdrop.lk"),
@@ -130,6 +133,32 @@ class AdminUserServiceTest {
             isNull(),
             eq(true)
         );
+    }
+
+    @Test
+    @DisplayName("createStaffUser for dispatcher does not assign zone even if passed in request")
+    void createStaffUser_dispatcher_ignoresZone() {
+        CreateStaffUserRequest request = new CreateStaffUserRequest(
+            "dispatch.zone@swiftdrop.lk",
+            "SecurePass#2026",
+            "Saman Perera",
+            "+94777654321",
+            "DISPATCHER",
+            "COLOMBO_ZONE"
+        );
+
+        when(adminUserRepository.existsByEmailIgnoreCase("dispatch.zone@swiftdrop.lk")).thenReturn(false);
+        when(passwordEncoder.encode("SecurePass#2026")).thenReturn("$2a$10$hashedPassword");
+        when(adminUserRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserSummary summary = adminUserService.createStaffUser(request);
+
+        assertThat(summary.role()).isEqualTo("DISPATCHER");
+        assertThat(summary.zone()).isNull();
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(adminUserRepository, atLeastOnce()).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getZone()).isNull();
     }
 
     @Test
@@ -165,7 +194,8 @@ class AdminUserServiceTest {
             null,
             "New Courier",
             "0771234567",
-            "COURIER"
+            "COURIER",
+            "COLOMBO_ZONE"
         );
 
         when(adminUserRepository.existsByEmailIgnoreCase("courier.new@swiftdrop.lk")).thenReturn(false);
@@ -255,7 +285,8 @@ class AdminUserServiceTest {
             "SecurePass#2026",
             "Existing User",
             "+94771234567",
-            "COURIER"
+            "COURIER",
+            "COLOMBO_ZONE"
         );
 
         when(adminUserRepository.existsByEmailIgnoreCase("existing@swiftdrop.lk")).thenReturn(true);
@@ -263,6 +294,85 @@ class AdminUserServiceTest {
         assertThatThrownBy(() -> adminUserService.createStaffUser(request))
             .isInstanceOf(EmailAlreadyExistsException.class)
             .hasMessageContaining("already exists");
+
+        verify(adminUserRepository, never()).save(any());
+        verifyNoInteractions(authEventPublisher);
+    }
+
+    @Test
+    @DisplayName("createStaffUser rejects COURIER when delivery zone is missing")
+    void createStaffUser_courier_rejectsMissingZone() {
+        CreateStaffUserRequest request = new CreateStaffUserRequest(
+            "courier.nozone@swiftdrop.lk",
+            "SecurePass#2026",
+            "NoZone Courier",
+            "+94771234567",
+            "COURIER"
+        );
+
+        assertThatThrownBy(() -> adminUserService.createStaffUser(request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Delivery zone is required for courier staff");
+
+        verify(adminUserRepository, never()).save(any());
+        verifyNoInteractions(authEventPublisher);
+    }
+
+    @Test
+    @DisplayName("createStaffUser rejects COURIER when delivery zone is null")
+    void createStaffUser_courier_rejectsNullZone() {
+        CreateStaffUserRequest request = new CreateStaffUserRequest(
+            "courier.nullzone@swiftdrop.lk",
+            "SecurePass#2026",
+            "NullZone Courier",
+            "+94771234567",
+            "COURIER",
+            null
+        );
+
+        assertThatThrownBy(() -> adminUserService.createStaffUser(request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Delivery zone is required for courier staff");
+
+        verify(adminUserRepository, never()).save(any());
+        verifyNoInteractions(authEventPublisher);
+    }
+
+    @Test
+    @DisplayName("createStaffUser rejects COURIER when delivery zone is empty")
+    void createStaffUser_courier_rejectsEmptyZone() {
+        CreateStaffUserRequest request = new CreateStaffUserRequest(
+            "courier.emptyzone@swiftdrop.lk",
+            "SecurePass#2026",
+            "EmptyZone Courier",
+            "+94771234567",
+            "COURIER",
+            ""
+        );
+
+        assertThatThrownBy(() -> adminUserService.createStaffUser(request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Delivery zone is required for courier staff");
+
+        verify(adminUserRepository, never()).save(any());
+        verifyNoInteractions(authEventPublisher);
+    }
+
+    @Test
+    @DisplayName("createStaffUser rejects COURIER when delivery zone is whitespace-only")
+    void createStaffUser_courier_rejectsWhitespaceZone() {
+        CreateStaffUserRequest request = new CreateStaffUserRequest(
+            "courier.wszone@swiftdrop.lk",
+            "SecurePass#2026",
+            "WhitespaceZone Courier",
+            "+94771234567",
+            "COURIER",
+            "    "
+        );
+
+        assertThatThrownBy(() -> adminUserService.createStaffUser(request))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Delivery zone is required for courier staff");
 
         verify(adminUserRepository, never()).save(any());
         verifyNoInteractions(authEventPublisher);
