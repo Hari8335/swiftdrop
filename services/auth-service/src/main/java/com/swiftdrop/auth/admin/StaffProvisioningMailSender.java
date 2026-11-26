@@ -19,7 +19,7 @@ public class StaffProvisioningMailSender {
 
     public StaffProvisioningMailSender(
             @Autowired(required = false) JavaMailSender mailSender,
-            @Value("${spring.mail.username:}") String configuredUsername) {
+            @Value("${swiftdrop.mail.from:${spring.mail.username:}}") String configuredUsername) {
         this.mailSender = mailSender;
         this.senderEmail = configuredUsername == null || configuredUsername.isBlank()
                 ? DEFAULT_SENDER_EMAIL

@@ -17,7 +17,7 @@ public class PasswordResetMailSender {
 
     public PasswordResetMailSender(
             JavaMailSender mailSender,
-            @org.springframework.beans.factory.annotation.Value("${spring.mail.username:}") String configuredUsername) {
+            @org.springframework.beans.factory.annotation.Value("${swiftdrop.mail.from:${spring.mail.username:}}") String configuredUsername) {
         this.mailSender = mailSender;
         this.senderEmail = configuredUsername == null || configuredUsername.isBlank()
                 ? DEFAULT_SENDER_EMAIL
