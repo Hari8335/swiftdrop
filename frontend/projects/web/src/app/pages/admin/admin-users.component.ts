@@ -522,7 +522,8 @@ import { AdminUsersService } from './admin-users.service';
               <label class="mb-1 block text-xs font-bold text-[#77748a]">Staff Role <span class="text-red-500 font-bold ml-0.5">*</span></label>
               <select
                 id="staff-role-select"
-                [(ngModel)]="newUserRole"
+                [ngModel]="newUserRole"
+                (ngModelChange)="onStaffRoleChange($event)"
                 name="role"
                 class="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm text-[#211f32] outline-none focus:border-[#9b432f] focus:ring-2 focus:ring-[#f2e4de]"
               >
@@ -531,8 +532,8 @@ import { AdminUsersService } from './admin-users.service';
               </select>
             </div>
 
-            <!-- Delivery Zone Selection & Autocomplete -->
-            <div class="relative">
+            <!-- Delivery Zone Selection & Autocomplete (Couriers only) -->
+            <div *ngIf="newUserRole === 'COURIER'" class="relative">
               <div class="flex items-center justify-between mb-1">
                 <label class="block text-xs font-bold text-[#77748a]">
                   Delivery Zone <span class="text-red-500 font-bold ml-0.5">*</span>
@@ -776,13 +777,22 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     return /^[0-9]{10}$/.test(phone);
   }
 
+  public onStaffRoleChange(newRole: 'COURIER' | 'DISPATCHER'): void {
+    this.newUserRole = newRole;
+    if (newRole === 'DISPATCHER') {
+      this.newUserZone.set('');
+      this.showZoneDropdown.set(false);
+    }
+  }
+
   public isFormValid(): boolean {
+    const isZoneValid = this.newUserRole === 'COURIER' ? this.newUserZone().trim().length > 0 : true;
     return (
       this.newUserFullName.trim().length > 0 &&
       /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(this.newUserEmail.trim()) &&
       this.isPhoneValid() &&
       (this.newUserRole === 'COURIER' || this.newUserRole === 'DISPATCHER') &&
-      this.newUserZone().trim().length > 0
+      isZoneValid
     );
   }
 
@@ -847,7 +857,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     this.modalError.set(null);
     this.emailAlreadyExistsError.set(false);
 
-    const zoneVal = this.newUserZone().trim();
+    const zoneVal = this.newUserRole === 'COURIER' ? this.newUserZone().trim() : '';
     const payload: CreateStaffUserRequest = {
       fullName: this.newUserFullName.trim(),
       email: this.newUserEmail.trim().toLowerCase(),
@@ -870,6 +880,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
         this.newUserEmail = '';
         this.newUserPhone = '';
         this.newUserZone.set('');
+        this.newUserRole = 'COURIER';
         this.closeCreateUserModal();
 
         // Refresh users to reconcile authoritative backend list

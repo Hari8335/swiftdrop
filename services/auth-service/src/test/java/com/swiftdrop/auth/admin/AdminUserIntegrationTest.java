@@ -57,7 +57,8 @@ class AdminUserIntegrationTest {
             "SecurePass#2026",
             "Sunil Perera",
             "+94771234567",
-            "COURIER"
+            "COURIER",
+            "COLOMBO_ZONE"
         );
 
         UserSummary summary = adminUserService.createStaffUser(request);
@@ -104,7 +105,8 @@ class AdminUserIntegrationTest {
             "SecurePass#2026",
             "User One",
             "+94771111111",
-            "COURIER"
+            "COURIER",
+            "COLOMBO_ZONE"
         );
         adminUserService.createStaffUser(request1);
 
@@ -124,10 +126,10 @@ class AdminUserIntegrationTest {
     @DisplayName("End-to-end: List users with pagination and role filter")
     void listUsers_withFilters() {
         adminUserService.createStaffUser(new CreateStaffUserRequest(
-            "courier1@swiftdrop.lk", "SecurePass#2026", "Courier One", "+94771111111", "COURIER"
+            "courier1@swiftdrop.lk", "SecurePass#2026", "Courier One", "+94771111111", "COURIER", "COLOMBO_ZONE"
         ));
         adminUserService.createStaffUser(new CreateStaffUserRequest(
-            "courier2@swiftdrop.lk", "SecurePass#2026", "Courier Two", "+94772222222", "COURIER"
+            "courier2@swiftdrop.lk", "SecurePass#2026", "Courier Two", "+94772222222", "COURIER", "GAMPAHA_ZONE"
         ));
         adminUserService.createStaffUser(new CreateStaffUserRequest(
             "dispatcher1@swiftdrop.lk", "SecurePass#2026", "Dispatcher One", "+94773333333", "DISPATCHER"
@@ -146,7 +148,7 @@ class AdminUserIntegrationTest {
     @DisplayName("End-to-end: Enable and disable user account status in database")
     void updateUserStatus_enableAndDisable() {
         UserSummary created = adminUserService.createStaffUser(new CreateStaffUserRequest(
-            "toggle@swiftdrop.lk", "SecurePass#2026", "Toggle User", "+94779999999", "COURIER"
+            "toggle@swiftdrop.lk", "SecurePass#2026", "Toggle User", "+94779999999", "COURIER", "COLOMBO_ZONE"
         ));
         assertThat(created.enabled()).isTrue();
 

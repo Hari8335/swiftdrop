@@ -116,9 +116,18 @@ public class AdminUserService {
         String userId = UUID.randomUUID().toString();
         String passwordHash = passwordEncoder.encode(temporaryPassword);
 
+        if ("COURIER".equalsIgnoreCase(role)) {
+            if (request.zone() == null || request.zone().isBlank()) {
+                throw new IllegalArgumentException("Delivery zone is required for courier staff");
+            }
+        }
+
         String zone = (request.zone() != null && !request.zone().isBlank())
             ? request.zone().trim()
             : null;
+        if ("DISPATCHER".equalsIgnoreCase(role)) {
+            zone = null;
+        }
 
         User user = new User(
             userId,

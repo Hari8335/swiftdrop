@@ -403,7 +403,7 @@ describe('AdminUsersComponent', () => {
     expect(component.newUserZone()).toBe('');
   });
 
-  it('should require delivery zone for form validity', () => {
+  it('should require delivery zone for COURIER role validity', () => {
     component.newUserFullName = 'Kamal Perera';
     component.newUserEmail = 'courier.kamal@swiftdrop.lk';
     component.newUserPhone = '0771234567';
@@ -420,5 +420,111 @@ describe('AdminUsersComponent', () => {
     // Zone provided -> valid
     component.newUserZone.set('COLOMBO_ZONE');
     expect(component.isFormValid()).toBe(true);
+  });
+
+  it('should not require delivery zone for DISPATCHER role and hide zone input in DOM', () => {
+    component.openCreateUserModal();
+    component.onStaffRoleChange('DISPATCHER');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    // Zone input must be completely hidden from the DOM
+    expect(compiled.querySelector('#staff-zone-input')).toBeNull();
+
+    component.newUserFullName = 'Sunil Perera';
+    component.newUserEmail = 'dispatch.sunil@swiftdrop.lk';
+    component.newUserPhone = '0777654321';
+    component.newUserZone.set('');
+
+    // Valid without zone for DISPATCHER
+    expect(component.isFormValid()).toBe(true);
+
+    const createdResponse: UserSummary = {
+      id: 'usr-dispatch-1',
+      email: 'dispatch.sunil@swiftdrop.lk',
+      fullName: 'Sunil Perera',
+      phoneNumber: '0777654321',
+      role: 'DISPATCHER',
+      enabled: true,
+      createdAt: '2026-10-28T14:00:00Z',
+    };
+    adminUsersServiceMock.createStaffUser.mockReturnValue(of(createdResponse));
+
+    component.submitCreateStaffUser();
+
+    // Payload must NOT contain a delivery zone for DISPATCHER
+    expect(adminUsersServiceMock.createStaffUser).toHaveBeenCalledWith({
+      fullName: 'Sunil Perera',
+      email: 'dispatch.sunil@swiftdrop.lk',
+      phoneNumber: '0777654321',
+      role: 'DISPATCHER',
+      zone: undefined,
+    });
+    expect(component.isCreateUserModalOpen()).toBe(false);
+  });
+
+  it('should clear delivery zone when switching role from COURIER to DISPATCHER and restore requirement when switching back', async () => {
+    component.openCreateUserModal();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // Initially COURIER: zone input is in DOM
+    expect(component.newUserRole).toBe('COURIER');
+    let compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#staff-zone-input')).toBeTruthy();
+
+    // Enter a zone
+    component.newUserZone.set('COLOMBO_ZONE');
+    expect(component.newUserZone()).toBe('COLOMBO_ZONE');
+
+    // Switch to DISPATCHER -> zone cleared, dropdown hidden, input removed from DOM
+    component.onStaffRoleChange('DISPATCHER');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.newUserRole).toBe('DISPATCHER');
+    expect(component.newUserZone()).toBe('');
+    expect(component.showZoneDropdown()).toBe(false);
+    expect(compiled.querySelector('#staff-zone-input')).toBeNull();
+
+    // Switch back to COURIER -> input reappears in DOM, mandatory zone validation restored
+    component.onStaffRoleChange('COURIER');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.newUserRole).toBe('COURIER');
+    expect(compiled.querySelector('#staff-zone-input')).toBeTruthy();
+
+    component.newUserFullName = 'Kamal Perera';
+    component.newUserEmail = 'courier.kamal@swiftdrop.lk';
+    component.newUserPhone = '0771234567';
+    // Zone is currently empty -> form must be invalid
+    expect(component.newUserZone()).toBe('');
+    expect(component.isFormValid()).toBe(false);
+
+    // Provide zone -> form becomes valid
+    component.newUserZone.set('GAMPAHA_ZONE');
+    expect(component.isFormValid()).toBe(true);
+  });
+
+  it('should prevent submission when form is invalid for either role', () => {
+    // COURIER with missing zone
+    component.newUserFullName = 'Test Courier';
+    component.newUserEmail = 'test@swiftdrop.lk';
+    component.newUserPhone = '0771234567';
+    component.newUserRole = 'COURIER';
+    component.newUserZone.set('');
+    expect(component.isFormValid()).toBe(false);
+
+    component.submitCreateStaffUser();
+    expect(adminUsersServiceMock.createStaffUser).not.toHaveBeenCalled();
+
+    // DISPATCHER with invalid email
+    component.newUserRole = 'DISPATCHER';
+    component.newUserEmail = 'invalid-email-format';
+    expect(component.isFormValid()).toBe(false);
+
+    component.submitCreateStaffUser();
+    expect(adminUsersServiceMock.createStaffUser).not.toHaveBeenCalled();
   });
 });
